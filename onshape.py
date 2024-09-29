@@ -14,10 +14,9 @@ import json
 import hmac
 import hashlib
 import base64
-import urllib
 import datetime
 import requests
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urlencode
 
 
 __all__ = ["Onshape"]
@@ -29,11 +28,11 @@ class Onshape:
 
     Attributes:
         - stack (str): Base URL
-        - creds (str, default='./creds.json'): Credentials location
+        - keys (str, default='./keys.json'): Credentials location
         - logging (bool, default=True): Turn logging on or off
     """
 
-    def __init__(self, stack, creds="./creds.json", logging=True):
+    def __init__(self, stack, keys="./keys.json", logging=True):
         """
         Instantiates an instance of the Onshape class. Reads credentials from a JSON file
         of this format:
@@ -46,29 +45,29 @@ class Onshape:
                 etc... add new object for each stack to test on
             }
 
-        The creds.json file should be stored in the root project folder; optionally,
+        The keys.json file should be stored in the root project folder; optionally,
         you can specify the location of a different file.
 
         Args:
             - stack (str): Base URL
-            - creds (str, default='./creds.json'): Credentials location
+            - keys (str, default='./keys.json'): Credentials location
         """
 
-        if not os.path.isfile(creds):
-            raise IOError("%s is not a file" % creds)
+        if not os.path.isfile(keys):
+            raise IOError("%s is not a file" % keys)
 
-        with open(creds) as f:
+        with open(keys) as f:
             try:
                 stacks = json.load(f)
                 if stack in stacks:
                     self._url = stack
-                    self._access_key = stacks[stack]["access_key"].encode("utf-8")
-                    self._secret_key = stacks[stack]["secret_key"].encode("utf-8")
+                    self._access_key = stacks[stack]["access_key"]
+                    self._secret_key = stacks[stack]["secret_key"]
                     self._logging = logging
                 else:
                     raise ValueError("specified stack not in file")
             except TypeError:
-                raise ValueError("%s is not valid json" % creds)
+                raise ValueError("%s is not valid json" % keys)
 
         if self._logging:
             utils.log(
@@ -105,7 +104,7 @@ class Onshape:
             - ctype (str, default='application/json'): HTTP Content-Type
         """
 
-        query = urllib.urlencode(query)
+        query = urlencode(query)
 
         hmac_str = (
             (
@@ -127,7 +126,9 @@ class Onshape:
         )
 
         signature = base64.b64encode(
-            hmac.new(self._secret_key, hmac_str, digestmod=hashlib.sha256).digest()
+            hmac.new(
+                self._secret_key.encode("utf-8"), hmac_str, digestmod=hashlib.sha256
+            ).digest()
         )
         auth = "On " + self._access_key + ":HmacSHA256:" + signature.decode("utf-8")
 
@@ -192,7 +193,7 @@ class Onshape:
             - query (dict, default={}): Query params in key-value pairs
             - headers (dict, default={}): Key-value pairs of headers
             - body (dict, default={}): Body for POST request
-            - base_url (str, default=None): Host, including scheme and port (if different from creds file)
+            - base_url (str, default=None): Host, including scheme and port (if different from keys file)
 
         Returns:
             - requests.Response: Object containing the response from Onshape
@@ -201,7 +202,7 @@ class Onshape:
         req_headers = self._make_headers(method, path, query, headers)
         if base_url is None:
             base_url = self._url
-        url = base_url + path + "?" + urllib.urlencode(query)
+        url = base_url + path + "?" + urlencode(query)
 
         if self._logging:
             utils.log(body)

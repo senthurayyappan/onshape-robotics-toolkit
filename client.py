@@ -1,9 +1,9 @@
-'''
+"""
 client
 ======
 
 Convenience functions for working with the Onshape API
-'''
+"""
 
 from onshape import Onshape
 
@@ -13,8 +13,8 @@ import string
 import os
 
 
-class Client():
-    '''
+class Client:
+    """
     Defines methods for testing the Onshape API. Comes with several methods:
 
     - Create a document
@@ -24,22 +24,22 @@ class Client():
     Attributes:
         - stack (str, default='https://cad.onshape.com'): Base URL
         - logging (bool, default=True): Turn logging on or off
-    '''
+    """
 
-    def __init__(self, stack='https://cad.onshape.com', logging=True):
-        '''
+    def __init__(self, stack="https://cad.onshape.com", logging=True):
+        """
         Instantiates a new Onshape client.
 
         Args:
             - stack (str, default='https://cad.onshape.com'): Base URL
             - logging (bool, default=True): Turn logging on or off
-        '''
+        """
 
         self._stack = stack
         self._api = Onshape(stack=stack, logging=logging)
 
-    def new_document(self, name='Test Document', owner_type=0, public=False):
-        '''
+    def new_document(self, name="Test Document", owner_type=0, public=False):
+        """
         Create a new document.
 
         Args:
@@ -49,18 +49,14 @@ class Client():
 
         Returns:
             - requests.Response: Onshape response data
-        '''
+        """
 
-        payload = {
-            'name': name,
-            'ownerType': owner_type,
-            'isPublic': public
-        }
+        payload = {"name": name, "ownerType": owner_type, "isPublic": public}
 
-        return self._api.request('post', '/api/documents', body=payload)
+        return self._api.request("post", "/api/documents", body=payload)
 
     def rename_document(self, did, name):
-        '''
+        """
         Renames the specified document.
 
         Args:
@@ -69,16 +65,14 @@ class Client():
 
         Returns:
             - requests.Response: Onshape response data
-        '''
+        """
 
-        payload = {
-            'name': name
-        }
+        payload = {"name": name}
 
-        return self._api.request('post', '/api/documents/' + did, body=payload)
+        return self._api.request("post", "/api/documents/" + did, body=payload)
 
     def del_document(self, did):
-        '''
+        """
         Delete the specified document.
 
         Args:
@@ -86,12 +80,12 @@ class Client():
 
         Returns:
             - requests.Response: Onshape response data
-        '''
+        """
 
-        return self._api.request('delete', '/api/documents/' + did)
+        return self._api.request("delete", "/api/documents/" + did)
 
     def get_document(self, did):
-        '''
+        """
         Get details for a specified document.
 
         Args:
@@ -99,22 +93,22 @@ class Client():
 
         Returns:
             - requests.Response: Onshape response data
-        '''
+        """
 
-        return self._api.request('get', '/api/documents/' + did)
+        return self._api.request("get", "/api/documents/" + did)
 
     def list_documents(self):
-        '''
+        """
         Get list of documents for current user.
 
         Returns:
             - requests.Response: Onshape response data
-        '''
+        """
 
-        return self._api.request('get', '/api/documents')
+        return self._api.request("get", "/api/documents")
 
-    def create_assembly(self, did, wid, name='My Assembly'):
-        '''
+    def create_assembly(self, did, wid, name="My Assembly"):
+        """
         Creates a new assembly element in the specified document / workspace.
 
         Args:
@@ -124,16 +118,16 @@ class Client():
 
         Returns:
             - requests.Response: Onshape response data
-        '''
+        """
 
-        payload = {
-            'name': name
-        }
+        payload = {"name": name}
 
-        return self._api.request('post', '/api/assemblies/d/' + did + '/w/' + wid, body=payload)
+        return self._api.request(
+            "post", "/api/assemblies/d/" + did + "/w/" + wid, body=payload
+        )
 
     def get_features(self, did, wid, eid):
-        '''
+        """
         Gets the feature list for specified document / workspace / part studio.
 
         Args:
@@ -143,12 +137,14 @@ class Client():
 
         Returns:
             - requests.Response: Onshape response data
-        '''
+        """
 
-        return self._api.request('get', '/api/partstudios/d/' + did + '/w/' + wid + '/e/' + eid + '/features')
+        return self._api.request(
+            "get", "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/features"
+        )
 
     def get_partstudio_tessellatededges(self, did, wid, eid):
-        '''
+        """
         Gets the tessellation of the edges of all parts in a part studio.
 
         Args:
@@ -158,12 +154,21 @@ class Client():
 
         Returns:
             - requests.Response: Onshape response data
-        '''
+        """
 
-        return self._api.request('get', '/api/partstudios/d/' + did + '/w/' + wid + '/e/' + eid + '/tessellatededges')
+        return self._api.request(
+            "get",
+            "/api/partstudios/d/"
+            + did
+            + "/w/"
+            + wid
+            + "/e/"
+            + eid
+            + "/tessellatededges",
+        )
 
-    def upload_blob(self, did, wid, filepath='./blob.json'):
-        '''
+    def upload_blob(self, did, wid, filepath="./blob.json"):
+        """
         Uploads a file to a new blob element in the specified doc.
 
         Args:
@@ -173,10 +178,10 @@ class Client():
 
         Returns:
             - requests.Response: Onshape response data
-        '''
+        """
 
         chars = string.ascii_letters + string.digits
-        boundary_key = ''.join(random.choice(chars) for i in range(8))
+        boundary_key = "".join(random.choice(chars) for i in range(8))
 
         mimetype = mimetypes.guess_type(filepath)[0]
         encoded_filename = os.path.basename(filepath)
@@ -184,21 +189,44 @@ class Client():
         blob = open(filepath)
 
         req_headers = {
-            'Content-Type': 'multipart/form-data; boundary="%s"' % boundary_key
+            "Content-Type": 'multipart/form-data; boundary="%s"' % boundary_key
         }
 
         # build request body
-        payload = '--' + boundary_key + '\r\nContent-Disposition: form-data; name="encodedFilename"\r\n\r\n' + encoded_filename + '\r\n'
-        payload += '--' + boundary_key + '\r\nContent-Disposition: form-data; name="fileContentLength"\r\n\r\n' + file_content_length + '\r\n'
-        payload += '--' + boundary_key + '\r\nContent-Disposition: form-data; name="file"; filename="' + encoded_filename + '"\r\n'
-        payload += 'Content-Type: ' + mimetype + '\r\n\r\n'
+        payload = (
+            "--"
+            + boundary_key
+            + '\r\nContent-Disposition: form-data; name="encodedFilename"\r\n\r\n'
+            + encoded_filename
+            + "\r\n"
+        )
+        payload += (
+            "--"
+            + boundary_key
+            + '\r\nContent-Disposition: form-data; name="fileContentLength"\r\n\r\n'
+            + file_content_length
+            + "\r\n"
+        )
+        payload += (
+            "--"
+            + boundary_key
+            + '\r\nContent-Disposition: form-data; name="file"; filename="'
+            + encoded_filename
+            + '"\r\n'
+        )
+        payload += "Content-Type: " + mimetype + "\r\n\r\n"
         payload += blob.read()
-        payload += '\r\n--' + boundary_key + '--'
+        payload += "\r\n--" + boundary_key + "--"
 
-        return self._api.request('post', '/api/blobelements/d/' + did + '/w/' + wid, headers=req_headers, body=payload)
+        return self._api.request(
+            "post",
+            "/api/blobelements/d/" + did + "/w/" + wid,
+            headers=req_headers,
+            body=payload,
+        )
 
     def part_studio_stl(self, did, wid, eid):
-        '''
+        """
         Exports STL export from a part studio
 
         Args:
@@ -208,9 +236,11 @@ class Client():
 
         Returns:
             - requests.Response: Onshape response data
-        '''
+        """
 
-        req_headers = {
-            'Accept': 'application/vnd.onshape.v1+octet-stream'
-        }
-        return self._api.request('get', '/api/partstudios/d/' + did + '/w/' + wid + '/e/' + eid + '/stl', headers=req_headers)
+        req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
+        return self._api.request(
+            "get",
+            "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/stl",
+            headers=req_headers,
+        )
