@@ -1,1 +1,1 @@
-::: onshape_api.foo
+::: onshape_api.client

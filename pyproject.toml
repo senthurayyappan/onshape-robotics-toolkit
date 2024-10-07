@@ -82,10 +82,10 @@ select = [
     "TRY",
 ]
 ignore = [
-    # LineTooLong
-    "E501",
     # DoNotAssignLambda
     "E731",
+    "TRY003",
+    "SIM115",
 ]
 
 [tool.ruff.format]

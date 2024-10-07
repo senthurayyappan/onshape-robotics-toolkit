@@ -5,19 +5,19 @@ onshape
 Provides access to the Onshape REST API
 """
 
-import onshape_api.utils as utils
-
-import os
-import random
-import string
-import json
-import hmac
-import hashlib
 import base64
 import datetime
-import requests
-from urllib.parse import urlparse, parse_qs, urlencode
+import hashlib
+import hmac
+import json
+import os
+import secrets
+import string
+from urllib.parse import parse_qs, urlencode, urlparse
 
+import requests
+
+import onshape_api.utils as utils
 
 __all__ = ["Onshape"]
 
@@ -54,7 +54,7 @@ class Onshape:
         """
 
         if not os.path.isfile(keys):
-            raise IOError("%s is not a file" % keys)
+            raise OSError(f"{keys} is not a file")
 
         with open(keys) as f:
             try:
@@ -66,14 +66,11 @@ class Onshape:
                     self._logging = logging
                 else:
                     raise ValueError("specified stack not in file")
-            except TypeError:
-                raise ValueError("%s is not valid json" % keys)
+            except TypeError as err:
+                raise ValueError(f"{keys} is not valid json") from err
 
         if self._logging:
-            utils.log(
-                "onshape instance created: url = %s, access key = %s"
-                % (self._url, self._access_key)
-            )
+            utils.log(f"onshape instance created: url = {self._url}, access key = {self._access_key}")
 
     def _make_nonce(self):
         """
@@ -84,14 +81,14 @@ class Onshape:
         """
 
         chars = string.digits + string.ascii_letters
-        nonce = "".join(random.choice(chars) for i in range(25))
+        nonce = "".join(secrets.choice(chars) for i in range(25))
 
         if self._logging:
-            utils.log("nonce created: %s" % nonce)
+            utils.log(f"nonce created: {nonce}")
 
         return nonce
 
-    def _make_auth(self, method, date, nonce, path, query={}, ctype="application/json"):
+    def _make_auth(self, method, date, nonce, path, query=None, ctype="application/json"):
         """
         Create the request signature to authenticate
 
@@ -104,47 +101,32 @@ class Onshape:
             - ctype (str, default='application/json'): HTTP Content-Type
         """
 
+        if query is None:
+            query = {}
         query = urlencode(query)
 
         hmac_str = (
-            (
-                method
-                + "\n"
-                + nonce
-                + "\n"
-                + date
-                + "\n"
-                + ctype
-                + "\n"
-                + path
-                + "\n"
-                + query
-                + "\n"
-            )
+            (method + "\n" + nonce + "\n" + date + "\n" + ctype + "\n" + path + "\n" + query + "\n")
             .lower()
             .encode("utf-8")
         )
 
         signature = base64.b64encode(
-            hmac.new(
-                self._secret_key.encode("utf-8"), hmac_str, digestmod=hashlib.sha256
-            ).digest()
+            hmac.new(self._secret_key.encode("utf-8"), hmac_str, digestmod=hashlib.sha256).digest()
         )
         auth = "On " + self._access_key + ":HmacSHA256:" + signature.decode("utf-8")
 
         if self._logging:
-            utils.log(
-                {
-                    "query": query,
-                    "hmac_str": hmac_str,
-                    "signature": signature,
-                    "auth": auth,
-                }
-            )
+            utils.log({
+                "query": query,
+                "hmac_str": hmac_str,
+                "signature": signature,
+                "auth": auth,
+            })
 
         return auth
 
-    def _make_headers(self, method, path, query={}, headers={}):
+    def _make_headers(self, method, path, query=None, headers=None):
         """
         Creates a headers object to sign the request
 
@@ -158,13 +140,13 @@ class Onshape:
             - dict: Dictionary containing all headers
         """
 
+        if headers is None:
+            headers = {}
+        if query is None:
+            query = {}
         date = datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
         nonce = self._make_nonce()
-        ctype = (
-            headers.get("Content-Type")
-            if headers.get("Content-Type")
-            else "application/json"
-        )
+        ctype = headers.get("Content-Type") if headers.get("Content-Type") else "application/json"
 
         auth = self._make_auth(method, date, nonce, path, query=query, ctype=ctype)
 
@@ -183,7 +165,7 @@ class Onshape:
 
         return req_headers
 
-    def request(self, method, path, query={}, headers={}, body={}, base_url=None):
+    def request(self, method, path, query=None, headers=None, body=None, base_url=None):
         """
         Issues a request to Onshape
 
@@ -198,56 +180,69 @@ class Onshape:
         Returns:
             - requests.Response: Object containing the response from Onshape
         """
+        body = body or {}
+        headers = headers or {}
+        query = query or {}
+        base_url = base_url or self._url
 
         req_headers = self._make_headers(method, path, query, headers)
-        if base_url is None:
-            base_url = self._url
-        url = base_url + path + "?" + urlencode(query)
+        url = self._build_url(base_url, path, query)
 
         if self._logging:
-            utils.log(body)
-            utils.log(req_headers)
-            utils.log("request url: " + url)
+            self._log_request_details(body, req_headers, url)
 
-        # only parse as json string if we have to
-        body = json.dumps(body) if type(body) == dict else body
+        body = json.dumps(body) if isinstance(body, dict) else body
 
-        res = requests.request(
+        res = self._send_request(method, url, req_headers, body)
+
+        if res.status_code == 307:
+            return self._handle_redirect(res, method, headers)
+        else:
+            self._log_response(res)
+
+        return res
+
+    def _build_url(self, base_url, path, query):
+        return base_url + path + "?" + urlencode(query)
+
+    def _log_request_details(self, body, req_headers, url):
+        utils.log(body)
+        utils.log(req_headers)
+        utils.log("request url: " + url)
+
+    def _send_request(self, method, url, headers, body):
+        return requests.request(
             method,
             url,
-            headers=req_headers,
+            headers=headers,
             data=body,
             allow_redirects=False,
             stream=True,
+            timeout=10,  # Specify an appropriate timeout value in seconds
         )
 
-        if res.status_code == 307:
-            location = urlparse(res.headers["Location"])
-            querystring = parse_qs(location.query)
+    def _handle_redirect(self, res, method, headers):
+        location = urlparse(res.headers["Location"])
+        querystring = parse_qs(location.query)
 
-            if self._logging:
-                utils.log("request redirected to: " + location.geturl())
+        if self._logging:
+            utils.log("request redirected to: " + location.geturl())
 
-            new_query = {}
-            new_base_url = location.scheme + "://" + location.netloc
+        new_query = {key: querystring[key][0] for key in querystring}
+        new_base_url = location.scheme + "://" + location.netloc
 
-            for key in querystring:
-                new_query[key] = querystring[key][
-                    0
-                ]  # won't work for repeated query params
+        return self.request(
+            method,
+            location.path,
+            query=new_query,
+            headers=headers,
+            base_url=new_base_url,
+        )
 
-            return self.request(
-                method,
-                location.path,
-                query=new_query,
-                headers=headers,
-                base_url=new_base_url,
-            )
-        elif not 200 <= res.status_code <= 206:
+    def _log_response(self, res):
+        if not 200 <= res.status_code <= 206:
             if self._logging:
                 utils.log("request failed, details: " + res.text, level=1)
         else:
             if self._logging:
                 utils.log("request succeeded, details: " + res.text)
-
-        return res

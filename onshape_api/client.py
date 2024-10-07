@@ -5,12 +5,12 @@ client
 Convenience functions for working with the Onshape API
 """
 
-from onshape_api.onshape import Onshape
-
 import mimetypes
-import random
-import string
 import os
+import secrets
+import string
+
+from onshape_api.onshape import Onshape
 
 
 class Client:
@@ -122,9 +122,7 @@ class Client:
 
         payload = {"name": name}
 
-        return self._api.request(
-            "post", "/api/assemblies/d/" + did + "/w/" + wid, body=payload
-        )
+        return self._api.request("post", "/api/assemblies/d/" + did + "/w/" + wid, body=payload)
 
     def get_features(self, did, wid, eid):
         """
@@ -139,9 +137,7 @@ class Client:
             - requests.Response: Onshape response data
         """
 
-        return self._api.request(
-            "get", "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/features"
-        )
+        return self._api.request("get", "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/features")
 
     def get_partstudio_tessellatededges(self, did, wid, eid):
         """
@@ -158,13 +154,7 @@ class Client:
 
         return self._api.request(
             "get",
-            "/api/partstudios/d/"
-            + did
-            + "/w/"
-            + wid
-            + "/e/"
-            + eid
-            + "/tessellatededges",
+            "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/tessellatededges",
         )
 
     def upload_blob(self, did, wid, filepath="./blob.json"):
@@ -181,16 +171,14 @@ class Client:
         """
 
         chars = string.ascii_letters + string.digits
-        boundary_key = "".join(random.choice(chars) for i in range(8))
+        boundary_key = "".join(secrets.choice(chars) for i in range(8))
 
         mimetype = mimetypes.guess_type(filepath)[0]
         encoded_filename = os.path.basename(filepath)
         file_content_length = str(os.path.getsize(filepath))
         blob = open(filepath)
 
-        req_headers = {
-            "Content-Type": 'multipart/form-data; boundary="%s"' % boundary_key
-        }
+        req_headers = {"Content-Type": f'multipart/form-data; boundary="{boundary_key}"'}
 
         # build request body
         payload = (
