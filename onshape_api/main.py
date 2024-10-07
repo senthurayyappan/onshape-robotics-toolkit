@@ -1,4 +1,4 @@
-from client import Client
+from onshape_api.client import Client
 
 stacks = {"cad": "https://cad.onshape.com"}
 
