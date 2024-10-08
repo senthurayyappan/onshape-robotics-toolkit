@@ -7,17 +7,13 @@ from pydantic import BaseModel, field_validator, model_validator
 __all__ = ["WORKSPACE_TYPE", "Document", "parse_url"]
 
 
-class WORKSPACE_TYPE(Enum):
-    def __str__(self):
-        return str(self.value)
-
+class WORKSPACE_TYPE(str, Enum):
     W = "w"
     V = "v"
     M = "m"
 
 
 DOCUMENT_PATTERN = r"https://cad.onshape.com/documents/([\w\d]+)/(w|v|m)/([\w\d]+)/e/([\w\d]+)"
-WORKSPACE_TYPES = [member.value for member in WORKSPACE_TYPE]
 
 
 def parse_url(url: str) -> str:
@@ -68,8 +64,10 @@ class Document(BaseModel):
         if not value:
             raise ValueError("Workspace type cannot be empty, please check the URL")
 
-        if value not in WORKSPACE_TYPES:
-            raise ValueError(f"Invalid workspace type. Must be one of {WORKSPACE_TYPES}, please check the URL")
+        if value not in WORKSPACE_TYPE.__members__.values():
+            raise ValueError(
+                f"Invalid workspace type. Must be one of {WORKSPACE_TYPE.__members__.values()}, please check the URL"
+            )
 
         return value
 

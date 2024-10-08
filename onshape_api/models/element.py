@@ -12,9 +12,6 @@ class ELEMENT_TYPE(str, Enum):
     DRAWING = "DRAWING"
 
 
-ELEMENT_TYPES = [member.value for member in ELEMENT_TYPE]
-
-
 class Element(BaseModel):
     id: str
     name: str
@@ -23,7 +20,7 @@ class Element(BaseModel):
 
     @field_validator("elementType")
     def validate_type(cls, value: str) -> str:
-        if value not in ELEMENT_TYPES:
+        if value not in ELEMENT_TYPE.__members__.values():
             raise ValueError(f"Invalid element type: {value}")
 
         return value

@@ -2,7 +2,6 @@ import base64
 import datetime
 import hashlib
 import hmac
-import json
 import os
 import secrets
 import string
@@ -13,6 +12,7 @@ import requests
 from dotenv import load_dotenv
 
 from onshape_api.models.element import Element
+from onshape_api.models.variable import Variable
 from onshape_api.utilities import LOG_LEVEL, LOGGER
 
 __all__ = ["Client", "BASE_URL", "HTTP"]
@@ -168,7 +168,53 @@ class Client:
             _request_path,
         ).json()
 
-        return [Element(**element) for element in _elements_json]
+        return {element["name"]: Element(**element) for element in _elements_json}
+
+    def get_variables(self, did, wid, eid):
+        """
+        Get list of variables in a variable studio.
+
+        Args:
+            - did (str): Document ID
+            - wid (str): Workspace ID
+            - eid (str): Element ID
+
+        Returns:
+            - requests.Response: Onshape response data
+        """
+        _request_path = "/api/variables/d/" + did + "/w/" + wid + "/e/" + eid + "/variables"
+
+        _variables_json = self.request(
+            HTTP.GET,
+            _request_path,
+        ).json()
+
+        return {variable["name"]: Variable(**variable) for variable in _variables_json[0]["variables"]}
+
+    def set_variables(self, did, wid, eid, variables):
+        """
+        Set variables in a variable studio.
+
+        Args:
+            - did (str): Document ID
+            - wid (str): Workspace ID
+            - eid (str): Element ID
+            - variables (dict): Dictionary of variable name and value pairs
+
+        Returns:
+            - requests.Response: Onshape response data
+        """
+
+        payload = [variable.model_dump() for variable in variables.values()]
+
+        # api/v9/variables/d/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/cba5e3ca026547f34f8d9f0f/variables
+        _request_path = "/api/variables/d/" + did + "/w/" + wid + "/e/" + eid + "/variables"
+
+        return self.request(
+            HTTP.POST,
+            _request_path,
+            body=payload,
+        )
 
     def create_assembly(self, did, wid, name="My Assembly"):
         """
@@ -240,19 +286,24 @@ class Client:
         Returns:
             - requests.Response: Object containing the response from Onshape
         """
-        body = body or {}
-        headers = headers or {}
-        query = query or {}
-        base_url = base_url or self._url
+        if query is None:
+            query = {}
+        if headers is None:
+            headers = {}
+        # if body is None:
+        #     body = {}
+        if base_url is None:
+            base_url = self._url
 
         req_headers = self._make_headers(method, path, query, headers)
         url = self._build_url(base_url, path, query)
 
-        LOGGER.debug(f"{body}")
-        LOGGER.debug(f"{req_headers}")
-        LOGGER.debug(f"request url: {url}")
+        LOGGER.debug(f"Request body: {body}")
+        LOGGER.debug(f"Request headers: {req_headers}")
+        LOGGER.debug(f"Request URL: {url}")
 
-        body = json.dumps(body) if isinstance(body, dict) else body
+        # body = json.dumps(body) if isinstance(body, dict) else body
+        # print(body)
 
         res = self._send_request(method, url, req_headers, body)
 
@@ -271,7 +322,7 @@ class Client:
             method,
             url,
             headers=headers,
-            data=body,
+            json=body,
             allow_redirects=False,
             stream=True,
             timeout=10,  # Specify an appropriate timeout value in seconds
