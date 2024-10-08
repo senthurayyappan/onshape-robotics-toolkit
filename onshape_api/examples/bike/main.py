@@ -1,25 +1,13 @@
-import onshape_api
+import onshape_api as osa
 
-client = onshape_api.Client(env="/Users/holycow/Projects/onshape-api/.env")
-print(client.list_documents().json())
+client = osa.Client()
+doc = osa.Document(
+    url="https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812"
+)
 
-# new_doc = c.new_document(name="Hello World", public=True).json()
-# did = new_doc["id"]
-# wid = new_doc["defaultWorkspace"]["id"]
-
-# details = c.get_document(did)
-# print(details.json())
-
-# asm = c.create_assembly(did, wid, name="Test Assembly")
-
-# if asm.json()["name"] == "Test Assembly":
-#     print("Assembly created")
-# else:
-#     print("Error: Assembly not created")
-
-# c.del_document(did)
-# trashed_doc = c.get_document(did)
-# if trashed_doc.json()["trash"] is True:
-#     print("Document now in trash")
-# else:
-#     print("Error: Document not trashed")
+elements = client.get_elements(doc.did, doc.wtype, doc.wid)
+variable_studio_element = next(
+    (element for element in elements if element.elementType == osa.ELEMENT_TYPE.VARIABLESTUDIO),
+    None,
+)
+print(variable_studio_element)

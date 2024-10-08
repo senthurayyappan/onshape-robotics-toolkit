@@ -3,18 +3,19 @@ import datetime
 import hashlib
 import hmac
 import json
-import mimetypes
 import os
 import secrets
 import string
+from enum import Enum
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import requests
 from dotenv import load_dotenv
 
+from onshape_api.models.element import Element
 from onshape_api.utilities import LOG_LEVEL, LOGGER
 
-__all__ = ["Client"]
+__all__ = ["Client", "BASE_URL", "HTTP"]
 
 """
 client
@@ -24,6 +25,14 @@ Convenience functions for working with the Onshape API
 """
 
 # TODO: Add asyncio support for async requests
+
+BASE_URL = "https://cad.onshape.com"
+
+
+class HTTP(str, Enum):
+    GET = "get"
+    POST = "post"
+    DELETE = "delete"
 
 
 def load_env_variables(env):
@@ -45,15 +54,14 @@ def load_env_variables(env):
 
     load_dotenv(env)
 
-    url = os.getenv("URL")
     access_key = os.getenv("ACCESS_KEY")
     secret_key = os.getenv("SECRET_KEY")
 
-    if not url or not access_key or not secret_key:
-        missing_vars = [var for var in ["URL", "ACCESS_KEY", "SECRET_KEY"] if not os.getenv(var)]
+    if not access_key or not secret_key:
+        missing_vars = [var for var in ["ACCESS_KEY", "SECRET_KEY"] if not os.getenv(var)]
         raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
-    return url, access_key, secret_key
+    return access_key, secret_key
 
 
 def make_nonce():
@@ -91,7 +99,8 @@ class Client:
             - env (str, default='./.env'): Environment file location
         """
 
-        self._url, self._access_key, self._secret_key = load_env_variables(env)
+        self._url = BASE_URL
+        self._access_key, self._secret_key = load_env_variables(env)
         LOGGER.set_file_name(log_file)
         LOGGER.set_stream_level(LOG_LEVEL[log_level])
         LOGGER.info(f"Onshape API initialized with env file: {env}")
@@ -111,23 +120,7 @@ class Client:
 
         payload = {"name": name, "ownerType": owner_type, "isPublic": public}
 
-        return self.request("post", "/api/documents", body=payload)
-
-    def rename_document(self, did, name):
-        """
-        Renames the specified document.
-
-        Args:
-            - did (str): Document ID
-            - name (str): New document name
-
-        Returns:
-            - requests.Response: Onshape response data
-        """
-
-        payload = {"name": name}
-
-        return self.request("post", "/api/documents/" + did, body=payload)
+        return self.request(HTTP.POST, "/api/documents", body=payload)
 
     def del_document(self, did):
         """
@@ -140,7 +133,7 @@ class Client:
             - requests.Response: Onshape response data
         """
 
-        return self.request("delete", "/api/documents/" + did)
+        return self.request(HTTP.DELETE, "/api/documents/" + did)
 
     def get_document(self, did):
         """
@@ -155,15 +148,27 @@ class Client:
 
         return self.request("get", "/api/documents/" + did)
 
-    def list_documents(self):
+    def get_elements(self, did, wtype, wid):
         """
-        Get list of documents for current user.
+        Get list of elements in a document.
+
+        Args:
+            - did (str): Document ID
+            - wtype (str): Workspace type (w, v, or m)
+            - wid (str): Workspace ID
 
         Returns:
-            - requests.Response: Onshape response data
+            -
         """
 
-        return self.request("get", "/api/documents")
+        # /documents/d/{did}/{wvm}/{wvmid}/elements
+        _request_path = "/api/documents/d/" + did + "/" + wtype + "/" + wid + "/elements"
+        _elements_json = self.request(
+            HTTP.GET,
+            _request_path,
+        ).json()
+
+        return [Element(**element) for element in _elements_json]
 
     def create_assembly(self, did, wid, name="My Assembly"):
         """
@@ -180,7 +185,7 @@ class Client:
 
         payload = {"name": name}
 
-        return self.request("post", "/api/assemblies/d/" + did + "/w/" + wid, body=payload)
+        return self.request(HTTP.POST, "/api/assemblies/d/" + did + "/w/" + wid, body=payload)
 
     def get_features(self, did, wid, eid):
         """
@@ -195,80 +200,9 @@ class Client:
             - requests.Response: Onshape response data
         """
 
-        return self.request("get", "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/features")
-
-    def get_partstudio_tessellatededges(self, did, wid, eid):
-        """
-        Gets the tessellation of the edges of all parts in a part studio.
-
-        Args:
-            - did (str): Document ID
-            - wid (str): Workspace ID
-            - eid (str): Element ID
-
-        Returns:
-            - requests.Response: Onshape response data
-        """
-
         return self.request(
-            "get",
-            "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/tessellatededges",
-        )
-
-    def upload_blob(self, did, wid, filepath="./blob.json"):
-        """
-        Uploads a file to a new blob element in the specified doc.
-
-        Args:
-            - did (str): Document ID
-            - wid (str): Workspace ID
-            - filepath (str, default='./blob.json'): Blob element location
-
-        Returns:
-            - requests.Response: Onshape response data
-        """
-
-        chars = string.ascii_letters + string.digits
-        boundary_key = "".join(secrets.choice(chars) for i in range(8))
-
-        mimetype = mimetypes.guess_type(filepath)[0]
-        encoded_filename = os.path.basename(filepath)
-        file_content_length = str(os.path.getsize(filepath))
-        blob = open(filepath)
-
-        req_headers = {"Content-Type": f'multipart/form-data; boundary="{boundary_key}"'}
-
-        # build request body
-        payload = (
-            "--"
-            + boundary_key
-            + '\r\nContent-Disposition: form-data; name="encodedFilename"\r\n\r\n'
-            + encoded_filename
-            + "\r\n"
-        )
-        payload += (
-            "--"
-            + boundary_key
-            + '\r\nContent-Disposition: form-data; name="fileContentLength"\r\n\r\n'
-            + file_content_length
-            + "\r\n"
-        )
-        payload += (
-            "--"
-            + boundary_key
-            + '\r\nContent-Disposition: form-data; name="file"; filename="'
-            + encoded_filename
-            + '"\r\n'
-        )
-        payload += "Content-Type: " + mimetype + "\r\n\r\n"
-        payload += blob.read()
-        payload += "\r\n--" + boundary_key + "--"
-
-        return self.request(
-            "post",
-            "/api/blobelements/d/" + did + "/w/" + wid,
-            headers=req_headers,
-            body=payload,
+            HTTP.GET,
+            "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/features",
         )
 
     def part_studio_stl(self, did, wid, eid):
@@ -286,81 +220,10 @@ class Client:
 
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
         return self.request(
-            "get",
+            HTTP.GET,
             "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/stl",
             headers=req_headers,
         )
-
-    def _make_auth(self, method, date, nonce, path, query=None, ctype="application/json"):
-        """
-        Create the request signature to authenticate
-
-        Args:
-            - method (str): HTTP method
-            - date (str): HTTP date header string
-            - nonce (str): Cryptographic nonce
-            - path (str): URL pathname
-            - query (dict, default={}): URL query string in key-value pairs
-            - ctype (str, default='application/json'): HTTP Content-Type
-        """
-
-        if query is None:
-            query = {}
-        query = urlencode(query)
-
-        hmac_str = (
-            (method + "\n" + nonce + "\n" + date + "\n" + ctype + "\n" + path + "\n" + query + "\n")
-            .lower()
-            .encode("utf-8")
-        )
-
-        signature = base64.b64encode(
-            hmac.new(self._secret_key.encode("utf-8"), hmac_str, digestmod=hashlib.sha256).digest()
-        )
-        auth = "On " + self._access_key + ":HmacSHA256:" + signature.decode("utf-8")
-
-        LOGGER.debug(f"query: {query}, hmac_str: {hmac_str}, signature: {signature}, auth: {auth}")
-
-        return auth
-
-    def _make_headers(self, method, path, query=None, headers=None):
-        """
-        Creates a headers object to sign the request
-
-        Args:
-            - method (str): HTTP method
-            - path (str): Request path, e.g. /api/documents. No query string
-            - query (dict, default={}): Query string in key-value format
-            - headers (dict, default={}): Other headers to pass in
-
-        Returns:
-            - dict: Dictionary containing all headers
-        """
-
-        if headers is None:
-            headers = {}
-        if query is None:
-            query = {}
-        date = datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
-        nonce = make_nonce()
-        ctype = headers.get("Content-Type") if headers.get("Content-Type") else "application/json"
-
-        auth = self._make_auth(method, date, nonce, path, query=query, ctype=ctype)
-
-        req_headers = {
-            "Content-Type": "application/json",
-            "Date": date,
-            "On-Nonce": nonce,
-            "Authorization": auth,
-            "User-Agent": "Onshape Python Sample App",
-            "Accept": "application/json",
-        }
-
-        # add in user-defined headers
-        for h in headers:
-            req_headers[h] = headers[h]
-
-        return req_headers
 
     def request(self, method, path, query=None, headers=None, body=None, base_url=None):
         """
@@ -436,3 +299,74 @@ class Client:
             LOGGER.debug(f"Request failed, details: {res.text}")
         else:
             LOGGER.debug(f"Request succeeded, details: {res.text}")
+
+    def _make_auth(self, method, date, nonce, path, query=None, ctype="application/json"):
+        """
+        Create the request signature to authenticate
+
+        Args:
+            - method (str): HTTP method
+            - date (str): HTTP date header string
+            - nonce (str): Cryptographic nonce
+            - path (str): URL pathname
+            - query (dict, default={}): URL query string in key-value pairs
+            - ctype (str, default='application/json'): HTTP Content-Type
+        """
+
+        if query is None:
+            query = {}
+        query = urlencode(query)
+
+        hmac_str = (
+            (method + "\n" + nonce + "\n" + date + "\n" + ctype + "\n" + path + "\n" + query + "\n")
+            .lower()
+            .encode("utf-8")
+        )
+
+        signature = base64.b64encode(
+            hmac.new(self._secret_key.encode("utf-8"), hmac_str, digestmod=hashlib.sha256).digest()
+        )
+        auth = "On " + self._access_key + ":HmacSHA256:" + signature.decode("utf-8")
+
+        LOGGER.debug(f"query: {query}, hmac_str: {hmac_str}, signature: {signature}, auth: {auth}")
+
+        return auth
+
+    def _make_headers(self, method, path, query=None, headers=None):
+        """
+        Creates a headers object to sign the request
+
+        Args:
+            - method (str): HTTP method
+            - path (str): Request path, e.g. /api/documents. No query string
+            - query (dict, default={}): Query string in key-value format
+            - headers (dict, default={}): Other headers to pass in
+
+        Returns:
+            - dict: Dictionary containing all headers
+        """
+
+        if headers is None:
+            headers = {}
+        if query is None:
+            query = {}
+        date = datetime.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
+        nonce = make_nonce()
+        ctype = headers.get("Content-Type") if headers.get("Content-Type") else "application/json"
+
+        auth = self._make_auth(method, date, nonce, path, query=query, ctype=ctype)
+
+        req_headers = {
+            "Content-Type": "application/json",
+            "Date": date,
+            "On-Nonce": nonce,
+            "Authorization": auth,
+            "User-Agent": "Onshape Python Sample App",
+            "Accept": "application/json",
+        }
+
+        # add in user-defined headers
+        for h in headers:
+            req_headers[h] = headers[h]
+
+        return req_headers
