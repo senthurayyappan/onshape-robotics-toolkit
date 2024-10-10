@@ -105,36 +105,6 @@ class Client:
         LOGGER.set_stream_level(LOG_LEVEL[log_level])
         LOGGER.info(f"Onshape API initialized with env file: {env}")
 
-    def new_document(self, name="Test Document", owner_type=0, public=False):
-        """
-        Create a new document.
-
-        Args:
-            - name (str, default='Test Document'): The doc name
-            - owner_type (int, default=0): 0 for user, 1 for company, 2 for team
-            - public (bool, default=False): Whether or not to make doc public
-
-        Returns:
-            - requests.Response: Onshape response data
-        """
-
-        payload = {"name": name, "ownerType": owner_type, "isPublic": public}
-
-        return self.request(HTTP.POST, "/api/documents", body=payload)
-
-    def del_document(self, did):
-        """
-        Delete the specified document.
-
-        Args:
-            - did (str): Document ID
-
-        Returns:
-            - requests.Response: Onshape response data
-        """
-
-        return self.request(HTTP.DELETE, "/api/documents/" + did)
-
     def get_document(self, did):
         """
         Get details for a specified document.
@@ -169,6 +139,41 @@ class Client:
         ).json()
 
         return {element["name"]: Element(**element) for element in _elements_json}
+
+    def get_features_from_partstudio(self, did, wid, eid):
+        """
+        Gets the feature list for specified document / workspace / part studio.
+
+        Args:
+            - did (str): Document ID
+            - wid (str): Workspace ID
+            - eid (str): Element ID
+
+        Returns:
+            - requests.Response: Onshape response data
+        """
+
+        return self.request(
+            HTTP.GET,
+            "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/features",
+        )
+
+    def get_features_from_assembly(self, did, wtype, wid, eid):
+        """
+        Gets the feature list for specified document / workspace / part studio.
+
+        Args:
+            - did (str): Document ID
+            - wid (str): Workspace ID
+            - eid (str): Element ID
+
+        Returns:
+            - json: Onshape response data
+        """
+
+        return self.request(
+            "get", "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid + "/features"
+        ).json()
 
     def get_variables(self, did, wid, eid):
         """
@@ -233,25 +238,22 @@ class Client:
 
         return self.request(HTTP.POST, "/api/assemblies/d/" + did + "/w/" + wid, body=payload)
 
-    def get_features(self, did, wid, eid):
-        """
-        Gets the feature list for specified document / workspace / part studio.
-
-        Args:
-            - did (str): Document ID
-            - wid (str): Workspace ID
-            - eid (str): Element ID
-
-        Returns:
-            - requests.Response: Onshape response data
-        """
-
+    def get_assembly(self, did, wtype, wid, eid, configuration="default"):
         return self.request(
-            HTTP.GET,
-            "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/features",
-        )
+            "get",
+            "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid,
+            query={
+                "includeMateFeatures": "true",
+                "includeMateConnectors": "true",
+                "includeNonSolids": "true",
+                "configuration": configuration,
+            },
+        ).json()
 
-    def part_studio_stl(self, did, wid, eid):
+    def get_part(self, did, wid, eid):
+        pass
+
+    def get_stl_from_partstudio(self, did, wid, eid):
         """
         Exports STL export from a part studio
 
