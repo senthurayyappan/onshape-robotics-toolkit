@@ -232,9 +232,10 @@ class Client:
         return self.request(HTTP.POST, "/api/assemblies/d/" + did + "/w/" + wid, body=payload)
 
     def get_assembly(self, did, wtype, wid, eid, configuration="default"):
-        return self.request(
-            "get",
-            "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid,
+        _request_path = "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
+        _assembly_json = self.request(
+            HTTP.GET,
+            _request_path,
             query={
                 "includeMateFeatures": "true",
                 "includeMateConnectors": "true",
@@ -242,6 +243,8 @@ class Client:
                 "configuration": configuration,
             },
         ).json()
+
+        return _assembly_json
 
     def get_part(self, did, wid, eid):
         pass
