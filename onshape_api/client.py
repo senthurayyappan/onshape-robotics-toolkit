@@ -17,13 +17,6 @@ from onshape_api.utilities import LOG_LEVEL, LOGGER
 
 __all__ = ["Client", "BASE_URL", "HTTP"]
 
-"""
-client
-======
-
-Convenience functions for working with the Onshape API
-"""
-
 # TODO: Add asyncio support for async requests
 
 BASE_URL = "https://cad.onshape.com"

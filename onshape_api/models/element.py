@@ -1,3 +1,27 @@
+"""
+Data model for Onshape's Element:
+    {
+        "name": "wheelAndFork",
+        "id": "0b0c209535554345432581fe",
+        "type": "Part Studio",
+        "elementType": "PARTSTUDIO",
+        "dataType": "onshape/partstudio",
+        "microversionId": "9b3be6165c7a2b1f6dd61305",
+        "lengthUnits": "millimeter",
+        "angleUnits": "degree",
+        "massUnits": "kilogram",
+        "timeUnits": "second",
+        "forceUnits": "newton",
+        "pressureUnits": "pascal",
+        "momentUnits": "newtonMeter",
+        "accelerationUnits": "meterPerSecondSquared",
+        "angularVelocityUnits": "degreePerSecond",
+        "energyUnits": "footPoundForce",
+        "areaUnits": "squareMillimeter",
+        "volumeUnits": "cubicMillimeter",
+    }
+"""
+
 from enum import Enum
 
 from pydantic import BaseModel, field_validator

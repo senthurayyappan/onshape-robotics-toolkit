@@ -1,3 +1,14 @@
+"""
+Data model for Onshape's Variable:
+    {
+        "type": "ANGLE",
+        "name": "forkAngle",
+        "value": null,
+        "description": "Fork angle for front wheel assembly in deg",
+        "expression": "15 deg"
+    }
+"""
+
 from enum import Enum
 from typing import Union
 
