@@ -1,7 +1,4 @@
-import time
-
 import onshape_api as osa
-from onshape_api.models.assembly import Assembly
 
 client = osa.Client()
 
@@ -17,24 +14,8 @@ variables["wheelThickness"].expression = "71 mm"
 variables["forkAngle"].expression = "30 deg"
 
 client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
-time.sleep(2)
+assembly = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
 
-
-variables["wheelDiameter"].expression = "200 mm"
-variables["wheelThickness"].expression = "91 mm"
-variables["forkAngle"].expression = "30 deg"
-
-client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
-time.sleep(2)
-
-
-variables["wheelDiameter"].expression = "250 mm"
-variables["wheelThickness"].expression = "71 mm"
-variables["forkAngle"].expression = "30 deg"
-
-# client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
-# time.sleep(2)
-assembly_json = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
-assembly = Assembly.model_validate(assembly_json)
 print(assembly)
+
 # print(client.get_features_from_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id))

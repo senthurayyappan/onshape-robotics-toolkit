@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import requests
 from dotenv import load_dotenv
 
+from onshape_api.models.assembly import Assembly
 from onshape_api.models.element import Element
 from onshape_api.models.variable import Variable
 from onshape_api.utilities import LOG_LEVEL, LOGGER
@@ -244,7 +245,7 @@ class Client:
             },
         ).json()
 
-        return _assembly_json
+        return Assembly.model_validate(_assembly_json)
 
     def get_part(self, did, wid, eid):
         pass
