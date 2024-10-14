@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from onshape_api.models.assembly import Assembly
 from onshape_api.models.element import Element
 from onshape_api.models.variable import Variable
-from onshape_api.utilities import LOG_LEVEL, LOGGER
+from onshape_api.utilities.logging import LOG_LEVEL, LOGGER
 
 __all__ = ["Client", "BASE_URL", "HTTP"]
 
@@ -132,7 +132,7 @@ class Client:
             _request_path,
         ).json()
 
-        return {element["name"]: Element(**element) for element in _elements_json}
+        return {element["name"]: Element.model_validate(element) for element in _elements_json}
 
     def get_features_from_partstudio(self, did, wid, eid):
         """
@@ -188,7 +188,7 @@ class Client:
             _request_path,
         ).json()
 
-        return {variable["name"]: Variable(**variable) for variable in _variables_json[0]["variables"]}
+        return {variable["name"]: Variable.model_validate(variable) for variable in _variables_json[0]["variables"]}
 
     def set_variables(self, did, wid, eid, variables):
         """

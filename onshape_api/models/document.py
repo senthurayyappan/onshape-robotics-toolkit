@@ -1,8 +1,8 @@
 from enum import Enum
-from typing import Any, cast
+from typing import Union, cast
 
 import regex as re
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator
 
 __all__ = ["WORKSPACE_TYPE", "Document", "parse_url"]
 
@@ -34,25 +34,14 @@ def parse_url(url: str) -> str:
 
 
 class Document(BaseModel):
-    url: str
-    did: str = None
-    wtype: str = None
-    wid: str = None
-    eid: str = None
-
-    @model_validator(mode="before")
-    def set_identifiers(cls, values: dict[str, Any]) -> dict[str, Any]:
-        did, wtype, wid, eid = parse_url(values["url"])
-
-        values["did"] = values.get("did") or did
-        values["wtype"] = values.get("wtype") or wtype
-        values["wid"] = values.get("wid") or wid
-        values["eid"] = values.get("eid") or eid
-
-        return values
+    url: Union[str, None]
+    did: str
+    wtype: str
+    wid: str
+    eid: str
 
     @field_validator("did", "wid", "eid")
-    def validate_did(cls, value: str) -> str:
+    def check_ids(cls, value: str) -> str:
         if not value:
             raise ValueError("ID cannot be empty, please check the URL")
         if not len(value) == 24:
@@ -60,7 +49,7 @@ class Document(BaseModel):
         return value
 
     @field_validator("wtype")
-    def validate_wtype(cls, value: str) -> str:
+    def check_wtype(cls, value: str) -> str:
         if not value:
             raise ValueError("Workspace type cannot be empty, please check the URL")
 
@@ -70,6 +59,11 @@ class Document(BaseModel):
             )
 
         return value
+
+    @classmethod
+    def from_url(cls, url: str) -> "Document":
+        did, wtype, wid, eid = parse_url(url)
+        return cls(url=url, did=did, wtype=wtype, wid=wid, eid=eid)
 
 
 if __name__ == "__main__":
