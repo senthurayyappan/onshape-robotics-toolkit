@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 from onshape_api.models.assembly import Assembly
 from onshape_api.models.element import Element
+from onshape_api.models.mass import MassModel
 from onshape_api.models.variable import Variable
 from onshape_api.utilities.logging import LOG_LEVEL, LOGGER
 
@@ -281,6 +282,27 @@ class Client:
         else:
             LOGGER.info(f"Failed to download STL file: {response.status_code} - {response.text}")
             return f"Failed to download STL file: {response.status_code} - {response.text}"
+
+    def get_mass_properties(self, did, wid, eid, partID):
+        """
+        Get mass properties for a part in a part studio.
+
+        Args:
+            - did (str): Document ID
+            - wid (str): Workspace ID
+            - eid (str): Element ID
+            - partID (str): Part ID
+
+        Returns:
+            - requests.Response: Onshape response data
+        """
+        _request_path = "/api/parts/d/" + did + "/w/" + wid + "/e/" + eid + "/partid/" + partID + "/massproperties"
+        _resonse_json = self.request(
+            HTTP.GET,
+            _request_path,
+        ).json()
+
+        return MassModel.model_validate(_resonse_json["bodies"][partID])
 
     def request(self, method, path, query=None, headers=None, body=None, base_url=None, log_response=True):
         """
