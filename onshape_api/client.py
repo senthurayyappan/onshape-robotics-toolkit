@@ -247,30 +247,42 @@ class Client:
 
         return Assembly.model_validate(_assembly_json)
 
-    def get_part(self, did, wid, eid):
+    def get_parts(self, did, wid, eid):
         pass
 
-    def get_stl_from_partstudio(self, did, wid, eid):
+    def download_stl(self, did, wid, eid, partID, save_path="./part.stl"):
         """
-        Exports STL export from a part studio
+        Exports STL export from a part studio and saves it to a file.
 
         Args:
             - did (str): Document ID
             - wid (str): Workspace ID
             - eid (str): Element ID
+            - partID (str): Part ID
+            - save_path (str): Path to save the STL file
 
         Returns:
-            - requests.Response: Onshape response data
+            - str: Path to the saved STL file or an error message
         """
 
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
-        return self.request(
+        _request_path = f"/api/parts/d/{did}/w/{wid}/e/{eid}/partid/{partID}/stl"
+        response = self.request(
             HTTP.GET,
-            "/api/partstudios/d/" + did + "/w/" + wid + "/e/" + eid + "/stl",
+            path=_request_path,
             headers=req_headers,
+            log_response=False,
         )
+        if response.status_code == 200:
+            with open(save_path, 'wb') as file:
+                file.write(response.content)
+            LOGGER.info(f"STL file saved to {save_path}")
+            return f"STL file saved to {save_path}"
+        else:
+            LOGGER.info(f"Failed to download STL file: {response.status_code} - {response.text}")
+            return f"Failed to download STL file: {response.status_code} - {response.text}"
 
-    def request(self, method, path, query=None, headers=None, body=None, base_url=None):
+    def request(self, method, path, query=None, headers=None, body=None, base_url=None, log_response=True):
         """
         Issues a request to Onshape
 
@@ -307,9 +319,10 @@ class Client:
         res = self._send_request(method, url, req_headers, body)
 
         if res.status_code == 307:
-            return self._handle_redirect(res, method, headers)
+            return self._handle_redirect(res, method, headers, log_response)
         else:
-            self._log_response(res)
+            if log_response:
+                self._log_response(res)
 
         return res
 
@@ -327,7 +340,7 @@ class Client:
             timeout=10,  # Specify an appropriate timeout value in seconds
         )
 
-    def _handle_redirect(self, res, method, headers):
+    def _handle_redirect(self, res, method, headers, log_response=True):
         location = urlparse(res.headers["Location"])
         querystring = parse_qs(location.query)
 
@@ -342,6 +355,7 @@ class Client:
             query=new_query,
             headers=headers,
             base_url=new_base_url,
+            log_response=log_response
         )
 
     def _log_response(self, res):
