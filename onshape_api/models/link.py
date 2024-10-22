@@ -149,3 +149,8 @@ class Link:
         if self.inertial is not None:
             self.inertial.to_xml(link)
         return link
+    
+    @classmethod
+    def from_part(cls, part):
+        _cls = cls(name=part.partId)
+        return _cls

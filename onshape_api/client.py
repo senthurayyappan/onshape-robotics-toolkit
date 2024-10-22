@@ -300,6 +300,7 @@ class Client:
         _resonse_json = self.request(
             HTTP.GET,
             _request_path,
+            {'useMassPropertyOverrides': True}
         ).json()
 
         return MassModel.model_validate(_resonse_json["bodies"][partID])
