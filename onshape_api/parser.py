@@ -1,7 +1,7 @@
 import os
 from typing import Optional, Union
 
-from onshape_api.models.assembly import Assembly, Instance, InstanceType, RootAssembly, SubAssembly, Occurrence
+from onshape_api.models.assembly import Assembly, Instance, InstanceType, Occurrence, Part, RootAssembly, SubAssembly
 
 os.environ['TCL_LIBRARY'] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6"
 os.environ['TK_LIBRARY'] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"
@@ -38,3 +38,38 @@ def get_occurences(assembly: Assembly) -> dict[str, Occurrence]:
         occurence_mapping[PREFIX_JOINER.join(occurence.path)] = occurence
 
     return occurence_mapping
+
+def get_subassemblies(
+        assembly: Assembly,
+        instance_mapping: Optional[dict[str, Instance]] = None
+    ) -> dict[str, SubAssembly]:
+
+    subassembly_mapping = {}
+
+    if instance_mapping is None:
+        instance_mapping = get_instances(assembly)
+
+    subassembly_instance_mapping = {
+        instance.uid: key for key, instance in instance_mapping.items() if instance.type == InstanceType.ASSEMBLY
+    }
+    for subassembly in assembly.subAssemblies:
+        if subassembly.uid in subassembly_instance_mapping:
+            subassembly_mapping[subassembly_instance_mapping[subassembly.uid]] = subassembly
+
+    return subassembly_mapping
+
+def get_parts(assembly: Assembly, instance_mapping: Optional[dict[str, Instance]] = None) -> dict[str, Part]:
+    # NOTE: partIDs are not unique hence we use the instance ID as the key
+    part_mapping = {}
+
+    if instance_mapping is None:
+        instance_mapping = get_instances(assembly)
+
+    part_instance_mapping = {
+        instance.uid: key for key, instance in instance_mapping.items() if instance.type == InstanceType.PART
+    }
+    for part in assembly.parts:
+        if part.uid in part_instance_mapping:
+            part_mapping[part_instance_mapping[part.uid]] = part
+
+    return part_mapping
