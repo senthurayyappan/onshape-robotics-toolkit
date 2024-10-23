@@ -3,6 +3,8 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
+from onshape_api.models.assembly import Assembly
+from onshape_api.models.document import Document
 from onshape_api.models.geometry import BoxGeometry, CylinderGeometry
 from onshape_api.models.joint import BaseJoint, JointDynamics, JointLimits, RevoluteJoint
 from onshape_api.models.link import (
@@ -22,6 +24,8 @@ from onshape_api.models.link import (
 class Robot:
     name: str
     parts: list[Link | BaseJoint]
+    document: Document = None
+    assembly: Assembly = None
 
     def to_xml(self) -> ET.Element:
         robot = ET.Element("robot", name=self.name)

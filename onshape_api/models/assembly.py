@@ -3,6 +3,8 @@ from typing import Union
 
 from pydantic import BaseModel, field_validator
 
+from onshape_api.utilities.helpers import generate_uid
+
 
 class InstanceType(str, Enum):
     PART = "Part"
@@ -78,6 +80,15 @@ class IDBase(BaseModel):
 
         return v
 
+    @property
+    def uid(self):
+        return generate_uid([
+            self.documentId,
+            self.documentMicroversion,
+            self.elementId,
+            self.fullConfiguration
+        ])
+
 
 class Part(IDBase):
     """
@@ -98,6 +109,17 @@ class Part(IDBase):
     isStandardContent: bool
     partId: str
     bodyType: str
+
+    @property
+    def uid(self):
+        return generate_uid([
+            self.documentId,
+            self.documentMicroversion,
+            self.elementId,
+            self.partId,
+            self.fullConfiguration
+        ])
+
 
 
 class PartInstance(IDBase):
@@ -133,6 +155,17 @@ class PartInstance(IDBase):
 
         return v
 
+    @property
+    def uid(self):
+        return generate_uid([
+            self.documentId,
+            self.documentMicroversion,
+            self.elementId,
+            self.partId,
+            self.fullConfiguration
+        ])
+
+
 
 class AssemblyInstance(IDBase):
     """
@@ -163,6 +196,8 @@ class AssemblyInstance(IDBase):
 
         return v
 
+
+Instance = Union[PartInstance, AssemblyInstance]
 
 class MatedCS(BaseModel):
     """
@@ -309,6 +344,14 @@ class SubAssembly(IDBase):
     patterns: list[dict]
     features: list[MateFeature]
 
+    @property
+    def uid(self):
+        return generate_uid([
+            self.documentId,
+            self.documentMicroversion,
+            self.elementId,
+            self.fullConfiguration
+        ])
 
 class RootAssembly(SubAssembly):
     """
@@ -316,6 +359,7 @@ class RootAssembly(SubAssembly):
     """
 
     occurrences: list[Occurrence]
+
 
 
 class Assembly(BaseModel):

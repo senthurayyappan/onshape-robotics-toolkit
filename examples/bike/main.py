@@ -1,4 +1,5 @@
 import onshape_api as osa
+from onshape_api.graph import create_graph
 
 # Initialize the client with the constructed path
 client = osa.Client()
@@ -16,8 +17,4 @@ variables["forkAngle"].expression = "30 deg"
 client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
 assembly = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
 
-for i, part in enumerate(assembly.parts):
-    # client.download_stl(part.documentId, doc.wid, part.elementId, part.partId, save_path=f"./{part.partId}_{i}.stl")
-    print(client.get_mass_properties(part.documentId, doc.wid, part.elementId, part.partId))
-
-# print(client.get_features_from_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id))
+create_graph(assembly, "bike_graph.png")
