@@ -1,5 +1,6 @@
 import onshape_api as osa
-from onshape_api.map import traverse_assembly
+from onshape_api.parser import get_instances, get_occurences
+from onshape_api.utilities.helpers import print_dict
 
 # Initialize the client with the constructed path
 client = osa.Client()
@@ -17,5 +18,7 @@ variables["forkAngle"].expression = "30 deg"
 client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
 assembly = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
 
-traverse_assembly(assembly)
+print_dict(get_occurences(assembly))
+print("\n")
+print_dict(get_instances(assembly))
 
