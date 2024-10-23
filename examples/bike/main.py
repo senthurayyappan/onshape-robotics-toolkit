@@ -1,6 +1,6 @@
 import onshape_api as osa
-from onshape_api.parser import get_instances, get_occurences, get_subassemblies, get_parts
-from onshape_api.utilities.helpers import print_dict
+from onshape_api.graph import create_graph
+from onshape_api.parse import get_instances, get_mates, get_occurences, get_parts, get_subassemblies
 
 # Initialize the client with the constructed path
 client = osa.Client()
@@ -18,7 +18,10 @@ variables["forkAngle"].expression = "30 deg"
 client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
 assembly = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
 
-# print_dict(get_occurences(assembly))
-# print_dict(get_instances(assembly))
-# print_dict(get_subassemblies(assembly))
-print_dict(get_parts(assembly))
+occurences = get_occurences(assembly)
+instances = get_instances(assembly)
+subassemblies = get_subassemblies(assembly, instances)
+parts = get_parts(assembly, instances)
+mates = get_mates(assembly)
+
+create_graph(occurences=occurences, instances=instances, subassemblies=subassemblies, parts=parts, mates=mates)

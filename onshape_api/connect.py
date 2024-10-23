@@ -275,7 +275,7 @@ class Client:
             log_response=False,
         )
         if response.status_code == 200:
-            with open(save_path, 'wb') as file:
+            with open(save_path, "wb") as file:
                 file.write(response.content)
             LOGGER.info(f"STL file saved to {save_path}")
             return f"STL file saved to {save_path}"
@@ -297,11 +297,7 @@ class Client:
             - requests.Response: Onshape response data
         """
         _request_path = "/api/parts/d/" + did + "/w/" + wid + "/e/" + eid + "/partid/" + partID + "/massproperties"
-        _resonse_json = self.request(
-            HTTP.GET,
-            _request_path,
-            {'useMassPropertyOverrides': True}
-        ).json()
+        _resonse_json = self.request(HTTP.GET, _request_path, {"useMassPropertyOverrides": True}).json()
 
         return MassModel.model_validate(_resonse_json["bodies"][partID])
 
@@ -373,12 +369,7 @@ class Client:
         new_base_url = location.scheme + "://" + location.netloc
 
         return self.request(
-            method,
-            location.path,
-            query=new_query,
-            headers=headers,
-            base_url=new_base_url,
-            log_response=log_response
+            method, location.path, query=new_query, headers=headers, base_url=new_base_url, log_response=log_response
         )
 
     def _log_response(self, res):
