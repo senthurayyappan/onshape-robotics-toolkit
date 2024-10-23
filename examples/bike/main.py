@@ -1,5 +1,5 @@
 import onshape_api as osa
-from onshape_api.graph import create_graph
+from onshape_api.map import traverse_assembly
 
 # Initialize the client with the constructed path
 client = osa.Client()
@@ -17,4 +17,5 @@ variables["forkAngle"].expression = "30 deg"
 client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
 assembly = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
 
-create_graph(assembly, "bike_graph.png")
+traverse_assembly(assembly)
+
