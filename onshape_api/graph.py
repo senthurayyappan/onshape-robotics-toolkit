@@ -9,6 +9,8 @@ from onshape_api.models.assembly import (
     Part,
     SubAssembly,
 )
+from onshape_api.parse import MATE_JOINER, SUBASSEMBLY_JOINER
+from onshape_api.utilities.helpers import print_dict
 from onshape_api.utilities.logging import LOGGER
 
 
@@ -24,9 +26,26 @@ def create_graph(
     for occurence in occurences:
         if instances[occurence].type == InstanceType.PART:
             try:
-                graph.add_node(parts[occurence].partId, type=InstanceType.PART, id=occurence)
+                if occurences[occurence].hidden:
+                    continue
+
+                graph.add_node(occurence, **parts[occurence].model_dump())
             except KeyError:
                 LOGGER.warning(f"Part {occurence} not found")
 
-    nx.draw(graph, with_labels=True)
+        # elif instances[occurence].type == InstanceType.ASSEMBLY:
+        #     try:
+        #         graph.add_node(occurence, **subassemblies[occurence].model_dump())
+        #     except KeyError:
+        #         LOGGER.warning(f"SubAssembly {occurence} not found")
+
+    for mate in mates:
+        try:
+            child, parent = mate.split(MATE_JOINER)
+            print(child, parent)
+            graph.add_edge(child, parent, **mates[mate].model_dump())
+        except KeyError:
+            LOGGER.warning(f"Mate {mate} not found")
+
+    nx.draw_circular(graph, with_labels=True)
     plt.show()

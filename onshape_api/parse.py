@@ -13,6 +13,7 @@ from onshape_api.models.assembly import (
     RootAssembly,
     SubAssembly,
 )
+from onshape_api.utilities.helpers import print_dict
 
 os.environ["TCL_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6"
 os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"
@@ -75,45 +76,64 @@ def get_subassemblies(
 
 def get_parts(assembly: Assembly, instance_mapping: Optional[dict[str, Instance]] = None) -> dict[str, Part]:
     # NOTE: partIDs are not unique hence we use the instance ID as the key
-    part_mapping = {}
+    part_instance_mapping: dict[str, list[str]] = {}
+    part_mapping: dict[str, Part] = {}
 
     if instance_mapping is None:
         instance_mapping = get_instances(assembly)
 
-    part_instance_mapping = {
-        instance.uid: key for key, instance in instance_mapping.items() if instance.type == InstanceType.PART
-    }
+    for key, instance in instance_mapping.items():
+        if instance.type == InstanceType.PART:
+            part_instance_mapping.setdefault(instance.uid, []).append(key)
+
     for part in assembly.parts:
         if part.uid in part_instance_mapping:
-            part_mapping[part_instance_mapping[part.uid]] = part
+            for key in part_instance_mapping[part.uid]:
+                part_mapping[key] = part
 
     return part_mapping
 
-
-def join_mate_occurences(child: list[str], parent: list[str]) -> str:
+def join_mate_occurences(child: list[str], parent: list[str], prefix: Optional[str] = None) -> str:
     child_occurence = SUBASSEMBLY_JOINER.join(child)
     parent_occurence = SUBASSEMBLY_JOINER.join(parent)
 
-    return f"{child_occurence}{MATE_JOINER}{parent_occurence}"
+    if prefix is not None:
+        return (
+            f"{prefix}{SUBASSEMBLY_JOINER}{child_occurence}{MATE_JOINER}"
+            f"{prefix}{SUBASSEMBLY_JOINER}{parent_occurence}"
+        )
+    else:
+        return f"{child_occurence}{MATE_JOINER}{parent_occurence}"
 
 
-def get_mates(assembly: Assembly) -> dict[str, MateFeature]:
-    def traverse_assembly(root: Union[RootAssembly, SubAssembly]) -> dict[str, MateFeatureData]:
+def get_mates(
+    assembly: Assembly,
+    subassembly_mapping: Optional[dict[str, SubAssembly]] = None,
+) -> dict[str, MateFeature]:
+    def traverse_assembly(
+        root: Union[RootAssembly, SubAssembly],
+        subassembly_prefix: Optional[str] = None
+    ) -> dict[str, MateFeatureData]:
         _mates_mapping = {}
 
         for feature in root.features:
-            if feature.featureType == AssemblyFeatureType.MATE and feature.suppressed is False:
+            if feature.featureType == AssemblyFeatureType.MATE and not feature.suppressed:
                 _mates_mapping[
                     join_mate_occurences(
                         child=feature.featureData.matedEntities[0].matedOccurrence,
                         parent=feature.featureData.matedEntities[1].matedOccurrence,
+                        prefix=subassembly_prefix,
                     )
                 ] = feature.featureData
 
         return _mates_mapping
 
     mates_mapping = traverse_assembly(assembly.rootAssembly)
-    for subassembly in assembly.subAssemblies:
-        mates_mapping.update(traverse_assembly(subassembly))
+
+    if subassembly_mapping is None:
+        subassembly_mapping = get_subassemblies(assembly)
+
+    for key, subassembly in subassembly_mapping.items():
+        mates_mapping.update(traverse_assembly(subassembly, key))
 
     return mates_mapping
