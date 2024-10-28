@@ -1,6 +1,7 @@
 import os
 from typing import Optional, Union
 
+from onshape_api.connect import Client
 from onshape_api.models.assembly import (
     Assembly,
     AssemblyFeatureType,
@@ -13,7 +14,7 @@ from onshape_api.models.assembly import (
     RootAssembly,
     SubAssembly,
 )
-from onshape_api.utilities.helpers import print_dict
+from onshape_api.models.mass import MassModel
 
 os.environ["TCL_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6"
 os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"
@@ -92,6 +93,12 @@ def get_parts(assembly: Assembly, instance_mapping: Optional[dict[str, Instance]
                 part_mapping[key] = part
 
     return part_mapping
+
+def get_mass_properties(parts: dict[str, Part], workspaceId: str, client: Client) -> dict[str, MassModel]:
+    _mass_properties = {}
+    for part in parts:
+        _mass_properties[part] = client.get_mass_properties(parts[part].documentId, workspaceId, parts[part].elementId, parts[part].partId)
+    return _mass_properties
 
 def join_mate_occurences(child: list[str], parent: list[str], prefix: Optional[str] = None) -> str:
     child_occurence = SUBASSEMBLY_JOINER.join(child)

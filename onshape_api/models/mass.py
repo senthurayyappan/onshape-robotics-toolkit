@@ -65,7 +65,7 @@ class MassModel(BaseModel):
 
     @property
     def center_of_mass(self) -> np.ndarray:
-        return np.array(self.centroid)
+        return np.array(self.centroid[:3])
 
     @property
     def inertia_matrix(self) -> np.matrix:

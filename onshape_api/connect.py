@@ -6,6 +6,7 @@ import os
 import secrets
 import string
 from enum import Enum
+from typing import BinaryIO
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import requests
@@ -251,7 +252,7 @@ class Client:
     def get_parts(self, did, wid, eid):
         pass
 
-    def download_stl(self, did, wid, eid, partID, save_path="./part.stl"):
+    def download_stl(self, did, wid, eid, partID, buffer: BinaryIO):
         """
         Exports STL export from a part studio and saves it to a file.
 
@@ -275,13 +276,9 @@ class Client:
             log_response=False,
         )
         if response.status_code == 200:
-            with open(save_path, "wb") as file:
-                file.write(response.content)
-            LOGGER.info(f"STL file saved to {save_path}")
-            return f"STL file saved to {save_path}"
+            buffer.write(response.content)
         else:
             LOGGER.info(f"Failed to download STL file: {response.status_code} - {response.text}")
-            return f"Failed to download STL file: {response.status_code} - {response.text}"
 
     def get_mass_properties(self, did, wid, eid, partID):
         """

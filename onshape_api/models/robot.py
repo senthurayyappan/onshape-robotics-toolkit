@@ -23,14 +23,18 @@ from onshape_api.models.link import (
 @dataclass
 class Robot:
     name: str
-    parts: list[Link | BaseJoint]
+    links: list[Link]
+    joints: list[BaseJoint]
     document: Document = None
     assembly: Assembly = None
 
     def to_xml(self) -> ET.Element:
         robot = ET.Element("robot", name=self.name)
-        for part in self.parts:
-            part.to_xml(robot)
+        for link in self.links:
+            link.to_xml(robot)
+
+        for joint in self.joints:
+            joint.to_xml(robot)
         return robot
 
     def save(self, path: str | Path | io.StringIO) -> None:
@@ -72,15 +76,6 @@ if __name__ == "__main__":
                     origin=Origin.zero_origin(),
                 ),
             ),
-            RevoluteJoint(
-                name="joint1",
-                parent="base_link",
-                child="link1",
-                origin=Origin.zero_origin(),
-                limits=JointLimits(effort=1.0, velocity=1.0, lower=-1.0, upper=1.0),
-                axis=Axis(xyz=(0.0, 0.0, 1.0)),
-                dynamics=JointDynamics(damping=0.1, friction=0.1),
-            ),
             Link(
                 name="link1",
                 visual=VisualLink(
@@ -104,6 +99,15 @@ if __name__ == "__main__":
                     ),
                     origin=Origin.zero_origin(),
                 ),
+            ),
+            RevoluteJoint(
+                name="joint1",
+                parent="base_link",
+                child="link1",
+                origin=Origin.zero_origin(),
+                limits=JointLimits(effort=1.0, velocity=1.0, lower=-1.0, upper=1.0),
+                axis=Axis(xyz=(0.0, 0.0, 1.0)),
+                dynamics=JointDynamics(damping=0.1, friction=0.1),
             ),
         ],
     )

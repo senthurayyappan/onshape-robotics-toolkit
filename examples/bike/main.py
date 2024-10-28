@@ -1,6 +1,17 @@
+import matplotlib.pyplot as plt
+import networkx as nx
+
 import onshape_api as osa
-from onshape_api.graph import create_graph
-from onshape_api.parse import get_instances, get_mates, get_occurences, get_parts, get_subassemblies
+from onshape_api.graph import create_graph, get_urdf_components, show_graph
+from onshape_api.models.robot import Robot
+from onshape_api.parse import (
+    get_instances,
+    get_mass_properties,
+    get_mates,
+    get_occurences,
+    get_parts,
+    get_subassemblies,
+)
 
 # Initialize the client with the constructed path
 client = osa.Client()
@@ -22,6 +33,13 @@ occurences = get_occurences(assembly)
 instances = get_instances(assembly)
 subassemblies = get_subassemblies(assembly, instances)
 parts = get_parts(assembly, instances)
+mass_properties = get_mass_properties(parts, doc.wid, client)
 mates = get_mates(assembly)
 
-create_graph(occurences=occurences, instances=instances, subassemblies=subassemblies, parts=parts, mates=mates)
+graph = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates, directed=False)
+# show_graph(graph)
+
+links, joints = get_urdf_components(graph, doc.wid, parts, mass_properties, mates, client)
+
+robot = Robot(name="my_robot", links=links, joints=joints)
+robot.save("bike.urdf")

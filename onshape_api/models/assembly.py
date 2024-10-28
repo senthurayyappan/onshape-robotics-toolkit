@@ -4,6 +4,7 @@ from typing import Union
 from pydantic import BaseModel, field_validator
 
 from onshape_api.utilities.helpers import generate_uid
+import numpy as np
 
 
 class InstanceType(str, Enum):
@@ -11,7 +12,7 @@ class InstanceType(str, Enum):
     ASSEMBLY = "Assembly"
 
 
-class MateType(str, Enum):
+class MATETYPE(str, Enum):
     SLIDER = "SLIDER"
     CYLINDRICAL = "CYLINDRICAL"
     REVOLUTE = "REVOLUTE"
@@ -222,6 +223,15 @@ class MatedCS(BaseModel):
 
         return v
 
+    @property
+    def part_to_mate_transform(self) -> np.matrix:
+        rotation_matrix = np.array([self.xAxis, self.yAxis, self.zAxis]).T
+        translation_vector = np.array(self.origin)
+        part_to_mate_tf = np.eye(4)
+        part_to_mate_tf[:3, :3] = rotation_matrix
+        part_to_mate_tf[:3, 3] = translation_vector
+        return np.matrix(part_to_mate_tf)
+
 
 class MatedEntity(BaseModel):
     """
@@ -274,7 +284,7 @@ class MateFeatureData(BaseModel):
     """
 
     matedEntities: list[MatedEntity]
-    mateType: MateType
+    mateType: MATETYPE
     name: str
 
 

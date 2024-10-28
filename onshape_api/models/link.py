@@ -102,8 +102,8 @@ class Material:
         return material
 
     @classmethod
-    def from_color(cls, color: COLORS) -> "Material":
-        return cls(color, color)
+    def from_color(cls, name: str, color: COLORS) -> "Material":
+        return cls(name, color)
 
 
 @dataclass
@@ -149,7 +149,7 @@ class Link:
         if self.inertial is not None:
             self.inertial.to_xml(link)
         return link
-    
+
     @classmethod
     def from_part(cls, part):
         _cls = cls(name=part.partId)
