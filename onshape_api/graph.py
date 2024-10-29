@@ -18,7 +18,7 @@ from onshape_api.models.assembly import (
     Part,
 )
 from onshape_api.models.geometry import MeshGeometry
-from onshape_api.models.joint import FixedJoint, JointLimits, RevoluteJoint
+from onshape_api.models.joint import FixedJoint, JointDynamics, JointLimits, RevoluteJoint
 from onshape_api.models.link import (
     COLORS,
     Axis,
@@ -97,10 +97,7 @@ def flip_tuple(t: tuple) -> tuple:
     return t[::-1]
 
 
-def download_stl_mesh(did, wid, eid, partID, client: Client, transform: np.ndarray = None, path: Optional[str] = None):
-    if transform is None:
-        transform = np.eye(4)
-
+def download_stl_mesh(did, wid, eid, partID, client: Client, transform: np.ndarray, path: str):
     buffer = io.BytesIO()
     client.download_stl(did, wid, eid, partID, buffer)
     buffer.seek(0)
@@ -111,6 +108,106 @@ def download_stl_mesh(did, wid, eid, partID, client: Client, transform: np.ndarr
 
     return path
 
+
+def get_robot_link(
+        name: str,
+        part: Part,
+        mass_property: MassModel,
+        workspaceId: str,
+        client: Client,
+        mate: Optional[Union[MateFeatureData, None]] = None,
+    ):
+    if mate is None:
+        _link_to_stl_tf = np.eye(4)
+        _link_to_stl_tf[:3, 3] = np.array(mass_property.center_of_mass).reshape(3)
+    else:
+        _link_to_stl_tf = mate.matedEntities[0].matedCS.part_to_mate_tf
+
+    _stl_to_link_tf = np.matrix(np.linalg.inv(_link_to_stl_tf))
+    _mass = mass_property.mass[0]
+    _origin = Origin.zero_origin()
+    _com = mass_property.center_of_mass_wrt(_stl_to_link_tf)
+    _inertia = mass_property.inertia_wrt(np.matrix(_stl_to_link_tf[:3, :3]))
+    _principal_axes_rotation =(0.0, 0.0, 0.0)
+
+    _mesh_path = download_stl_mesh(
+        part.documentId,
+        workspaceId,
+        part.elementId,
+        part.partId,
+        client,
+        _stl_to_link_tf,
+        f"{name}.stl",
+    )
+
+    _link = Link(
+        name=name,
+        visual=VisualLink(
+            origin=_origin,
+            geometry=MeshGeometry(_mesh_path),
+            material=Material.from_color(name=f"{name}_material", color=random.SystemRandom().choice(list(COLORS))),
+        ),
+        inertial=InertialLink(
+            origin=Origin(
+                xyz=_com,
+                rpy=_principal_axes_rotation,
+            ),
+            mass=_mass,
+            inertia=Inertia(
+                ixx=_inertia[0, 0],
+                ixy=_inertia[0, 1],
+                ixz=_inertia[0, 2],
+                iyy=_inertia[1, 1],
+                iyz=_inertia[1, 2],
+                izz=_inertia[2, 2],
+            ),
+        ),
+        collision=CollisionLink(
+            origin=_origin,
+            geometry=MeshGeometry(_mesh_path),
+        ),
+    )
+
+    return _link, _stl_to_link_tf
+
+def get_robot_joint(
+    parent: str,
+    child: str,
+    mate: MateFeatureData,
+    stl_to_parent_tf: np.matrix,
+):
+    parent_to_mate_tf = mate.matedEntities[1].matedCS.part_to_mate_tf
+    stl_to_mate_tf = stl_to_parent_tf @ parent_to_mate_tf
+
+    origin = Origin.from_matrix(stl_to_mate_tf)
+
+    match mate.mateType:
+        case MATETYPE.REVOLUTE:
+            return RevoluteJoint(
+                name=f"{parent}_to_{child}",
+                parent=parent,
+                child=child,
+                origin=origin,
+                limits=JointLimits(
+                    effort=1.0,
+                    velocity=1.0,
+                    lower=-np.pi,
+                    upper=np.pi,
+                ),
+                axis=Axis((0.0, 0.0, 1.0)),
+                dynamics=JointDynamics(damping=0.1, friction=0.1),
+            )
+
+        case MATETYPE.FASTENED:
+            return FixedJoint(
+                name=f"{parent}_to_{child}",
+                parent=parent,
+                child=child,
+                origin=origin
+            )
+
+        case _:
+            raise ValueError(f"We only support fastened and revolute joints for now, got {mate.mateType}. Please check back later.")
 
 def get_urdf_components(
     graph: Union[nx.Graph, nx.DiGraph],
@@ -126,93 +223,47 @@ def get_urdf_components(
     joints = []
     links = []
 
-    _child_transforms = {}
-    _sorted_nodes = list(nx.topological_sort(graph))
+    _readable_names = generate_names(len(graph.nodes))
+    _readable_names_mapping = dict(zip(graph.nodes, _readable_names))
+    _stl_to_link_tf_mapping = {}
 
-    _names = generate_names(len(_sorted_nodes))
-    _names_to_node_mapping = dict(zip(_sorted_nodes, _names))
+    root_link, stl_to_root_tf = get_robot_link(
+        _readable_names_mapping[root_node],
+        parts[root_node],
+        mass_properties[root_node],
+        workspaceId,
+        client,
+        None
+    )
 
-    for node in _sorted_nodes:
-        for edge in graph.edges(node):
-            # check if the mate is between root assembly and subassembly
-            if "".join(edge).count(SUBASSEMBLY_JOINER) == 1:
-                _mate_key = MATE_JOINER.join(edge)
-            else:
-                _mate_key = MATE_JOINER.join(flip_tuple(edge))
+    links.append(root_link)
+    _stl_to_link_tf_mapping[root_node] = stl_to_root_tf
 
-            if _mate_key in mates:
-                if mates[_mate_key].mateType == MATETYPE.REVOLUTE:
-                    _child_transforms[node] = mates[_mate_key].matedEntities[0].matedCS.part_to_mate_transform
-                    joints.append(
-                        RevoluteJoint(
-                            name=f"joint_{_names_to_node_mapping[edge[0]]}_{_names_to_node_mapping[edge[1]]}",
-                            parent=_names_to_node_mapping[edge[0]],
-                            child=_names_to_node_mapping[edge[1]],
-                            origin=Origin.from_matrix(mates[_mate_key].matedEntities[1].matedCS.part_to_mate_transform),
-                            limits=JointLimits(effort=1.0, velocity=1.0, lower=-1.0, upper=1.0),
-                            axis=Axis((0, 1, 0)),
-                        )
-                    )
+    for edge in graph.edges:
+        parent, child = edge
+        _parent_tf = _stl_to_link_tf_mapping[parent]
+        _mate_key = f"{child}{MATE_JOINER}{parent}"
 
-                elif mates[_mate_key].mateType == MATETYPE.FASTENED:
-                    _child_transforms[node] = mates[_mate_key].matedEntities[0].matedCS.part_to_mate_transform
-                    joints.append(
-                        FixedJoint(
-                            name=f"joint_{_names_to_node_mapping[edge[0]]}_{_names_to_node_mapping[edge[1]]}",
-                            parent=_names_to_node_mapping[edge[0]],
-                            child=_names_to_node_mapping[edge[1]],
-                            origin=Origin.from_matrix(mates[_mate_key].matedEntities[1].matedCS.part_to_mate_transform),
-                        )
-                    )
+        if _mate_key not in mates:
+            _mate_key = f"{parent}{MATE_JOINER}{child}"
 
-    for node in _sorted_nodes:
-        _link_to_stl_transform = np.eye(4)
-        _mass_property = mass_properties.get(node)
-        _mass = _mass_property.mass[0]
-        _default_origin = Origin.zero_origin()
+        _joint = get_robot_joint(
+            _readable_names_mapping[parent],
+            _readable_names_mapping[child],
+            mates[_mate_key],
+            _parent_tf,
+        )
+        joints.append(_joint)
 
-        if node in _child_transforms:
-            _link_to_stl_transform = _child_transforms[node]
-        else:
-            _link_to_stl_transform[:3, 3] = np.array(_mass_property.center_of_mass).reshape(3)
-
-        _stl_to_link_transform = np.matrix(np.linalg.inv(_link_to_stl_transform))
-
-        _center_of_mass = _mass_property.center_of_mass_wrt(_stl_to_link_transform)
-        _inertia_matrix = _mass_property.inertia_wrt(np.matrix(_stl_to_link_transform[:3, :3]))
-        _default_principal_axes = (0, 0, 0)
-
-        stl_path = download_stl_mesh(
-            parts[node].documentId,
+        _link, _stl_to_link_tf = get_robot_link(
+            _readable_names_mapping[child],
+            parts[child],
+            mass_properties[child],
             workspaceId,
-            parts[node].elementId,
-            parts[node].partId,
             client,
-            None,
-            f"{_names_to_node_mapping[node]}.stl",
+            mates[_mate_key],
         )
+        _stl_to_link_tf_mapping[child] = _stl_to_link_tf
+        links.append(_link)
 
-        links.append(
-            Link(
-                name=_names_to_node_mapping[node],
-                visual=VisualLink(
-                    origin=_default_origin,
-                    geometry=MeshGeometry(stl_path),
-                    material=Material.from_color(name=f"{_names_to_node_mapping[node]}_material", color=COLORS.RED),
-                ),
-                inertial=InertialLink(
-                    origin=Origin(_center_of_mass, _default_principal_axes),
-                    mass=_mass,
-                    inertia=Inertia(
-                        ixx=_inertia_matrix[0, 0],
-                        iyy=_inertia_matrix[1, 1],
-                        izz=_inertia_matrix[2, 2],
-                        ixy=_inertia_matrix[0, 1],
-                        ixz=_inertia_matrix[0, 2],
-                        iyz=_inertia_matrix[1, 2],
-                    ),
-                ),
-                collision=CollisionLink(origin=_default_origin, geometry=MeshGeometry(stl_path)),
-            )
-        )
     return links, joints

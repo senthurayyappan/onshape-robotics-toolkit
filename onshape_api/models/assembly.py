@@ -224,7 +224,7 @@ class MatedCS(BaseModel):
         return v
 
     @property
-    def part_to_mate_transform(self) -> np.matrix:
+    def part_to_mate_tf(self) -> np.matrix:
         rotation_matrix = np.array([self.xAxis, self.yAxis, self.zAxis]).T
         translation_vector = np.array(self.origin)
         part_to_mate_tf = np.eye(4)

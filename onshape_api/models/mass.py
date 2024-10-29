@@ -64,8 +64,8 @@ class MassModel(BaseModel):
         return np.array(self.principalInertia)
 
     @property
-    def center_of_mass(self) -> np.ndarray:
-        return np.array(self.centroid[:3])
+    def center_of_mass(self) -> tuple[float, float, float]:
+        return (self.centroid[0], self.centroid[1], self.centroid[2])
 
     @property
     def inertia_matrix(self) -> np.matrix:

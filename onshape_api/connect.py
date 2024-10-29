@@ -269,10 +269,16 @@ class Client:
 
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
         _request_path = f"/api/parts/d/{did}/w/{wid}/e/{eid}/partid/{partID}/stl"
+        _query = {
+            "mode": "binary",
+            "grouping": True,
+            "units": "meter",
+        }
         response = self.request(
             HTTP.GET,
             path=_request_path,
             headers=req_headers,
+            query=_query,
             log_response=False,
         )
         if response.status_code == 200:
