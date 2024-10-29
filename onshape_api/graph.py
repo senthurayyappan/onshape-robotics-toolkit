@@ -245,6 +245,7 @@ def get_urdf_components(
         _mate_key = f"{child}{MATE_JOINER}{parent}"
 
         if _mate_key not in mates:
+            # TODO: subassembly to root mates have a funky convention
             _mate_key = f"{parent}{MATE_JOINER}{child}"
 
         _joint = get_robot_joint(

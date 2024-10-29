@@ -335,9 +335,6 @@ class Client:
         LOGGER.debug(f"Request headers: {req_headers}")
         LOGGER.debug(f"Request URL: {url}")
 
-        # body = json.dumps(body) if isinstance(body, dict) else body
-        # print(body)
-
         res = self._send_request(method, url, req_headers, body)
 
         if res.status_code == 307:
