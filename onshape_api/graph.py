@@ -31,14 +31,15 @@ from onshape_api.models.link import (
     VisualLink,
 )
 from onshape_api.models.mass import MassModel
-from onshape_api.parse import MATE_JOINER, SUBASSEMBLY_JOINER
+from onshape_api.parse import MATE_JOINER
 from onshape_api.utilities.logging import LOGGER
 from onshape_api.utilities.mesh import transform_mesh
 
+SCRIPT_DIR = os.path.dirname(__file__)
+CURRENT_DIR = os.getcwd()
 
 def generate_names(max_length: int) -> list[str]:
-    script_dir = os.path.dirname(__file__)
-    words_file_path = os.path.join(script_dir, "words.txt")
+    words_file_path = os.path.join(SCRIPT_DIR, "words.txt")
 
     with open(words_file_path) as file:
         words = file.read().splitlines()
@@ -90,24 +91,33 @@ def create_graph(
     if directed:
         graph = convert_to_digraph(graph)
 
+    LOGGER.info(f"Graph created with {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+
     return graph
 
 
-def flip_tuple(t: tuple) -> tuple:
-    return t[::-1]
+def download_stl_mesh(did, wid, eid, partID, client: Client, transform: np.ndarray, file_name: str) -> str:
+    try:
+        with io.BytesIO() as buffer:
+            LOGGER.info(f"Downloading mesh for {file_name}...")
+            client.download_stl(did, wid, eid, partID, buffer)
+            buffer.seek(0)
 
+            raw_mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
+            transformed_mesh = transform_mesh(raw_mesh, transform)
 
-def download_stl_mesh(did, wid, eid, partID, client: Client, transform: np.ndarray, path: str):
-    buffer = io.BytesIO()
-    client.download_stl(did, wid, eid, partID, buffer)
-    buffer.seek(0)
+            meshes_dir = os.path.join(CURRENT_DIR, "meshes")
+            os.makedirs(meshes_dir, exist_ok=True)
 
-    raw_mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
-    transformed_mesh = transform_mesh(raw_mesh, transform)
-    transformed_mesh.save(path)
+            save_path = os.path.join(meshes_dir, file_name)
+            transformed_mesh.save(save_path)
+            LOGGER.info(f"Saved mesh to {save_path}")
 
-    return path
+            return os.path.relpath(save_path, CURRENT_DIR)
 
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise
 
 def get_robot_link(
         name: str,
@@ -117,6 +127,9 @@ def get_robot_link(
         client: Client,
         mate: Optional[Union[MateFeatureData, None]] = None,
     ):
+
+    LOGGER.info(f"Creating robot link for {name}")
+
     if mate is None:
         _link_to_stl_tf = np.eye(4)
         _link_to_stl_tf[:3, 3] = np.array(mass_property.center_of_mass).reshape(3)
@@ -176,6 +189,8 @@ def get_robot_joint(
     mate: MateFeatureData,
     stl_to_parent_tf: np.matrix,
 ):
+    LOGGER.info(f"Creating robot joint from {parent} to {child}")
+
     parent_to_mate_tf = mate.matedEntities[1].matedCS.part_to_mate_tf
     stl_to_mate_tf = stl_to_parent_tf @ parent_to_mate_tf
 
@@ -207,7 +222,10 @@ def get_robot_joint(
             )
 
         case _:
-            raise ValueError(f"We only support fastened and revolute joints for now, got {mate.mateType}. Please check back later.")
+            raise ValueError(
+                f"We only support fastened and revolute joints for now, got {mate.mateType}. "
+                "Please check back later."
+            )
 
 def get_urdf_components(
     graph: Union[nx.Graph, nx.DiGraph],
@@ -227,6 +245,8 @@ def get_urdf_components(
     _readable_names_mapping = dict(zip(graph.nodes, _readable_names))
     _stl_to_link_tf_mapping = {}
 
+    LOGGER.info("Processing root node: {_readable_names_mapping[root_node]}")
+
     root_link, stl_to_root_tf = get_robot_link(
         _readable_names_mapping[root_node],
         parts[root_node],
@@ -239,9 +259,13 @@ def get_urdf_components(
     links.append(root_link)
     _stl_to_link_tf_mapping[root_node] = stl_to_root_tf
 
+    LOGGER.info(f"Processing remaining {len(graph.nodes) - 1} nodes using {len(graph.edges)} edges")
+
     for edge in graph.edges:
         parent, child = edge
         _parent_tf = _stl_to_link_tf_mapping[parent]
+
+        # TODO: should mate keys be parent to child in the parser?
         _mate_key = f"{child}{MATE_JOINER}{parent}"
 
         if _mate_key not in mates:
