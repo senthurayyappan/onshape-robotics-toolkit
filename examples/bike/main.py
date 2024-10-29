@@ -1,8 +1,5 @@
-import matplotlib.pyplot as plt
-import networkx as nx
-
 import onshape_api as osa
-from onshape_api.graph import create_graph, get_urdf_components, show_graph
+from onshape_api.graph import create_graph, get_urdf_components
 from onshape_api.models.robot import Robot
 from onshape_api.parse import (
     get_instances,
@@ -41,5 +38,5 @@ graph = create_graph(occurences=occurences, instances=instances, parts=parts, ma
 
 links, joints = get_urdf_components(graph, doc.wid, parts, mass_properties, mates, client)
 
-robot = Robot(name="my_robot", links=links, joints=joints)
+robot = Robot(name="bike", links=links, joints=joints)
 robot.save("bike.urdf")

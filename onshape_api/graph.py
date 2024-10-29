@@ -1,5 +1,6 @@
 import io
-from typing import Union
+import random
+from typing import Optional, Union
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -34,15 +35,27 @@ from onshape_api.utilities.logging import LOGGER
 from onshape_api.utilities.mesh import transform_mesh
 
 
+def generate_names(max_length: int) -> list[str]:
+    with open("/Users/holycow/Projects/onshape-api/onshape_api/words.txt") as file:
+        words = file.read().splitlines()
+
+    if max_length > len(words):
+        raise ValueError("max_length exceeds the number of available words")
+
+    return random.sample(words, max_length)
+
+
 def show_graph(graph: nx.Graph):
     nx.draw_circular(graph, with_labels=True)
     plt.show()
+
 
 def convert_to_digraph(graph: nx.Graph) -> nx.DiGraph:
     _centrality = nx.closeness_centrality(graph)
     _root_node = max(_centrality, key=_centrality.get)
     _graph = nx.bfs_tree(graph, _root_node)
     return _graph, _root_node
+
 
 def create_graph(
     occurences: dict[str, Occurrence],
@@ -75,19 +88,25 @@ def create_graph(
 
     return graph
 
+
 def flip_tuple(t: tuple) -> tuple:
     return t[::-1]
 
-def download_stl_mesh(did, wid, eid, partID, client: Client, path: str):
+
+def download_stl_mesh(did, wid, eid, partID, client: Client, transform: np.ndarray = None, path: Optional[str] = None):
+    if transform is None:
+        transform = np.eye(4)
+
     buffer = io.BytesIO()
     client.download_stl(did, wid, eid, partID, buffer)
     buffer.seek(0)
 
     raw_mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
-    transformed_mesh = transform_mesh(raw_mesh, np.eye(4))
+    transformed_mesh = transform_mesh(raw_mesh, transform)
     transformed_mesh.save(path)
 
     return path
+
 
 def get_urdf_components(
     graph: Union[nx.Graph, nx.DiGraph],
@@ -106,6 +125,9 @@ def get_urdf_components(
     _child_transforms = {}
     _sorted_nodes = list(nx.topological_sort(graph))
 
+    _names = generate_names(len(_sorted_nodes))
+    _names_to_node_mapping = dict(zip(_sorted_nodes, _names))
+
     for node in _sorted_nodes:
         for edge in graph.edges(node):
             # check if the mate is between root assembly and subassembly
@@ -119,21 +141,22 @@ def get_urdf_components(
                     _child_transforms[node] = mates[_mate_key].matedEntities[0].matedCS.part_to_mate_transform
                     joints.append(
                         RevoluteJoint(
-                            name=f"joint_{edge[0]}_{edge[1]}",
-                            parent=edge[0],
-                            child=edge[1],
+                            name=f"joint_{_names_to_node_mapping[edge[0]]}_{_names_to_node_mapping[edge[1]]}",
+                            parent=_names_to_node_mapping[edge[0]],
+                            child=_names_to_node_mapping[edge[1]],
                             origin=Origin.from_matrix(mates[_mate_key].matedEntities[1].matedCS.part_to_mate_transform),
                             limits=JointLimits(effort=1.0, velocity=1.0, lower=-1.0, upper=1.0),
-                            axis=Axis((1, 0, 0)),
-                    ))
+                            axis=Axis((0, 1, 0)),
+                        )
+                    )
 
                 elif mates[_mate_key].mateType == MATETYPE.FASTENED:
                     _child_transforms[node] = mates[_mate_key].matedEntities[0].matedCS.part_to_mate_transform
                     joints.append(
                         FixedJoint(
-                            name=f"joint_{edge[0]}_{edge[1]}",
-                            parent=edge[0],
-                            child=edge[1],
+                            name=f"joint_{_names_to_node_mapping[edge[0]]}_{_names_to_node_mapping[edge[1]]}",
+                            parent=_names_to_node_mapping[edge[0]],
+                            child=_names_to_node_mapping[edge[1]],
                             origin=Origin.from_matrix(mates[_mate_key].matedEntities[1].matedCS.part_to_mate_transform),
                         )
                     )
@@ -161,16 +184,16 @@ def get_urdf_components(
             parts[node].elementId,
             parts[node].partId,
             client,
-            f"{node}.stl"
+            f"{_names_to_node_mapping[node]}.stl",
         )
 
         links.append(
             Link(
-                name=node,
+                name=_names_to_node_mapping[node],
                 visual=VisualLink(
                     origin=_default_origin,
                     geometry=MeshGeometry(stl_path),
-                    material=Material.from_color(name=f"{node}_material", color=COLORS.RED)
+                    material=Material.from_color(name=f"{_names_to_node_mapping[node]}_material", color=COLORS.RED),
                 ),
                 inertial=InertialLink(
                     origin=Origin(_center_of_mass, _default_principal_axes),
@@ -182,15 +205,9 @@ def get_urdf_components(
                         ixy=_inertia_matrix[0, 1],
                         ixz=_inertia_matrix[0, 2],
                         iyz=_inertia_matrix[1, 2],
-                    )
+                    ),
                 ),
-                collision=CollisionLink(
-                    origin=_default_origin,
-                    geometry=MeshGeometry(stl_path)
-                )
+                collision=CollisionLink(origin=_default_origin, geometry=MeshGeometry(stl_path)),
             )
         )
-
-
     return links, joints
-
