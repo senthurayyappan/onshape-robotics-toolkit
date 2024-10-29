@@ -97,7 +97,12 @@ def get_parts(assembly: Assembly, instance_mapping: Optional[dict[str, Instance]
 def get_mass_properties(parts: dict[str, Part], workspaceId: str, client: Client) -> dict[str, MassModel]:
     _mass_properties = {}
     for part in parts:
-        _mass_properties[part] = client.get_mass_properties(parts[part].documentId, workspaceId, parts[part].elementId, parts[part].partId)
+        _mass_properties[part] = client.get_mass_properties(
+            parts[part].documentId,
+            workspaceId,
+            parts[part].elementId,
+            parts[part].partId
+        )
     return _mass_properties
 
 def join_mate_occurences(child: list[str], parent: list[str], prefix: Optional[str] = None) -> str:

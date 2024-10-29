@@ -1,4 +1,5 @@
 import io
+import os
 import random
 from typing import Optional, Union
 
@@ -36,7 +37,10 @@ from onshape_api.utilities.mesh import transform_mesh
 
 
 def generate_names(max_length: int) -> list[str]:
-    with open("/Users/holycow/Projects/onshape-api/onshape_api/words.txt") as file:
+    script_dir = os.path.dirname(__file__)
+    words_file_path = os.path.join(script_dir, "words.txt")
+
+    with open(words_file_path) as file:
         words = file.read().splitlines()
 
     if max_length > len(words):
@@ -184,6 +188,7 @@ def get_urdf_components(
             parts[node].elementId,
             parts[node].partId,
             client,
+            None,
             f"{_names_to_node_mapping[node]}.stl",
         )
 
