@@ -245,7 +245,7 @@ def get_urdf_components(
     _readable_names_mapping = dict(zip(graph.nodes, _readable_names))
     _stl_to_link_tf_mapping = {}
 
-    LOGGER.info("Processing root node: {_readable_names_mapping[root_node]}")
+    LOGGER.info(f"Processing root node: {_readable_names_mapping[root_node]}")
 
     root_link, stl_to_root_tf = get_robot_link(
         _readable_names_mapping[root_node],
