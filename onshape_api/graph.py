@@ -9,6 +9,8 @@ import numpy as np
 import stl
 
 from onshape_api.connect import Client
+from onshape_api.log import LOGGER
+from onshape_api.mesh import transform_mesh
 from onshape_api.models.assembly import (
     MATETYPE,
     Instance,
@@ -32,8 +34,6 @@ from onshape_api.models.link import (
 )
 from onshape_api.models.mass import MassModel
 from onshape_api.parse import MATE_JOINER
-from onshape_api.utilities.logging import LOGGER
-from onshape_api.utilities.mesh import transform_mesh
 
 SCRIPT_DIR = os.path.dirname(__file__)
 CURRENT_DIR = os.getcwd()

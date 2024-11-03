@@ -133,7 +133,11 @@ def get_mates(
                 _mates_mapping[
                     join_mate_occurences(
                         child=feature.featureData.matedEntities[0].matedOccurrence,
-                        parent=feature.featureData.matedEntities[1].matedOccurrence,
+                        parent=(
+                            feature.featureData.matedEntities[1].matedOccurrence
+                            if len(feature.featureData.matedEntities) > 1
+                            else []
+                        ),
                         prefix=subassembly_prefix,
                     )
                 ] = feature.featureData

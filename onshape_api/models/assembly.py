@@ -1,10 +1,10 @@
 from enum import Enum
 from typing import Union
 
+import numpy as np
 from pydantic import BaseModel, field_validator
 
 from onshape_api.utilities.helpers import generate_uid
-import numpy as np
 
 
 class InstanceType(str, Enum):

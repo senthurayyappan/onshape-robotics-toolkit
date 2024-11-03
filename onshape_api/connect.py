@@ -12,12 +12,12 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import requests
 from dotenv import load_dotenv
 
+from onshape_api.log import LOG_LEVEL, LOGGER
 from onshape_api.models.assembly import Assembly
 from onshape_api.models.document import DocumentMetaData
 from onshape_api.models.element import Element
 from onshape_api.models.mass import MassModel
 from onshape_api.models.variable import Variable
-from onshape_api.utilities.logging import LOG_LEVEL, LOGGER
 
 __all__ = ["Client", "BASE_URL", "HTTP"]
 
