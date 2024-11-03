@@ -26,6 +26,7 @@ def xml_escape(unescaped: str) -> str:
     """
     return escape(unescaped, entities={"'": "&apos;", '"': "&quot;"})
 
+
 def format_number(value: float) -> str:
     """
     Format a number to 8 significant figures
@@ -45,6 +46,7 @@ def format_number(value: float) -> str:
 
     """
     return f"{value:.8g}"
+
 
 def generate_uid(values: list[str]) -> str:
     """
@@ -66,6 +68,7 @@ def generate_uid(values: list[str]) -> str:
     """
     _value = "".join(values)
     return hashlib.sha256(_value.encode()).hexdigest()[:16]
+
 
 def print_dict(d: dict, indent=0):
     """
@@ -91,11 +94,12 @@ def print_dict(d: dict, indent=0):
 
     """
     for key, value in d.items():
-        print('\t' * indent + str(key))
+        print("\t" * indent + str(key))
         if isinstance(value, dict):
-            print_dict(value, indent+1)
+            print_dict(value, indent + 1)
         else:
-            print('\t' * (indent+1) + str(value))
+            print("\t" * (indent + 1) + str(value))
+
 
 def get_random_file(directory: str, file_extension: str, count: int) -> list[str]:
     """
@@ -117,9 +121,7 @@ def get_random_file(directory: str, file_extension: str, count: int) -> list[str
     ["json/file.json"]
 
     """
-    _files = [
-        file for file in os.listdir(directory) if file.endswith(file_extension)
-    ]
+    _files = [file for file in os.listdir(directory) if file.endswith(file_extension)]
 
     if len(_files) < count:
         raise ValueError("Not enough files in directory")
@@ -130,6 +132,7 @@ def get_random_file(directory: str, file_extension: str, count: int) -> list[str
     LOGGER.info(f"Selected files: {file_paths}")
 
     return file_paths
+
 
 if __name__ == "__main__":
     print(get_random_file("json", ".json", 1))

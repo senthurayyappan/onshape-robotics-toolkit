@@ -38,6 +38,7 @@ from onshape_api.parse import MATE_JOINER
 SCRIPT_DIR = os.path.dirname(__file__)
 CURRENT_DIR = os.getcwd()
 
+
 def generate_names(max_length: int) -> list[str]:
     words_file_path = os.path.join(SCRIPT_DIR, "words.txt")
 
@@ -119,15 +120,15 @@ def download_stl_mesh(did, wid, eid, partID, client: Client, transform: np.ndarr
         print(f"An error occurred: {e}")
         raise
 
-def get_robot_link(
-        name: str,
-        part: Part,
-        mass_property: MassModel,
-        workspaceId: str,
-        client: Client,
-        mate: Optional[Union[MateFeatureData, None]] = None,
-    ):
 
+def get_robot_link(
+    name: str,
+    part: Part,
+    mass_property: MassModel,
+    workspaceId: str,
+    client: Client,
+    mate: Optional[Union[MateFeatureData, None]] = None,
+):
     LOGGER.info(f"Creating robot link for {name}")
 
     if mate is None:
@@ -141,7 +142,7 @@ def get_robot_link(
     _origin = Origin.zero_origin()
     _com = mass_property.center_of_mass_wrt(_stl_to_link_tf)
     _inertia = mass_property.inertia_wrt(np.matrix(_stl_to_link_tf[:3, :3]))
-    _principal_axes_rotation =(0.0, 0.0, 0.0)
+    _principal_axes_rotation = (0.0, 0.0, 0.0)
 
     _mesh_path = download_stl_mesh(
         part.documentId,
@@ -183,6 +184,7 @@ def get_robot_link(
 
     return _link, _stl_to_link_tf
 
+
 def get_robot_joint(
     parent: str,
     child: str,
@@ -214,18 +216,14 @@ def get_robot_joint(
             )
 
         case MATETYPE.FASTENED:
-            return FixedJoint(
-                name=f"{parent}_to_{child}",
-                parent=parent,
-                child=child,
-                origin=origin
-            )
+            return FixedJoint(name=f"{parent}_to_{child}", parent=parent, child=child, origin=origin)
 
         case _:
             raise ValueError(
                 f"We only support fastened and revolute joints for now, got {mate.mateType}. "
                 "Please check back later."
             )
+
 
 def get_urdf_components(
     graph: Union[nx.Graph, nx.DiGraph],
@@ -248,12 +246,7 @@ def get_urdf_components(
     LOGGER.info(f"Processing root node: {_readable_names_mapping[root_node]}")
 
     root_link, stl_to_root_tf = get_robot_link(
-        _readable_names_mapping[root_node],
-        parts[root_node],
-        mass_properties[root_node],
-        workspaceId,
-        client,
-        None
+        _readable_names_mapping[root_node], parts[root_node], mass_properties[root_node], workspaceId, client, None
     )
 
     links.append(root_link)

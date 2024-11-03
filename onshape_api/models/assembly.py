@@ -83,12 +83,7 @@ class IDBase(BaseModel):
 
     @property
     def uid(self):
-        return generate_uid([
-            self.documentId,
-            self.documentMicroversion,
-            self.elementId,
-            self.fullConfiguration
-        ])
+        return generate_uid([self.documentId, self.documentMicroversion, self.elementId, self.fullConfiguration])
 
 
 class Part(IDBase):
@@ -118,9 +113,8 @@ class Part(IDBase):
             self.documentMicroversion,
             self.elementId,
             self.partId,
-            self.fullConfiguration
+            self.fullConfiguration,
         ])
-
 
 
 class PartInstance(IDBase):
@@ -163,9 +157,8 @@ class PartInstance(IDBase):
             self.documentMicroversion,
             self.elementId,
             self.partId,
-            self.fullConfiguration
+            self.fullConfiguration,
         ])
-
 
 
 class AssemblyInstance(IDBase):
@@ -199,6 +192,7 @@ class AssemblyInstance(IDBase):
 
 
 Instance = Union[PartInstance, AssemblyInstance]
+
 
 class MatedCS(BaseModel):
     """
@@ -356,12 +350,8 @@ class SubAssembly(IDBase):
 
     @property
     def uid(self):
-        return generate_uid([
-            self.documentId,
-            self.documentMicroversion,
-            self.elementId,
-            self.fullConfiguration
-        ])
+        return generate_uid([self.documentId, self.documentMicroversion, self.elementId, self.fullConfiguration])
+
 
 class RootAssembly(SubAssembly):
     """
@@ -369,7 +359,6 @@ class RootAssembly(SubAssembly):
     """
 
     occurrences: list[Occurrence]
-
 
 
 class Assembly(BaseModel):

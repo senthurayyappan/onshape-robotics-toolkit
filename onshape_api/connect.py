@@ -236,7 +236,6 @@ class Client:
 
         return self.request(HTTP.POST, "/api/assemblies/d/" + did + "/w/" + wid, body=payload)
 
-
     def get_assembly(self, did, wtype, wid, eid, configuration="default"):
         _request_path = "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
         _assembly_json = self.request(

@@ -8,6 +8,7 @@ import onshape_api as osa
 
 AUTOMATE_ASSEMBLYID_PATTERN = r"(?P<documentId>\w{24})_(?P<documentMicroversion>\w{24})_(?P<elementId>\w{24})"
 
+
 def extract_ids(assembly_id):
     match = re.match(AUTOMATE_ASSEMBLYID_PATTERN, assembly_id)
     if match:
@@ -15,9 +16,11 @@ def extract_ids(assembly_id):
     else:
         return {"documentId": None, "documentMicroversion": None, "elementId": None}
 
+
 def get_assembly_df(automate_assembly_df):
-    assembly_df = automate_assembly_df['assemblyId'].apply(extract_ids).apply(pd.Series)
+    assembly_df = automate_assembly_df["assemblyId"].apply(extract_ids).apply(pd.Series)
     return assembly_df
+
 
 if __name__ == "__main__":
     client = osa.Client()
@@ -33,10 +36,7 @@ if __name__ == "__main__":
 
     document = client.get_document(assembly_df.iloc[0]["documentId"])
     assembly, assembly_json = client.get_assembly(
-        assembly_df.iloc[0]["documentId"],
-        "w",
-        document.defaultWorkspace.id,
-        assembly_df.iloc[0]["elementId"]
+        assembly_df.iloc[0]["documentId"], "w", document.defaultWorkspace.id, assembly_df.iloc[0]["elementId"]
     )
 
     json_dir = "json"
@@ -50,7 +50,7 @@ if __name__ == "__main__":
             )
 
             json_file_path = os.path.join(json_dir, f"{row['documentId']}.json")
-            with open(json_file_path, 'w') as json_file:
+            with open(json_file_path, "w") as json_file:
                 json.dump(assembly_json, json_file, indent=4)
 
             print(f"Assembly JSON saved to {json_file_path}")

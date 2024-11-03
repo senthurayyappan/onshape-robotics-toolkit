@@ -31,9 +31,7 @@ def transform_mesh(mesh: mesh.Mesh, transform: np.ndarray) -> mesh.Mesh:
         - stl.mesh.Mesh: Transformed mesh
     """
     _transform_vectors = partial(
-        transform_vectors,
-        rotation=transform[:3, :3],
-        translation=transform[0:3, 3:4].T.tolist()
+        transform_vectors, rotation=transform[:3, :3], translation=transform[0:3, 3:4].T.tolist()
     )
 
     mesh.v0 = _transform_vectors(mesh.v0)
@@ -42,6 +40,7 @@ def transform_mesh(mesh: mesh.Mesh, transform: np.ndarray) -> mesh.Mesh:
     mesh.normals = _transform_vectors(mesh.normals)
 
     return mesh
+
 
 def transform_inertia_matrix(inertia_matrix: np.matrix, rotation: np.matrix) -> np.matrix:
     """
@@ -55,4 +54,3 @@ def transform_inertia_matrix(inertia_matrix: np.matrix, rotation: np.matrix) -> 
         - np.matrix: Transformed inertia matrix
     """
     return rotation @ inertia_matrix @ rotation.T
-

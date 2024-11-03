@@ -94,16 +94,15 @@ def get_parts(assembly: Assembly, instance_mapping: Optional[dict[str, Instance]
 
     return part_mapping
 
+
 def get_mass_properties(parts: dict[str, Part], workspaceId: str, client: Client) -> dict[str, MassModel]:
     _mass_properties = {}
     for part in parts:
         _mass_properties[part] = client.get_mass_properties(
-            parts[part].documentId,
-            workspaceId,
-            parts[part].elementId,
-            parts[part].partId
+            parts[part].documentId, workspaceId, parts[part].elementId, parts[part].partId
         )
     return _mass_properties
+
 
 def join_mate_occurences(child: list[str], parent: list[str], prefix: Optional[str] = None) -> str:
     child_occurence = SUBASSEMBLY_JOINER.join(child)
@@ -123,8 +122,7 @@ def get_mates(
     subassembly_mapping: Optional[dict[str, SubAssembly]] = None,
 ) -> dict[str, MateFeature]:
     def traverse_assembly(
-        root: Union[RootAssembly, SubAssembly],
-        subassembly_prefix: Optional[str] = None
+        root: Union[RootAssembly, SubAssembly], subassembly_prefix: Optional[str] = None
     ) -> dict[str, MateFeatureData]:
         _mates_mapping = {}
 
