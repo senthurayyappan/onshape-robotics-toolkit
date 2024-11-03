@@ -13,6 +13,7 @@ import requests
 from dotenv import load_dotenv
 
 from onshape_api.models.assembly import Assembly
+from onshape_api.models.document import DocumentMetaData
 from onshape_api.models.element import Element
 from onshape_api.models.mass import MassModel
 from onshape_api.models.variable import Variable
@@ -111,8 +112,9 @@ class Client:
         Returns:
             - requests.Response: Onshape response data
         """
+        _request_json = self.request(HTTP.GET, "/api/documents/" + did).json()
 
-        return self.request("get", "/api/documents/" + did)
+        return DocumentMetaData.model_validate(_request_json)
 
     def get_elements(self, did, wtype, wid):
         """
@@ -234,6 +236,7 @@ class Client:
 
         return self.request(HTTP.POST, "/api/assemblies/d/" + did + "/w/" + wid, body=payload)
 
+
     def get_assembly(self, did, wtype, wid, eid, configuration="default"):
         _request_path = "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
         _assembly_json = self.request(
@@ -247,7 +250,7 @@ class Client:
             },
         ).json()
 
-        return Assembly.model_validate(_assembly_json)
+        return Assembly.model_validate(_assembly_json), _assembly_json
 
     def get_parts(self, did, wid, eid):
         pass

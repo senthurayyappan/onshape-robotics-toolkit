@@ -330,12 +330,12 @@ class MateFeature(BaseModel):
     featureType: str
     featureData: MateFeatureData
 
-    @field_validator("id")
-    def check_id(cls, v):
-        if len(v) != 17:
-            raise ValueError("Id must have 17 characters")
+    # @field_validator("id")
+    # def check_id(cls, v):
+    #     if len(v) != 17:
+    #         raise ValueError("Id must have 17 characters")
 
-        return v
+    #     return v
 
     @field_validator("featureType")
     def check_featureType(cls, v):

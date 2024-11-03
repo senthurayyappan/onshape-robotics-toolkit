@@ -65,6 +65,13 @@ class Document(BaseModel):
         did, wtype, wid, eid = parse_url(url)
         return cls(url=url, did=did, wtype=wtype, wid=wid, eid=eid)
 
+class DefaultWorkspace(BaseModel):
+    id: str
+
+class DocumentMetaData(BaseModel):
+    defaultWorkspace: DefaultWorkspace
+    name: str
+
 
 if __name__ == "__main__":
     doc = Document(
