@@ -134,5 +134,17 @@ def get_random_file(directory: str, file_extension: str, count: int) -> list[str
     return file_paths
 
 
+def generate_names(directory: str, max_length: int, filename: str = "words.txt") -> list[str]:
+    words_file_path = os.path.join(directory, filename)
+
+    with open(words_file_path) as file:
+        words = file.read().splitlines()
+
+    if max_length > len(words):
+        raise ValueError("max_length exceeds the number of available words")
+
+    return random.sample(words, max_length)
+
+
 if __name__ == "__main__":
     print(get_random_file("json", ".json", 1))

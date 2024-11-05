@@ -14,7 +14,6 @@ from onshape_api.models.assembly import (
     RootAssembly,
     SubAssembly,
 )
-from onshape_api.models.mass import MassModel
 
 os.environ["TCL_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6"
 os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"
@@ -75,7 +74,9 @@ def get_subassemblies(
     return subassembly_mapping
 
 
-def get_parts(assembly: Assembly, instance_mapping: Optional[dict[str, Instance]] = None) -> dict[str, Part]:
+def get_parts(
+    assembly: Assembly, client: Client, instance_mapping: Optional[dict[str, Instance]] = None
+) -> dict[str, Part]:
     # NOTE: partIDs are not unique hence we use the instance ID as the key
     part_instance_mapping: dict[str, list[str]] = {}
     part_mapping: dict[str, Part] = {}
@@ -90,18 +91,12 @@ def get_parts(assembly: Assembly, instance_mapping: Optional[dict[str, Instance]
     for part in assembly.parts:
         if part.uid in part_instance_mapping:
             for key in part_instance_mapping[part.uid]:
+                part.MassProperty = client.get_mass_property(
+                    part.documentId, assembly.document.wid, part.elementId, part.partId
+                )
                 part_mapping[key] = part
 
     return part_mapping
-
-
-def get_mass_properties(parts: dict[str, Part], workspaceId: str, client: Client) -> dict[str, MassModel]:
-    _mass_properties = {}
-    for part in parts:
-        _mass_properties[part] = client.get_mass_properties(
-            parts[part].documentId, workspaceId, parts[part].elementId, parts[part].partId
-        )
-    return _mass_properties
 
 
 def join_mate_occurences(child: list[str], parent: list[str], prefix: Optional[str] = None) -> str:

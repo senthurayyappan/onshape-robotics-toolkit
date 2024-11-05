@@ -34,7 +34,7 @@ def parse_url(url: str) -> str:
 
 
 class Document(BaseModel):
-    url: Union[str, None]
+    url: Union[str, None] = None
     did: str
     wtype: str
     wid: str

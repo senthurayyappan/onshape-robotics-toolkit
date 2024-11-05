@@ -20,7 +20,7 @@ class PrincipalAxis(BaseModel):
         return np.array([self.x, self.y, self.z])
 
 
-class MassModel(BaseModel):
+class MassProperties(BaseModel):
     """
     {
         "volume" : [ 0.003411385108378978, 0.003410724395374695, 0.0034120458213832646 ],
@@ -100,7 +100,7 @@ class MassModel(BaseModel):
 
 
 if __name__ == "__main__":
-    mass = MassModel(
+    mass = MassProperties(
         volume=[0.003411385108378978, 0.003410724395374695, 0.0034120458213832646],
         mass=[9.585992154544929, 9.584199206938452, 9.587785102151415],
         centroid=[-2.07609188073475e-9, 0.0, 0.0],

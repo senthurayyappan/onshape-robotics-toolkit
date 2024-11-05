@@ -14,9 +14,9 @@ from dotenv import load_dotenv
 
 from onshape_api.log import LOG_LEVEL, LOGGER
 from onshape_api.models.assembly import Assembly
-from onshape_api.models.document import DocumentMetaData
+from onshape_api.models.document import Document, DocumentMetaData
 from onshape_api.models.element import Element
-from onshape_api.models.mass import MassModel
+from onshape_api.models.mass import MassProperties
 from onshape_api.models.variable import Variable
 
 __all__ = ["Client", "BASE_URL", "HTTP"]
@@ -249,7 +249,11 @@ class Client:
             },
         ).json()
 
-        return Assembly.model_validate(_assembly_json), _assembly_json
+        _assembly = Assembly.model_validate(_assembly_json)
+        _document = Document(did=did, wtype=wtype, wid=wid, eid=eid)
+        _assembly.document = _document
+
+        return _assembly, _assembly_json
 
     def get_parts(self, did, wid, eid):
         pass
@@ -288,7 +292,7 @@ class Client:
         else:
             LOGGER.info(f"Failed to download STL file: {response.status_code} - {response.text}")
 
-    def get_mass_properties(self, did, wid, eid, partID):
+    def get_mass_property(self, did, wid, eid, partID):
         """
         Get mass properties for a part in a part studio.
 
@@ -302,9 +306,9 @@ class Client:
             - requests.Response: Onshape response data
         """
         _request_path = "/api/parts/d/" + did + "/w/" + wid + "/e/" + eid + "/partid/" + partID + "/massproperties"
-        _resonse_json = self.request(HTTP.GET, _request_path, {"useMassPropertyOverrides": True}).json()
+        _resonse_json = self.request(HTTP.GET, _request_path, {"useMassPropertiesOverrides": True}).json()
 
-        return MassModel.model_validate(_resonse_json["bodies"][partID])
+        return MassProperties.model_validate(_resonse_json["bodies"][partID])
 
     def request(self, method, path, query=None, headers=None, body=None, base_url=None, log_response=True):
         """
