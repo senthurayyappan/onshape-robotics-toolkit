@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     print(assembly_df.head())
 
-    document = client.get_document(assembly_df.iloc[0]["documentId"])
+    document = client.get_document_metadata(assembly_df.iloc[0]["documentId"])
     assembly, assembly_json = client.get_assembly(
         assembly_df.iloc[0]["documentId"], "w", document.defaultWorkspace.id, assembly_df.iloc[0]["elementId"]
     )
@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     for index, row in assembly_df.iterrows():
         try:
-            document = client.get_document(row["documentId"])
+            document = client.get_document_metadata(row["documentId"])
             assembly, assembly_json = client.get_assembly(
                 row["documentId"], "w", document.defaultWorkspace.id, row["elementId"]
             )

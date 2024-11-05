@@ -79,6 +79,12 @@ class BaseJoint(ABC):
 
 
 @dataclass
+class DummyJoint(BaseJoint):
+    def joint_type(self) -> str:
+        return "dummy"
+
+
+@dataclass
 class RevoluteJoint(BaseJoint):
     limits: JointLimits
     axis: Axis

@@ -40,6 +40,11 @@ class Document(BaseModel):
     wid: str
     eid: str
 
+    def __init__(self, **data):
+        super().__init__(**data)
+        if self.url is None:
+            self.url = self._generate_url()
+
     @field_validator("did", "wid", "eid")
     def check_ids(cls, value: str) -> str:
         if not value:
@@ -64,6 +69,9 @@ class Document(BaseModel):
     def from_url(cls, url: str) -> "Document":
         did, wtype, wid, eid = parse_url(url)
         return cls(url=url, did=did, wtype=wtype, wid=wid, eid=eid)
+
+    def _generate_url(self) -> str:
+        return f"https://cad.onshape.com/documents/{self.did}/{self.wtype}/{self.wid}/e/{self.eid}"
 
 
 class DefaultWorkspace(BaseModel):

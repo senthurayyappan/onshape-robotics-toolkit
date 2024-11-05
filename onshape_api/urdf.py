@@ -18,7 +18,7 @@ from onshape_api.models.assembly import (
     Part,
 )
 from onshape_api.models.geometry import MeshGeometry
-from onshape_api.models.joint import FixedJoint, JointDynamics, JointLimits, RevoluteJoint
+from onshape_api.models.joint import DummyJoint, FixedJoint, JointDynamics, JointLimits, PrismaticJoint, RevoluteJoint
 from onshape_api.models.link import (
     COLORS,
     Axis,
@@ -137,31 +137,44 @@ def get_robot_joint(
 
     origin = Origin.from_matrix(stl_to_mate_tf)
 
-    match mate.mateType:
-        case MATETYPE.REVOLUTE:
-            return RevoluteJoint(
-                name=f"{parent}_to_{child}",
-                parent=parent,
-                child=child,
-                origin=origin,
-                limits=JointLimits(
-                    effort=1.0,
-                    velocity=1.0,
-                    lower=-np.pi,
-                    upper=np.pi,
-                ),
-                axis=Axis((0.0, 0.0, 1.0)),
-                dynamics=JointDynamics(damping=0.1, friction=0.1),
-            )
+    if mate.mateType == MATETYPE.REVOLUTE:
+        return RevoluteJoint(
+            name=f"{parent}_to_{child}",
+            parent=parent,
+            child=child,
+            origin=origin,
+            limits=JointLimits(
+                effort=1.0,
+                velocity=1.0,
+                lower=-np.pi,
+                upper=np.pi,
+            ),
+            axis=Axis((0.0, 0.0, 1.0)),
+            dynamics=JointDynamics(damping=0.1, friction=0.1),
+        )
 
-        case MATETYPE.FASTENED:
-            return FixedJoint(name=f"{parent}_to_{child}", parent=parent, child=child, origin=origin)
+    elif mate.mateType == MATETYPE.FASTENED:
+        return FixedJoint(name=f"{parent}_to_{child}", parent=parent, child=child, origin=origin)
 
-        case _:
-            raise ValueError(
-                f"We only support fastened and revolute joints for now, got {mate.mateType}. "
-                "Please check back later."
-            )
+    elif mate.mateType == MATETYPE.SLIDER:
+        return PrismaticJoint(
+            name=f"{parent}_to_{child}",
+            parent=parent,
+            child=child,
+            origin=origin,
+            limits=JointLimits(
+                effort=1.0,
+                velocity=1.0,
+                lower=-0.1,
+                upper=0.1,
+            ),
+            axis=Axis((0.0, 0.0, 1.0)),
+            dynamics=JointDynamics(damping=0.1, friction=0.1),
+        )
+
+    else:
+        LOGGER.warning(f"Unsupported joint type: {mate.mateType}")
+        return DummyJoint(name=f"{parent}_to_{child}", parent=parent, child=child, origin=origin)
 
 
 def get_urdf_components(
@@ -202,6 +215,10 @@ def get_urdf_components(
         if _mate_key not in mates:
             # TODO: subassembly to root mates have a funky convention
             _mate_key = f"{parent}{MATE_JOINER}{child}"
+
+        if parent and child not in parts:
+            LOGGER.warning(f"Part {parent} or {child} not found in parts")
+            continue
 
         _joint = get_robot_joint(
             _readable_names_mapping[parent],

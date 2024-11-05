@@ -170,3 +170,5 @@ examples/**/*.urdf
 examples/**/*.stl
 onshape_api/data/**/*.json
 onshape_api/data/**/*.parquet
+benchmark/**/*.urdf
+benchmark/**/*.stl

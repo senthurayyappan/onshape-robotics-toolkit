@@ -102,7 +102,7 @@ class Client:
         LOGGER.set_stream_level(LOG_LEVEL[log_level])
         LOGGER.info(f"Onshape API initialized with env file: {env}")
 
-    def get_document(self, did):
+    def get_document_metadata(self, did):
         """
         Get details for a specified document.
 

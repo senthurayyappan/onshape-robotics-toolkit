@@ -131,7 +131,7 @@ def get_random_file(directory: str, file_extension: str, count: int) -> list[str
 
     LOGGER.info(f"Selected files: {file_paths}")
 
-    return file_paths
+    return file_paths, [x.split(".")[0] for x in selected_files]
 
 
 def generate_names(directory: str, max_length: int, filename: str = "words.txt") -> list[str]:
