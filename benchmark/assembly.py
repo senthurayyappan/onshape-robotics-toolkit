@@ -4,6 +4,7 @@ import os
 from onshape_api.connect import Client
 from onshape_api.graph import create_graph, show_graph
 from onshape_api.models.assembly import Assembly
+from onshape_api.models.robot import Robot
 from onshape_api.parse import (
     get_instances,
     get_mates,
@@ -11,6 +12,7 @@ from onshape_api.parse import (
     get_parts,
     get_subassemblies,
 )
+from onshape_api.urdf import get_urdf_components
 from onshape_api.utilities.helpers import get_random_file
 
 SCRIPT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
@@ -32,3 +34,8 @@ if __name__ == "__main__":
 
     graph = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates, directed=False)
     show_graph(graph)
+
+    links, joints = get_urdf_components(assembly, graph, parts, mates, client)
+
+    robot = Robot(name="bike", links=links, joints=joints)
+    robot.save("bike.urdf")
