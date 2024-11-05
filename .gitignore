@@ -172,3 +172,5 @@ onshape_api/data/**/*.json
 onshape_api/data/**/*.parquet
 benchmark/**/*.urdf
 benchmark/**/*.stl
+benchmark/**/*.png
+benchmark/**/*.prof

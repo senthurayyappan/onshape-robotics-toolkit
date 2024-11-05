@@ -17,6 +17,11 @@ def show_graph(graph: nx.Graph):
     plt.show()
 
 
+def save_graph(graph: nx.Graph, file_name: str):
+    nx.draw_circular(graph, with_labels=True)
+    plt.savefig(file_name)
+
+
 def convert_to_digraph(graph: nx.Graph) -> nx.DiGraph:
     _centrality = nx.closeness_centrality(graph)
     _root_node = max(_centrality, key=_centrality.get)

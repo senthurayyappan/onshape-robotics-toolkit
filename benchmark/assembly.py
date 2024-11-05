@@ -1,10 +1,12 @@
+import cProfile
 import json
 import os
+import pstats
 
 import pandas as pd
 
 from onshape_api.connect import Client
-from onshape_api.graph import create_graph, show_graph
+from onshape_api.graph import create_graph, save_graph
 from onshape_api.models.assembly import Assembly
 from onshape_api.models.document import Document
 from onshape_api.models.robot import Robot
@@ -13,7 +15,6 @@ from onshape_api.parse import (
     get_mates,
     get_occurences,
     get_parts,
-    get_subassemblies,
 )
 from onshape_api.urdf import get_urdf_components
 from onshape_api.utilities.helpers import get_random_file
@@ -22,7 +23,8 @@ SCRIPT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 JSON_DIRECTORY = "/../onshape_api/data/json"
 PARQUET_FILE = "/../onshape_api/data/assemblies.parquet"
 
-if __name__ == "__main__":
+
+def main():
     client = Client()
 
     json_path = SCRIPT_DIRECTORY + JSON_DIRECTORY
@@ -42,12 +44,11 @@ if __name__ == "__main__":
 
     occurences = get_occurences(assembly)
     instances = get_instances(assembly)
-    subassemblies = get_subassemblies(assembly, instances)
     parts = get_parts(assembly, client, instances)
     mates = get_mates(assembly)
 
     graph = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates, directed=False)
-    show_graph(graph)
+    save_graph(graph, f"{document_meta_data.name}.png")
 
     if len(mates) == 0:
         raise ValueError("No mates found in assembly")
@@ -57,3 +58,12 @@ if __name__ == "__main__":
     robot = Robot(name=f"{document_meta_data.name}", links=links, joints=joints)
     robot.save(f"{document_meta_data.name}.urdf")
     print(f"onshape document: {document.url}")
+
+
+if __name__ == "__main__":
+    profiler = cProfile.Profile()
+    profiler.enable()
+    main()
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats("cumtime")
+    stats.dump_stats("onshape.prof")

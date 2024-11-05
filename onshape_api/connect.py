@@ -85,7 +85,7 @@ class Client:
         - logging (bool, default=True): Turn logging on or off
     """
 
-    def __init__(self, env="./.env", log_file="./onshape.log", log_level=1):
+    def __init__(self, env="./.env", log_file="./onshape_api", log_level=1):
         """
         Instantiates an instance of the Onshape class. Reads credentials from a .env file.
 
