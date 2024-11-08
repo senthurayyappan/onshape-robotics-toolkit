@@ -1,20 +1,20 @@
 from enum import Enum
-from typing import Union
+from typing import Literal, Union
 
 import numpy as np
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from onshape_api.models.document import Document
 from onshape_api.models.mass import MassProperties
 from onshape_api.utilities.helpers import generate_uid
 
 
-class InstanceType(str, Enum):
+class INSTANCE_TYPE(str, Enum):
     PART = "Part"
     ASSEMBLY = "Assembly"
 
 
-class MATETYPE(str, Enum):
+class MATE_TYPE(str, Enum):
     SLIDER = "SLIDER"
     CYLINDRICAL = "CYLINDRICAL"
     REVOLUTE = "REVOLUTE"
@@ -25,8 +25,18 @@ class MATETYPE(str, Enum):
     PARALLEL = "PARALLEL"
 
 
-class AssemblyFeatureType(str, Enum):
+class RELATION_TYPE(str, Enum):
+    LINEAR = "LINEAR"
+    GEAR = "GEAR"
+    SCREW = "SCREW"
+    RACK_AND_PINION = "RACK_AND_PINION"
+
+
+class ASSEMBLY_FEATURE_TYPE(str, Enum):
     MATE = "mate"
+    MATERELATION = "mateRelation"
+    MATEGROUP = "mateGroup"
+    MATECONNECTOR = "mateConnector"
 
 
 class Occurrence(BaseModel):
@@ -140,15 +150,15 @@ class PartInstance(IDBase):
     """
 
     isStandardContent: bool
-    type: InstanceType
+    type: INSTANCE_TYPE
     id: str
     name: str
     suppressed: bool
     partId: str
 
     @field_validator("type")
-    def check_type(cls, v: InstanceType) -> InstanceType:
-        if v != InstanceType.PART:
+    def check_type(cls, v: INSTANCE_TYPE) -> INSTANCE_TYPE:
+        if v != INSTANCE_TYPE.PART:
             raise ValueError("Type must be Part")
 
         return v
@@ -182,13 +192,13 @@ class AssemblyInstance(IDBase):
     """
 
     id: str
-    type: InstanceType
+    type: INSTANCE_TYPE
     name: str
     suppressed: bool
 
     @field_validator("type")
-    def check_type(cls, v: InstanceType) -> InstanceType:
-        if v != InstanceType.ASSEMBLY:
+    def check_type(cls, v: INSTANCE_TYPE) -> INSTANCE_TYPE:
+        if v != INSTANCE_TYPE.ASSEMBLY:
             raise ValueError("Type must be Assembly")
 
         return v
@@ -281,11 +291,15 @@ class MateFeatureData(BaseModel):
     """
 
     matedEntities: list[MatedEntity]
-    mateType: MATETYPE
+    mateType: MATE_TYPE
     name: str
 
 
-class MateFeature(BaseModel):
+class BaseAssemblyFeature(BaseModel):
+    featureType: str
+
+
+class MateFeature(BaseAssemblyFeature):
     """
     Feature model
     {
@@ -324,22 +338,132 @@ class MateFeature(BaseModel):
 
     id: str
     suppressed: bool
-    featureType: str
+    featureType: Literal["MateFeature"] = "MateFeature"
     featureData: MateFeatureData
 
-    # @field_validator("id")
-    # def check_id(cls, v):
-    #     if len(v) != 17:
-    #         raise ValueError("Id must have 17 characters")
 
-    #     return v
+class MateRelationMate(BaseModel):
+    """
+    {
+        "featureId": "S4/TgCRmQt1nIHHp",
+        "occurrence": []
+    },
+    """
 
-    @field_validator("featureType")
-    def check_featureType(cls, v: str) -> str:
-        if v != AssemblyFeatureType.MATE:
-            raise ValueError("FeatureType must be Mate")
+    featureId: str
+    occurrence: list[str]
 
-        return v
+
+class MateRelationFeatureData(BaseModel):
+    """
+    {
+        "relationType": "GEAR",
+        "mates": [
+            {
+            "featureId": "S4/TgCRmQt1nIHHp",
+            "occurrence": []
+            },
+            {
+            "featureId": "QwaoOeXYPifsN7CP",
+            "occurrence": []
+            }
+        ],
+        "reverseDirection": false,
+        "relationRatio": 1,
+        "name": "Gear 1"
+    }
+    """
+
+    relationType: RELATION_TYPE
+    mates: list[MateRelationMate]
+    reverseDirection: bool
+    relationRatio: float
+    name: str
+
+
+class MateRelationFeature(BaseAssemblyFeature):
+    """
+    {
+        "id": "amcpeia1Lm2LN2He",
+        "suppressed": false,
+        "featureType": "mateRelation",
+        "featureData":
+        {
+            "relationType": "GEAR",
+            "mates": [
+                {
+                "featureId": "S4/TgCRmQt1nIHHp",
+                "occurrence": []
+                },
+                {
+                "featureId": "QwaoOeXYPifsN7CP",
+                "occurrence": []
+                }
+            ],
+            "reverseDirection": false,
+            "relationRatio": 1,
+            "name": "Gear 1"
+        }
+    },
+    """
+
+    id: str
+    suppressed: bool
+    featureType: Literal["MateRelationFeature"] = "MateRelationFeature"
+    featureData: MateRelationFeatureData
+
+
+class MateGroupFeatureOccurrence(BaseModel):
+    occurrence: list[str]
+
+
+class MateGroupFeatureData(BaseModel):
+    occurrences: list[MateGroupFeatureOccurrence]
+    name: str
+
+
+class MateGroupFeature(BaseAssemblyFeature):
+    id: str
+    suppressed: bool
+    featureType: Literal["MateGroupFeature"] = "MateGroupFeature"
+    featureData: MateGroupFeatureData
+
+
+class MateConnectorFeatureData(BaseModel):
+    mateConnectorCS: MatedCS
+    occurence: list[str]
+    name: str
+
+
+class MateConnectorFeature(BaseAssemblyFeature):
+    """
+    {
+        "id": "MftzXroqpwJJDurRm",
+        "suppressed": false,
+        "featureType": "mateConnector",
+        "featureData": {
+            "mateConnectorCS": {
+                "xAxis": [],
+                "yAxis": [],
+                "zAxis": [],
+                "origin": []
+            },
+            "occurrence": [
+                "MplKLzV/4d+nqmD18"
+            ],
+            "name": "Mate connector 1"
+        }
+    },
+    """
+
+    id: str
+    suppressed: bool
+    featureType: Literal["MateConnectorFeature"] = "MateConnectorFeature"
+    featureData: MateConnectorFeatureData
+
+
+class Pattern(BaseModel):
+    pass
 
 
 class SubAssembly(IDBase):
@@ -348,8 +472,10 @@ class SubAssembly(IDBase):
     """
 
     instances: list[Union[PartInstance, AssemblyInstance]]
-    patterns: list[dict]
-    features: list[MateFeature]
+    patterns: list[Pattern]
+    features: list[Union[MateFeature, MateRelationFeature, MateGroupFeature, MateConnectorFeature]] = Field(
+        ..., discriminator="featureType"
+    )
 
     @property
     def uid(self) -> str:

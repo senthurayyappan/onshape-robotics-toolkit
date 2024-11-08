@@ -244,7 +244,7 @@ class Client:
             query={
                 "includeMateFeatures": "true",
                 "includeMateConnectors": "true",
-                "includeNonSolids": "true",
+                "includeNonSolids": "false",
                 "configuration": configuration,
             },
         ).json()
