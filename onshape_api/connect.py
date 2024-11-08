@@ -1,17 +1,15 @@
 """
 This module provides a client class and other utilities to interact with the Onshape API.
 
-Classes:
+Class:
     - **Client**: Provides access to the Onshape REST API.
+    - **Part**: Represents a part within an assembly, including its properties and configuration.
+    - **PartInstance**: Represents an instance of a part within an assembly.
 
-Enums:
+Enum:
     - **HTTP**: Enumerates the possible HTTP methods (GET, POST, DELETE).
 
-Functions:
-    - **load_env_variables**: Load environment variables from a .env file.
-    - **make_nonce**: Generate a unique ID for the request.
-
-Constants:
+Constant:
     - **BASE_URL**: Base URL for the Onshape API.
 """
 
@@ -129,13 +127,9 @@ class Client:
     Methods:
         get_document_metadata: Get details for a specified document.
         get_elements: Get list of elements in a document.
-        get_features_from_partstudio: Get the feature list for a specified document / workspace / part
-        get_features_from_assembly: Get the feature list for a specified document / workspace / assembly
         get_variables: Get list of variables in a variable studio.
         set_variables: Set variables in a variable studio.
-        create_assembly: Create a new assembly element in the specified document / workspace.
         get_assembly: Get assembly data for a specified document / workspace / assembly.
-        get_parts: Get parts in an assembly.
         download_stl: Download an STL file from a part studio.
         get_mass_property: Get mass properties for a part in a part studio.
         request: Issue a request to the Onshape API.

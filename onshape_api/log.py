@@ -9,10 +9,10 @@ The custom logger class is implemented as a singleton, ensuring that only one in
 used throughout the application. This helps to maintain a consistent logging configuration and avoid conflicts between
 multiple logger instances.
 
-Classes:
+Class:
     - **Logger**: Custom logger class that extends the built-in Python logger.
 
-Enums:
+Enum:
     - **LogLevel**: Enumerates the possible log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL).
 
 Globals:

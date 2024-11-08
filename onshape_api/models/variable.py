@@ -13,7 +13,7 @@ and safer manipulation of the data within the application.
 Models:
     - **Variable**: Represents a variable used in Onshape's Variable Studio.
 
-Enums:
+Enum:
     - **VARIABLE_TYPE**: Enumerates the possible variable types in Onshape (LENGTH, ANGLE, NUMBER, ANY).
 
 """

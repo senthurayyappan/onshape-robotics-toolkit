@@ -2,13 +2,6 @@
 This module contains functions that provide a way to traverse the assembly structure, extract information about parts,
 subassemblies, instances, and mates, and generate a hierarchical representation of the assembly.
 
-Functions:
-    - **get_instances**: Get instances of an occurrence path in the assembly.
-    - **get_occurences**: Get occurrences of the assembly.
-    - **get_subassemblies**: Get subassemblies of the assembly.
-    - **get_parts**: Get parts of the assembly.
-    - **join_mate_occurences**: Join two occurrence paths with a mate joiner.
-    - **get_mates**: Get mates of the assembly.
 """
 
 import os

@@ -21,7 +21,7 @@ Supplementary models:
     - **DefaultWorkspace**: Represents the default workspace of an Onshape document, containing the
       workspace ID and type.
 
-Enums:
+Enum:
     - **WorkspaceType**: Enumerates the possible workspace types in Onshape (w, v, m).
     - **MetaWorkspaceType**: Enumerates the possible meta workspace types in Onshape (workspace,
       version, microversion).

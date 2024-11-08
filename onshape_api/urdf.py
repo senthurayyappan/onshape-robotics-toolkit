@@ -1,11 +1,6 @@
 """
 This module contains functions to generate URDF components from Onshape assembly data.
 
-Functions:
-    - **download_stl_mesh**: Download an STL mesh from an Onshape part studio and save it to a file.
-    - **get_robot_link**: Generate a URDF link from an Onshape part.
-    - **get_robot_joint**: Generate a URDF joint from an Onshape mate.
-    - **get_urdf_components**: Generate URDF links and joints from an Onshape assembly.
 """
 
 import io

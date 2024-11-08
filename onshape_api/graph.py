@@ -1,11 +1,6 @@
 """
 This module contains functions to create and manipulate graphs from Onshape assembly data.
 
-Functions:
-    - **show_graph**: Display the graph using networkx and matplotlib.
-    - **save_graph**: Save the graph as an image file.
-    - **convert_to_digraph**: Convert a graph to a directed graph.
-    - **create_graph**: Create a graph from assembly data.
 """
 
 from typing import Union

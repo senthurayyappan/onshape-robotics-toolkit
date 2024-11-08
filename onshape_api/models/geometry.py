@@ -1,7 +1,7 @@
 """
 This module contains classes for representing geometry in Onshape.
 
-Classes:
+Class:
     - **BaseGeometry**: Abstract base class for geometry objects.
     - **BoxGeometry**: Represents a box geometry.
     - **CylinderGeometry**: Represents a cylinder geometry.

@@ -1,7 +1,7 @@
 """
 This module contains classes for defining joints in a URDF robot model.
 
-Classes:
+Class:
     - **BaseJoint**: Abstract base class for joint objects.
     - **DummyJoint**: Represents a dummy joint.
     - **RevoluteJoint**: Represents a revolute joint.
@@ -11,14 +11,14 @@ Classes:
     - **FloatingJoint**: Represents a floating joint.
     - **PlanarJoint**: Represents a planar joint.
 
-Data Classes:
+Dataclass:
     - **JointLimits**: Contains the limits for a joint.
     - **JointMimic**: Contains the mimic information for a joint.
     - **JointDynamics**: Contains the dynamics information for a joint.
     - **Axis**: Contains the axis information for a joint.
     - **Origin**: Contains the origin information for a joint.
 
-Enums:
+Enum:
     - **JointType**: Enumerates the possible joint types in Onshape (revolute, continuous, prismatic,
       fixed, floating, planar).
 

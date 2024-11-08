@@ -1,10 +1,6 @@
 """
 This module contains functions for transforming meshes and inertia matrices.
 
-Functions:
-    - **transform_vectors**: Apply a transformation matrix to a set of vectors.
-    - **transform_mesh**: Apply a transformation matrix to an STL mesh.
-    - **transform_inertia_matrix**: Transform an inertia matrix to a new reference frame.
 """
 
 from functools import partial

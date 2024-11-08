@@ -1,7 +1,7 @@
 """
 This module contains dataclasses for creating a link in a URDF robot model.
 
-Data Classes:
+Dataclass:
     - **Origin**: Represents the origin of a link in the robot model.
     - **Axis**: Represents the axis of a link in the robot model.
     - **Inertia**: Represents the inertia properties of a link in the robot model.
@@ -11,7 +11,7 @@ Data Classes:
     - **CollisionLink**: Represents the collision properties of a link in the robot model.
     - **Link**: Represents a link in the robot model.
 
-Enums:
+Enum:
     - **Colors**: Enumerates the possible colors for a link in the robot model.
 """
 

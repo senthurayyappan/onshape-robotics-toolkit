@@ -35,7 +35,7 @@ Supplementary models:
     - **MateRelationFeatureData**: Represents data for a mate relation feature within an assembly.
     - **MateFeatureData**: Represents data for a mate feature within an assembly.
 
-Enums:
+Enum:
     - **InstanceType**: Enumerates the types of instances in an assembly, e.g. PART, ASSEMBLY.
     - **MateType**: Enumerates the type of mate between two parts or assemblies, e.g. SLIDER,
       CYLINDRICAL, REVOLUTE, etc.

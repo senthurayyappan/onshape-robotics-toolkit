@@ -13,7 +13,7 @@ and safer manipulation of the data within the application.
 Models:
     - **Element**: Represents an Onshape element, containing the element ID, name, type, and microversion ID.
 
-Enums:
+Enum:
     - **ElementType**: Enumerates the possible element types in Onshape (PARTSTUDIO, ASSEMBLY, DRAWING, etc.).
 """
 
