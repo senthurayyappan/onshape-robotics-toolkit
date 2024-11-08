@@ -8,7 +8,7 @@ repo_name: imsenthur/onshape-api
 copyright: Maintained by <a href="https://imsenthur.com">Florian</a>.
 
 nav:
-  - Installation: index.md
+  - Overview: index.md
   - Getting Started: getting-started.md
   - Tutorials: tutorials.md
   - API Documentation:
