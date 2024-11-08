@@ -1,13 +1,16 @@
+from typing import Union
+
 import matplotlib.pyplot as plt
 import networkx as nx
 
 from onshape_api.log import LOGGER
 from onshape_api.models.assembly import (
-    Instance,
+    AssemblyInstance,
     InstanceType,
     MateFeatureData,
     Occurrence,
     Part,
+    PartInstance,
 )
 from onshape_api.parse import MATE_JOINER
 
@@ -31,7 +34,7 @@ def convert_to_digraph(graph: nx.Graph) -> nx.DiGraph:
 
 def create_graph(
     occurences: dict[str, Occurrence],
-    instances: dict[str, Instance],
+    instances: dict[str, Union[PartInstance, AssemblyInstance]],
     parts: dict[str, Part],
     mates: dict[str, MateFeatureData],
     directed: bool = True,

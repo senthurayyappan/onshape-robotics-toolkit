@@ -5,12 +5,13 @@ from onshape_api.connect import Client
 from onshape_api.models.assembly import (
     Assembly,
     AssemblyFeatureType,
-    Instance,
+    AssemblyInstance,
     InstanceType,
     MateFeature,
     MateFeatureData,
     Occurrence,
     Part,
+    PartInstance,
     RootAssembly,
     SubAssembly,
 )
@@ -22,7 +23,7 @@ SUBASSEMBLY_JOINER = "<::>"
 MATE_JOINER = "<+>"
 
 
-def get_instances(assembly: Assembly) -> dict[str, Instance]:
+def get_instances(assembly: Assembly) -> dict[str, Union[PartInstance, AssemblyInstance]]:
     """
     Get instances of an occurrence path in the assembly.
 
@@ -33,7 +34,9 @@ def get_instances(assembly: Assembly) -> dict[str, Instance]:
         A dictionary mapping instance IDs to their corresponding instances.
     """
 
-    def traverse_instances(root: Union[RootAssembly, SubAssembly], prefix: str = "") -> dict[str, Instance]:
+    def traverse_instances(
+        root: Union[RootAssembly, SubAssembly], prefix: str = ""
+    ) -> dict[str, Union[PartInstance, AssemblyInstance]]:
         instance_mapping = {}
         for instance in root.instances:
             instance_id = f"{prefix}{SUBASSEMBLY_JOINER}{instance.id}" if prefix else instance.id
@@ -57,7 +60,7 @@ def get_occurences(assembly: Assembly) -> dict[str, Occurrence]:
 
 
 def get_subassemblies(
-    assembly: Assembly, instance_mapping: Optional[dict[str, Instance]] = None
+    assembly: Assembly, instance_mapping: Optional[dict[str, Union[PartInstance, AssemblyInstance]]] = None
 ) -> dict[str, SubAssembly]:
     subassembly_mapping = {}
 
@@ -75,7 +78,9 @@ def get_subassemblies(
 
 
 def get_parts(
-    assembly: Assembly, client: Client, instance_mapping: Optional[dict[str, Instance]] = None
+    assembly: Assembly,
+    client: Client,
+    instance_mapping: Optional[dict[str, Union[PartInstance, AssemblyInstance]]] = None,
 ) -> dict[str, Part]:
     # NOTE: partIDs are not unique hence we use the instance ID as the key
     part_instance_mapping: dict[str, list[str]] = {}

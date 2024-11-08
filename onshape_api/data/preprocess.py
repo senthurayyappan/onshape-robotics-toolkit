@@ -43,7 +43,7 @@ def get_assembly_data(assembly_id: str, client: Client):
         ids["wtype"] = document.defaultWorkspace.type.shorthand
         ids["workspaceId"] = document.defaultWorkspace.id
 
-        LOGGER.info(f"Assembly data retrieved for element: {ids["elementId"]}")
+        LOGGER.info(f"Assembly data retrieved for element: {ids['elementId']}")
 
     except Exception as e:
         LOGGER.warning(f"Error getting assembly data for {assembly_id}")

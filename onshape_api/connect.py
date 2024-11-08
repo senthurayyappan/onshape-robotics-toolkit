@@ -111,10 +111,28 @@ class Client:
 
         Returns:
             - requests.Response: Onshape response data
+
         """
         res = self.request(HTTP.GET, "/api/documents/" + did)
 
-        if res.status_code == 404:
+        if res.status_code == 404 or res.status_code == 403:
+            """
+            404: Document not found
+                {
+                    "message": "Not found.",
+                    "code": 0,
+                    "status": 404,
+                    "moreInfoUrl": ""
+                }
+
+            403: Resource does not exist
+                {
+                    "message": "Resource does not exist, or you do not have permission to access it.",
+                    "code": 1002,
+                    "status": 403,
+                    "moreInfoUrl": null
+                }
+            """
             return None
 
         return DocumentMetaData.model_validate(res.json())
