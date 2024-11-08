@@ -181,15 +181,15 @@ class IDBase(BaseModel):
     Attributes:
         fullConfiguration (str): The full configuration of the entity.
         configuration (str): The configuration of the entity.
-        documentId (str): The document ID of the entity.
-        elementId (str): The element ID of the entity.
+        documentId (str): The unique identifier of the entity.
+        elementId (str): The unique identifier of the entity.
         documentMicroversion (str): The microversion of the document.
     """
 
     fullConfiguration: str = Field(..., description="The full configuration of the entity.")
     configuration: str = Field(..., description="The configuration of the entity.")
-    documentId: str = Field(..., description="The document ID of the entity.")
-    elementId: str = Field(..., description="The element ID of the entity.")
+    documentId: str = Field(..., description="The unique identifier of the entity.")
+    elementId: str = Field(..., description="The unique identifier of the entity.")
     documentMicroversion: str = Field(..., description="The microversion of the document.")
 
     @field_validator("documentId", "elementId", "documentMicroversion")
@@ -273,32 +273,55 @@ class Part(IDBase):
 
 class PartInstance(IDBase):
     """
-    Part Instance model
-    {
-        "isStandardContent" : false,
-        "type" : "Part",
-        "id" : "M0Cyvy+yIq8Rd7En0",
-        "name" : "Part 1 <2>",
-        "suppressed" : false,
-        "partId" : "JHD",
+    PartInstance model representing an instance of a part in an assembly.
 
-        "fullConfiguration" : "default",
-        "configuration" : "default",
-        "documentId" : "a1c1addf75444f54b504f25c",
-        "elementId" : "a86aaf34d2f4353288df8812",
-        "documentMicroversion" : "12fabf866bef5a9114d8c4d2"
+    Example JSON representation:
+    {
+        "isStandardContent": false,
+        "type": "Part",
+        "id": "M0Cyvy+yIq8Rd7En0",
+        "name": "Part 1 <2>",
+        "suppressed": false,
+        "partId": "JHD",
+        "fullConfiguration": "default",
+        "configuration": "default",
+        "documentId": "a1c1addf75444f54b504f25c",
+        "elementId": "a86aaf34d2f4353288df8812",
+        "documentMicroversion": "12fabf866bef5a9114d8c4d2"
     }
+
+    Attributes:
+        isStandardContent (bool): Indicates if the part is standard content.
+        type (INSTANCE_TYPE): The type of the instance, must be 'Part'.
+        id (str): The unique identifier for the part instance.
+        name (str): The name of the part instance.
+        suppressed (bool): Indicates if the part instance is suppressed.
+        partId (str): The identifier for the part.
+        fullConfiguration (str): The full configuration of the part instance.
+        configuration (str): The configuration of the part instance.
+        documentId (str): The unique identifier of the document containing the part.
+        elementId (str): The unique identifier of the element containing the part.
+        documentMicroversion (str): The microversion of the document containing the part.
     """
 
-    isStandardContent: bool
-    type: INSTANCE_TYPE
-    id: str
-    name: str
-    suppressed: bool
-    partId: str
+    isStandardContent: bool = Field(..., description="Indicates if the part is standard content.")
+    type: INSTANCE_TYPE = Field(..., description="The type of the instance, must be 'Part'.")
+    id: str = Field(..., description="The unique identifier for the part instance.")
+    name: str = Field(..., description="The name of the part instance.")
+    suppressed: bool = Field(..., description="Indicates if the part instance is suppressed.")
+    partId: str = Field(..., description="The identifier for the part.")
 
     @field_validator("type")
     def check_type(cls, v: INSTANCE_TYPE) -> INSTANCE_TYPE:
+        """
+        Validates that the type is 'Part'. Raises a ValueError if not.
+
+        Args:
+            v (INSTANCE_TYPE): The type to validate.
+
+        Returns:
+            INSTANCE_TYPE: The validated type.
+        """
         if v != INSTANCE_TYPE.PART:
             raise ValueError("Type must be Part")
 
@@ -306,6 +329,12 @@ class PartInstance(IDBase):
 
     @property
     def uid(self) -> str:
+        """
+        Generates a unique identifier for the part instance based on its attributes.
+
+        Returns:
+            str: The unique identifier for the part instance.
+        """
         return generate_uid([
             self.documentId,
             self.documentMicroversion,
@@ -317,28 +346,49 @@ class PartInstance(IDBase):
 
 class AssemblyInstance(IDBase):
     """
-    Assembly Instance model
-    {
-        "id" : "Mon18P7LPP8A9STk+",
-        "type" : "Assembly",
-        "name" : "subAssembly <1>",
-        "suppressed" : false,
+    AssemblyInstance model representing an instance of an assembly.
 
-        "fullConfiguration" : "default",
-        "configuration" : "default",
-        "documentId" : "a1c1addf75444f54b504f25c",
-        "elementId" : "f0b3a4afab120f778a4037df",
-        "documentMicroversion" : "349f6413cafefe8fb4ab3b07"
+    Example JSON representation:
+    {
+        "id": "Mon18P7LPP8A9STk+",
+        "type": "Assembly",
+        "name": "subAssembly",
+        "suppressed": false,
+        "fullConfiguration": "default",
+        "configuration": "default",
+        "documentId": "a1c1addf75444f54b504f25c",
+        "elementId": "f0b3a4afab120f778a4037df",
+        "documentMicroversion": "349f6413cafefe8fb4ab3b07"
     }
+
+    Attributes:
+        id (str): The unique identifier for the assembly instance.
+        type (INSTANCE_TYPE): The type of the instance, must be 'Assembly'.
+        name (str): The name of the assembly instance.
+        suppressed (bool): Indicates if the assembly instance is suppressed.
+        fullConfiguration (str): The full configuration of the assembly instance.
+        configuration (str): The configuration of the assembly instance.
+        documentId (str): The unique identifier of the document containing the assembly.
+        elementId (str): The unique identifier of the element containing the assembly.
+        documentMicroversion (str): The microversion of the document containing the assembly.
     """
 
-    id: str
-    type: INSTANCE_TYPE
-    name: str
-    suppressed: bool
+    id: str = Field(..., description="The unique identifier for the assembly instance.")
+    type: INSTANCE_TYPE = Field(..., description="The type of the instance, must be 'Assembly'.")
+    name: str = Field(..., description="The name of the assembly instance.")
+    suppressed: bool = Field(..., description="Indicates if the assembly instance is suppressed.")
 
     @field_validator("type")
     def check_type(cls, v: INSTANCE_TYPE) -> INSTANCE_TYPE:
+        """
+        Validates that the type is 'Assembly'. Raises a ValueError if not.
+
+        Args:
+            v (INSTANCE_TYPE): The type to validate.
+
+        Returns:
+            INSTANCE_TYPE: The validated type.
+        """
         if v != INSTANCE_TYPE.ASSEMBLY:
             raise ValueError("Type must be Assembly")
 
@@ -347,22 +397,42 @@ class AssemblyInstance(IDBase):
 
 class MatedCS(BaseModel):
     """
-    Mated CS model
+    MatedCS model representing a coordinate system used for mating parts in an assembly.
+
+    Example JSON representation:
     {
         "xAxis" : [ 1.0, 0.0, 0.0 ],
         "yAxis" : [ 0.0, 0.0, -1.0 ],
         "zAxis" : [ 0.0, 1.0, 0.0 ],
         "origin" : [ 0.0, -0.0505, 0.0 ]
     }
+
+    Attributes:
+        xAxis (list[float]): The x-axis vector of the coordinate system.
+        yAxis (list[float]): The y-axis vector of the coordinate system.
+        zAxis (list[float]): The z-axis vector of the coordinate system.
+        origin (list[float]): The origin point of the coordinate system.
     """
 
-    xAxis: list[float]
-    yAxis: list[float]
-    zAxis: list[float]
-    origin: list[float]
+    xAxis: list[float] = Field(..., description="The x-axis vector of the coordinate system.")
+    yAxis: list[float] = Field(..., description="The y-axis vector of the coordinate system.")
+    zAxis: list[float] = Field(..., description="The z-axis vector of the coordinate system.")
+    origin: list[float] = Field(..., description="The origin point of the coordinate system.")
 
     @field_validator("xAxis", "yAxis", "zAxis", "origin")
     def check_vectors(cls, v: list[float]) -> list[float]:
+        """
+        Validates that the vectors have exactly 3 values.
+
+        Args:
+            v (list[float]): The vector to validate.
+
+        Returns:
+            list[float]: The validated vector.
+
+        Raises:
+            ValueError: If the vector does not have exactly 3 values.
+        """
         if len(v) != 3:
             raise ValueError("Vectors must have 3 values")
 
@@ -370,6 +440,12 @@ class MatedCS(BaseModel):
 
     @property
     def part_to_mate_tf(self) -> np.matrix:
+        """
+        Generates a transformation matrix from the part coordinate system to the mate coordinate system.
+
+        Returns:
+            np.matrix: The 4x4 transformation matrix.
+        """
         rotation_matrix = np.array([self.xAxis, self.yAxis, self.zAxis]).T
         translation_vector = np.array(self.origin)
         part_to_mate_tf = np.eye(4)
@@ -380,46 +456,97 @@ class MatedCS(BaseModel):
 
 class MatedEntity(BaseModel):
     """
-    MatedEntity data model
+    MatedEntity data model representing an entity that is mated in an assembly.
+
+    Example JSON representation:
     {
-        "matedOccurrence" : [ "MDUJyqGNo7JJll+/h" ],
-        "matedCS" :
-        {
-            "xAxis" : [ 1.0, 0.0, 0.0 ],
-            "yAxis" : [ 0.0, 0.0, -1.0 ],
-            "zAxis" : [ 0.0, 1.0, 0.0 ],
-            "origin" : [ 0.0, -0.0505, 0.0 ]
+        "matedOccurrence": ["MDUJyqGNo7JJll+/h"],
+        "matedCS": {
+            "xAxis": [1.0, 0.0, 0.0],
+            "yAxis": [0.0, 0.0, -1.0],
+            "zAxis": [0.0, 1.0, 0.0],
+            "origin": [0.0, -0.0505, 0.0]
         }
     }
+
+    Attributes:
+        matedOccurrence (list[str]): A list of identifiers for the occurrences that are mated.
+        matedCS (MatedCS): The coordinate system used for mating the parts.
     """
 
-    matedOccurrence: list[str]
-    matedCS: MatedCS
+    matedOccurrence: list[str] = Field(..., description="A list of identifiers for the occurrences that are mated.")
+    matedCS: MatedCS = Field(..., description="The coordinate system used for mating the parts.")
 
 
 class MateRelationMate(BaseModel):
     """
+    MateRelationMate model represents a mate relation in an assembly.
+
+    Example JSON representation:
     {
         "featureId": "S4/TgCRmQt1nIHHp",
         "occurrence": []
-    },
+    }
+
+    Attributes:
+        featureId (str): The unique identifier of the mate feature.
+        occurrence (list[str]): A list of identifiers for the occurrences involved in the mate relation.
     """
 
-    featureId: str
-    occurrence: list[str]
+    featureId: str = Field(..., description="The unique identifier of the mate feature.")
+    occurrence: list[str] = Field(
+        ..., description="A list of identifiers for the occurrences involved in the mate relation."
+    )
 
 
 class MateGroupFeatureOccurrence(BaseModel):
-    occurrence: list[str]
+    """
+    MateGroupFeatureOccurrence model representing an occurrence in a mate group feature.
+
+    Example JSON representation:
+    {
+        "occurrence": ["MplKLzV/4d+nqmD18"]
+    }
+
+    Attributes:
+        occurrence (list[str]): A list of identifiers for the occurrences in the mate group feature.
+    """
+
+    occurrence: list[str] = Field(
+        ..., description="A list of identifiers for the occurrences in the mate group feature."
+    )
 
 
 class MateGroupFeatureData(BaseModel):
-    occurrences: list[MateGroupFeatureOccurrence]
-    name: str
+    """
+    MateGroupFeatureData model representing a mate group feature in an assembly.
+
+    Example JSON representation:
+    {
+        "occurrences": [
+            {
+                "occurrence": ["MplKLzV/4d+nqmD18"]
+            }
+        ],
+        "name": "Mate group 1"
+    }
+
+    Attributes:
+        occurrences (list[MateGroupFeatureOccurrence]): A list of occurrences in the mate group feature.
+        name (str): The name of the mate group feature.
+    """
+
+    occurrences: list[MateGroupFeatureOccurrence] = Field(
+        ..., description="A list of occurrences in the mate group feature."
+    )
+    name: str = Field(..., description="The name of the mate group feature.")
 
 
 class MateConnectorFeatureData(BaseModel):
     """
+    MateConnectorFeatureData model representing a mate connector feature in an assembly.
+
+    Example JSON representation:
     {
         "mateConnectorCS": {
             "xAxis": [],
@@ -432,6 +559,11 @@ class MateConnectorFeatureData(BaseModel):
         ],
         "name": "Mate connector 1"
     }
+
+    Attributes:
+        mateConnectorCS (MatedCS): The coordinate system used for the mate connector.
+        occurrence (list[str]): A list of identifiers for the occurrences involved in the mate connector.
+        name (str): The name of the mate connector feature.
     """
 
     mateConnectorCS: MatedCS
@@ -441,6 +573,9 @@ class MateConnectorFeatureData(BaseModel):
 
 class MateRelationFeatureData(BaseModel):
     """
+    MateRelationFeatureData model representing a mate relation feature in an assembly.
+
+    Example JSON representation:
     {
         "relationType": "GEAR",
         "mates": [
@@ -457,18 +592,27 @@ class MateRelationFeatureData(BaseModel):
         "relationRatio": 1,
         "name": "Gear 1"
     }
+
+    Attributes:
+        relationType (RELATION_TYPE): The type of mate relation.
+        mates (list[MateRelationMate]): A list of mate relations.
+        reverseDirection (bool): Indicates if the direction of the mate relation is reversed.
+        relationRatio (Union[float, None]): The ratio of the mate relation. Defaults to None.
+        name (str): The name of the mate relation feature.
     """
 
-    relationType: RELATION_TYPE
-    mates: list[MateRelationMate]
-    reverseDirection: bool
-    relationRatio: Union[float, None] = None
-    name: str
+    relationType: RELATION_TYPE = Field(..., description="The type of mate relation.")
+    mates: list[MateRelationMate] = Field(..., description="A list of mate relations.")
+    reverseDirection: bool = Field(..., description="Indicates if the direction of the mate relation is reversed.")
+    relationRatio: Union[float, None] = Field(None, description="The ratio of the mate relation. Defaults to None.")
+    name: str = Field(..., description="The name of the mate relation feature.")
 
 
 class MateFeatureData(BaseModel):
     """
-    MateFeatureData data model
+    MateFeatureData model representing a mate feature in an assembly.
+
+    Example JSON representation:
     {
         "matedEntities" :
         [
@@ -495,54 +639,193 @@ class MateFeatureData(BaseModel):
         "mateType" : "FASTENED",
         "name" : "Fastened 1"
     }
+
+    Attributes:
+        matedEntities (list[MatedEntity]): A list of mated entities.
+        mateType (MATE_TYPE): The type of mate.
+        name (str): The name of the mate feature.
     """
 
-    matedEntities: list[MatedEntity]
-    mateType: MATE_TYPE
-    name: str
+    matedEntities: list[MatedEntity] = Field(..., description="A list of mated entities.")
+    mateType: MATE_TYPE = Field(..., description="The type of mate.")
+    name: str = Field(..., description="The name of the mate feature.")
 
 
 class AssemblyFeature(BaseModel):
-    id: str
-    suppressed: bool
-    featureType: ASSEMBLY_FEATURE_TYPE
-    featureData: Union[MateGroupFeatureData, MateConnectorFeatureData, MateRelationFeatureData, MateFeatureData]
+    """
+    AssemblyFeature model representing a feature in an assembly.
+
+    Example JSON representation:
+    {
+    "id": "Mw+URe/Uaxx5gIdlu",
+    "suppressed": false,
+    "featureType": "mate",
+    "featureData": {
+        "matedEntities" :
+        [
+            {
+                "matedOccurrence" : [ "MDUJyqGNo7JJll+/h" ],
+                "matedCS" :
+                {
+                    "xAxis" : [ 1.0, 0.0, 0.0 ],
+                    "yAxis" : [ 0.0, 0.0, -1.0 ],
+                    "zAxis" : [ 0.0, 1.0, 0.0 ],
+                    "origin" : [ 0.0, -0.0505, 0.0 ]
+                }
+            }, {
+                "matedOccurrence" : [ "MwoBIsds8rn1/0QXA" ],
+                "matedCS" :
+                {
+                    "xAxis" : [ 0.8660254037844387, 0.0, -0.49999999999999994 ],
+                    "yAxis" : [ -0.49999999999999994, 0.0, -0.8660254037844387 ],
+                    "zAxis" : [ 0.0, 1.0, 0.0 ],
+                    "origin" : [ 0.0, -0.0505, 0.0 ]
+                }
+            }
+        ],
+        "mateType" : "FASTENED",
+        "name" : "Fastened 1"
+        }
+    }
+
+    Attributes:
+        id (str): The unique identifier of the feature.
+        suppressed (bool): Indicates if the feature is suppressed.
+        featureType (ASSEMBLY_FEATURE_TYPE): The type of the feature.
+        featureData (Union[MateGroupFeatureData, MateConnectorFeatureData, MateRelationFeatureData, MateFeatureData]):
+            Data associated with the assembly feature.
+    """
+
+    id: str = Field(..., description="The unique identifier of the feature.")
+    suppressed: bool = Field(..., description="Indicates if the feature is suppressed.")
+    featureType: ASSEMBLY_FEATURE_TYPE = Field(..., description="The type of the feature.")
+    featureData: Union[MateGroupFeatureData, MateConnectorFeatureData, MateRelationFeatureData, MateFeatureData] = (
+        Field(..., description="Data associated with the assembly feature.")
+    )
 
 
 class Pattern(BaseModel):
+    """
+    Dummy model to hold pattern data in an assembly.
+    """
+
     pass
 
 
 class SubAssembly(IDBase):
     """
-    SubAssembly data model
+    SubAssembly model representing a sub-assembly in an assembly.
+
+    Example JSON representation:
+    {
+        "instances": [],
+        "patterns": [],
+        "features": [],
+        "fullConfiguration": "default",
+        "configuration": "default",
+        "documentId": "a1c1addf75444f54b504f25c",
+        "elementId": "0b0c209535554345432581fe",
+        "documentMicroversion": "349f6413cafefe8fb4ab3b07"
+    }
+
+    Attributes:
+        instances (list[Union[PartInstance, AssemblyInstance]]):
+            A list of part and assembly instances in the sub-assembly.
+        patterns (list[Pattern]): A list of patterns in the sub-assembly.
+        features (list[AssemblyFeature]): A list of features in the sub-assembly
+        fullConfiguration (str): The full configuration of the sub-assembly.
+        configuration (str): The configuration of the sub-assembly.
+        documentId (str): The unique identifier of the document containing the sub-assembly.
+        elementId (str): The unique identifier of the element containing the sub-assembly.
+        documentMicroversion (str): The microversion of the document containing the sub-assembly.
     """
 
-    instances: list[Union[PartInstance, AssemblyInstance]]
-    patterns: list[Pattern]
-    features: list[AssemblyFeature]
+    instances: list[Union[PartInstance, AssemblyInstance]] = Field(
+        ..., description="A list of part and assembly instances in the sub-assembly."
+    )
+    patterns: list[Pattern] = Field(..., description="A list of patterns in the sub-assembly.")
+    features: list[AssemblyFeature] = Field(..., description="A list of features in the sub-assembly")
 
     @property
     def uid(self) -> str:
+        """
+        Generates a unique identifier for the sub-assembly with documentId, documentMicroversion, elementId, and
+        fullConfiguration.
+
+        Returns:
+            str: The unique identifier for the sub-assembly.
+        """
         return generate_uid([self.documentId, self.documentMicroversion, self.elementId, self.fullConfiguration])
 
 
 class RootAssembly(SubAssembly):
     """
-    RootAssembly data model
+    RootAssembly model representing the root assembly in an assembly.
+
+    Example JSON representation:
+    {
+        "instances": [],
+        "patterns": [],
+        "features": [],
+        "occurrences": [],
+        "fullConfiguration": "default",
+        "configuration": "default",
+        "documentId": "a1c1addf75444f54b504f25c",
+        "elementId": "0b0c209535554345432581fe",
+        "documentMicroversion": "349f6413cafefe8fb4ab3b07"
+    }
+
+    Attributes:
+        instances (list[Union[PartInstance, AssemblyInstance]]):
+            A list of part and assembly instances in the root assembly.
+        patterns (list[Pattern]): A list of patterns in the root assembly.
+        features (list[AssemblyFeature]): A list of features in the root assembly.
+        occurrences (list[Occurrence]): A list of occurrences in the root assembly.
+        fullConfiguration (str): The full configuration of the root assembly.
+        configuration (str): The configuration of the root assembly.
+        documentId (str): The unique identifier of the document containing the root assembly.
+        elementId (str): The unique identifier of the element containing the root assembly.
+        documentMicroversion (str): The microversion of the document containing the root assembly.
     """
 
-    occurrences: list[Occurrence]
+    occurrences: list[Occurrence] = Field(..., description="A list of occurrences in the root assembly.")
 
 
 class Assembly(BaseModel):
     """
-    Assembly data model
+    Assembly model representing an assembly in an Onshape document.
+
+    Example JSON representation:
+    {
+        "rootAssembly": {
+            "instances": [],
+            "patterns": [],
+            "features": [],
+            "occurrences": [],
+            "fullConfiguration": "default",
+            "configuration": "default",
+            "documentId": "a1c1addf75444f54b504f25c",
+            "elementId": "0b0c209535554345432581fe",
+            "documentMicroversion": "349f6413cafefe8fb4ab3b07"
+        },
+        "subAssemblies": [],
+        "parts": [],
+        "partStudioFeatures": []
+    }
+
+    Attributes:
+        rootAssembly (RootAssembly): The root assembly in the document.
+        subAssemblies (list[SubAssembly]): A list of sub-assemblies in the document.
+        parts (list[Part]): A list of parts in the document.
+        partStudioFeatures (list[dict]): A list of part studio features in the document.
+
+    Custom Attributes:
+        document (Union[Document, None]): The document object associated with the assembly. Defaults to None.
     """
 
-    rootAssembly: RootAssembly
-    subAssemblies: list[SubAssembly]
-    parts: list[Part]
-    partStudioFeatures: list[dict]
+    rootAssembly: RootAssembly = Field(..., description="The root assembly in the document.")
+    subAssemblies: list[SubAssembly] = Field(..., description="A list of sub-assemblies in the document.")
+    parts: list[Part] = Field(..., description="A list of parts in the document.")
+    partStudioFeatures: list[dict] = Field(..., description="A list of part studio features in the document.")
 
-    document: Union[Document, None] = None
+    document: Union[Document, None] = Field(None, description="The document associated with the assembly.")

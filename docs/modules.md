@@ -1,1 +1,1 @@
-::: onshape_api.client
+::: onshape_api.connect
