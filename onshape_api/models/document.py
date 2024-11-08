@@ -22,8 +22,8 @@ Supplementary models:
       workspace ID and type.
 
 Enums:
-    - **WORKSPACE_TYPE**: Enumerates the possible workspace types in Onshape (w, v, m).
-    - **META_WORKSPACE_TYPE**: Enumerates the possible meta workspace types in Onshape (workspace,
+    - **WorkspaceType**: Enumerates the possible workspace types in Onshape (w, v, m).
+    - **MetaWorkspaceType**: Enumerates the possible meta workspace types in Onshape (workspace,
       version, microversion).
 """
 
@@ -33,17 +33,23 @@ from typing import Union, cast
 import regex as re
 from pydantic import BaseModel, Field, field_validator
 
-__all__ = ["WORKSPACE_TYPE", "Document", "parse_url"]
+__all__ = ["WorkspaceType", "Document", "parse_url"]
 
 
-class WORKSPACE_TYPE(str, Enum):
+class WorkspaceType(str, Enum):
     """
     Enumerates the possible workspace types in Onshape
 
     Attributes:
-        W: Workspace
-        V: Version
-        M: Microversion
+        W (str): Workspace
+        V (str): Version
+        M (str): Microversion
+
+    Examples:
+        >>> WorkspaceType.W
+        "w"
+        >>> WorkspaceType.M
+        "m"
     """
 
     W = "w"
@@ -51,17 +57,23 @@ class WORKSPACE_TYPE(str, Enum):
     M = "m"
 
 
-class META_WORKSPACE_TYPE(str, Enum):
+class MetaWorkspaceType(str, Enum):
     """
     Enumerates the possible meta workspace types in Onshape
 
     Attributes:
-        WORKSPACE: Workspace
-        VERSION: Version
-        MICROVERSION: Microversion
+        WORKSPACE: workspace
+        VERSION: version
+        MICROVERSION: microversion
 
     Properties:
         shorthand: Shorthand representation of the meta workspace type (first letter)
+
+    Examples:
+        >>> MetaWorkspaceType.WORKSPACE.shorthand
+        "w"
+        >>> MetaWorkspaceType.VERSION
+        "version"
     """
 
     WORKSPACE = "workspace"
@@ -126,7 +138,7 @@ def parse_url(url: str) -> str:
         raise ValueError("Invalid Onshape URL")
 
     did = pattern.group(1)
-    wtype = cast(WORKSPACE_TYPE, pattern.group(2))
+    wtype = cast(WorkspaceType, pattern.group(2))
     wid = pattern.group(3)
     eid = pattern.group(4)
 
@@ -146,6 +158,22 @@ class Document(BaseModel):
 
     Methods:
         from_url: Create a Document instance from an Onshape URL
+
+    Examples:
+        >>> Document(
+        ...     url="https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812",
+        ...     did="a1c1addf75444f54b504f25c",
+        ...     wtype="w",
+        ...     wid="0d17b8ebb2a4c76be9fff3c7",
+        ...     eid="a86aaf34d2f4353288df8812"
+        ... )
+        Document(
+            url="https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812",
+            did="a1c1addf75444f54b504f25c",
+            wtype="w",
+            wid="0d17b8ebb2a4c76be9fff3c7",
+            eid="a86aaf34d2f4353288df8812"
+        )
     """
 
     url: Union[str, None] = Field(None, description="URL to the document element")
@@ -196,9 +224,9 @@ class Document(BaseModel):
         if not value:
             raise ValueError("Workspace type cannot be empty, please check the URL")
 
-        if value not in WORKSPACE_TYPE.__members__.values():
+        if value not in WorkspaceType.__members__.values():
             raise ValueError(
-                f"Invalid workspace type. Must be one of {WORKSPACE_TYPE.__members__.values()}, please check the URL"
+                f"Invalid workspace type. Must be one of {WorkspaceType.__members__.values()}, please check the URL"
             )
 
         return value
@@ -248,10 +276,14 @@ class DefaultWorkspace(BaseModel):
     Attributes:
         id: The unique identifier of the workspace
         type: The type of workspace (workspace, version, microversion)
+
+    Examples:
+        >>> DefaultWorkspace(id="739221fb10c88c2bebb456e8", type="workspace")
+        DefaultWorkspace(id="739221fb10c88c2bebb456e8", type="workspace")
     """
 
     id: str = Field(..., description="The unique identifier of the workspace")
-    type: META_WORKSPACE_TYPE = Field(..., description="The type of workspace (workspace, version, microversion)")
+    type: MetaWorkspaceType = Field(..., description="The type of workspace (workspace, version, microversion)")
 
 
 class DocumentMetaData(BaseModel):
@@ -274,6 +306,18 @@ class DocumentMetaData(BaseModel):
         defaultWorkspace: Default workspace information
         name: The name of the document
         id: The unique identifier of the document
+
+    Examples:
+        >>> DocumentMetaData(
+        ...     defaultWorkspace=DefaultWorkspace(id="739221fb10c88c2bebb456e8", type="workspace"),
+        ...     name="Document Name",
+        ...     id="a1c1addf75444f54b504f25c"
+        ... )
+        DocumentMetaData(
+            defaultWorkspace=DefaultWorkspace(id="739221fb10c88c2bebb456e8", type="workspace"),
+            name="Document Name",
+            id="a1c1addf75444f54b504f25c"
+        )
     """
 
     defaultWorkspace: DefaultWorkspace = Field(..., description="Default workspace information")

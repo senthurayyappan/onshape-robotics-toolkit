@@ -36,12 +36,12 @@ Supplementary models:
     - **MateFeatureData**: Represents data for a mate feature within an assembly.
 
 Enums:
-    - **INSTANCE_TYPE**: Enumerates the types of instances in an assembly, e.g. PART, ASSEMBLY.
-    - **MATE_TYPE**: Enumerates the type of mate between two parts or assemblies, e.g. SLIDER,
+    - **InstanceType**: Enumerates the types of instances in an assembly, e.g. PART, ASSEMBLY.
+    - **MateType**: Enumerates the type of mate between two parts or assemblies, e.g. SLIDER,
       CYLINDRICAL, REVOLUTE, etc.
-    - **RELATION_TYPE**: Enumerates the type of mate relation between two parts or assemblies, e.g. LINEAR,
+    - **RelationType**: Enumerates the type of mate relation between two parts or assemblies, e.g. LINEAR,
       GEAR, SCREW, etc.
-    - **ASSEMBLY_FEATURE_TYPE**: Enumerates the type of assembly feature, e.g. mate, mateRelation,
+    - **AssemblyFeatureType**: Enumerates the type of assembly feature, e.g. mate, mateRelation,
       mateGroup, mateConnector
 
 """
@@ -57,20 +57,26 @@ from onshape_api.models.mass import MassProperties
 from onshape_api.utilities.helpers import generate_uid
 
 
-class INSTANCE_TYPE(str, Enum):
+class InstanceType(str, Enum):
     """
     Enumerates the types of instances in an assembly, e.g. PART, ASSEMBLY.
 
     Attributes:
         PART (str): Represents a part instance.
         ASSEMBLY (str): Represents an assembly instance.
+
+    Examples:
+        >>> InstanceType.PART
+        'Part'
+        >>> InstanceType.ASSEMBLY
+        'Assembly'
     """
 
     PART = "Part"
     ASSEMBLY = "Assembly"
 
 
-class MATE_TYPE(str, Enum):
+class MateType(str, Enum):
     """
     Enumerates the type of mate between two parts or assemblies, e.g. SLIDER, CYLINDRICAL, REVOLUTE, etc.
 
@@ -83,6 +89,12 @@ class MATE_TYPE(str, Enum):
         BALL (str): Represents a ball mate.
         FASTENED (str): Represents a fastened mate.
         PARALLEL (str): Represents a parallel mate.
+
+    Examples:
+        >>> MateType.SLIDER
+        'SLIDER'
+        >>> MateType.CYLINDRICAL
+        'CYLINDRICAL'
     """
 
     SLIDER = "SLIDER"
@@ -95,7 +107,7 @@ class MATE_TYPE(str, Enum):
     PARALLEL = "PARALLEL"
 
 
-class RELATION_TYPE(str, Enum):
+class RelationType(str, Enum):
     """
     Enumerates the type of mate relation between two parts or assemblies, e.g. LINEAR, GEAR, SCREW, etc.
 
@@ -104,6 +116,12 @@ class RELATION_TYPE(str, Enum):
         GEAR (str): Represents a gear relation.
         SCREW (str): Represents a screw relation.
         RACK_AND_PINION (str): Represents a rack and pinion relation.
+
+    Examples:
+        >>> RelationType.LINEAR
+        'LINEAR'
+        >>> RelationType.GEAR
+        'GEAR'
     """
 
     LINEAR = "LINEAR"
@@ -112,7 +130,7 @@ class RELATION_TYPE(str, Enum):
     RACK_AND_PINION = "RACK_AND_PINION"
 
 
-class ASSEMBLY_FEATURE_TYPE(str, Enum):
+class AssemblyFeatureType(str, Enum):
     """
     Enumerates the type of assembly feature, e.g. mate, mateRelation, mateGroup, mateConnector
 
@@ -121,6 +139,12 @@ class ASSEMBLY_FEATURE_TYPE(str, Enum):
         MATERELATION (str): Represents a mate relation feature.
         MATEGROUP (str): Represents a mate group feature.
         MATECONNECTOR (str): Represents a mate connector feature.
+
+    Examples:
+        >>> AssemblyFeatureType.MATE
+        'mate'
+        >>> AssemblyFeatureType.MATERELATION
+        'mateRelation'
     """
 
     MATE = "mate"
@@ -153,6 +177,25 @@ class Occurrence(BaseModel):
         transform (list[float]): A 4x4 transformation matrix represented as a list of 16 floats.
         hidden (bool): Indicates if the occurrence is hidden.
         path (list[str]): A list of strings representing the path to the instance.
+
+    Examples:
+        >>> Occurrence(
+        ...     fixed=False,
+        ...     transform=[
+        ...         0.8660254037844396, 0.0, 0.5000000000000004, 0.09583333333333346,
+        ...         0.0, 1.0, 0.0, -1.53080849893419E-19,
+        ...         -0.5000000000000004, 0.0, 0.8660254037844396, 0.16598820239201767,
+        ...         0.0, 0.0, 0.0, 1.0)
+        ...     ],
+        ...     hidden=False,
+        ...     path=["M0Cyvy+yIq8Rd7En0"]
+        ... )
+        Occurrence(
+            fixed=False,
+            transform=[...],
+            hidden=False,
+            path=["M0Cyvy+yIq8Rd7En0"]
+        )
     """
 
     fixed: bool = Field(..., description="Indicates if the occurrence is fixed in space.")
@@ -262,14 +305,30 @@ class Part(IDBase):
         isStandardContent (bool): Indicates if the part is standard content.
         partId (str): The unique identifier of the part.
         bodyType (str): The type of the body (e.g., solid, surface).
+
+    Custom Attributes:
         MassProperty (Union[MassProperties, None]): The mass properties of the part, if available.
+
+    Examples:
+        >>> Part(
+        ...     isStandardContent=False,
+        ...     partId="RDBD",
+        ...     bodyType="solid",
+        ... )
+        Part(
+            isStandardContent=False,
+            partId="RDBD",
+            bodyType="solid",
+            MassProperty=None
+        )
+
     """
 
     isStandardContent: bool = Field(..., description="Indicates if the part is standard content.")
     partId: str = Field(..., description="The unique identifier of the part.")
     bodyType: str = Field(..., description="The type of the body (e.g., solid, surface).")
     MassProperty: Union[MassProperties, None] = Field(
-        None, description="The mass properties of the part, if available."
+        None, description="The mass properties of the part, this is a retrieved via a separate API call."
     )
 
     @property
@@ -306,44 +365,57 @@ class PartInstance(IDBase):
                 "fullConfiguration": "default",
                 "configuration": "default",
                 "documentId": "a1c1addf75444f54b504f25c",
-                "elementId": "a86aaf34d2f4353288df8812",
-                "documentMicroversion": "12fabf866bef5a9114d8c4d2"
+                "elementId": "0b0c209535554345432581fe",
+                "documentMicroversion": "349f6413cafefe8fb4ab3b07"
             }
         ```
 
     Attributes:
         isStandardContent (bool): Indicates if the part is standard content.
-        type (INSTANCE_TYPE): The type of the instance, must be 'Part'.
+        type (InstanceType): The type of the instance, must be 'Part'.
         id (str): The unique identifier for the part instance.
         name (str): The name of the part instance.
         suppressed (bool): Indicates if the part instance is suppressed.
         partId (str): The identifier for the part.
-        fullConfiguration (str): The full configuration of the part instance.
-        configuration (str): The configuration of the part instance.
-        documentId (str): The unique identifier of the document containing the part.
-        elementId (str): The unique identifier of the element containing the part.
-        documentMicroversion (str): The microversion of the document containing the part.
+
+    Examples:
+        >>> PartInstance(
+        ...     isStandardContent=False,
+        ...     type=InstanceType.PART,
+        ...     id="M0Cyvy+yIq8Rd7En0",
+        ...     name="Part 1 <2>",
+        ...     suppressed=False,
+        ...     partId="JHD",
+        ... )
+        PartInstance(
+            isStandardContent=False,
+            type=InstanceType.PART,
+            id="M0Cyvy+yIq8Rd7En0",
+            name="Part 1 <2>",
+            suppressed=False,
+            partId="JHD",
+        )
     """
 
     isStandardContent: bool = Field(..., description="Indicates if the part is standard content.")
-    type: INSTANCE_TYPE = Field(..., description="The type of the instance, must be 'Part'.")
+    type: InstanceType = Field(..., description="The type of the instance, must be 'Part'.")
     id: str = Field(..., description="The unique identifier for the part instance.")
     name: str = Field(..., description="The name of the part instance.")
     suppressed: bool = Field(..., description="Indicates if the part instance is suppressed.")
     partId: str = Field(..., description="The identifier for the part.")
 
     @field_validator("type")
-    def check_type(cls, v: INSTANCE_TYPE) -> INSTANCE_TYPE:
+    def check_type(cls, v: InstanceType) -> InstanceType:
         """
-        Validates that the type is 'Part'. Raises a ValueError if not.
+        Validates that the type is 'Part'.
 
         Args:
-            v (INSTANCE_TYPE): The type to validate.
+            v (InstanceType): The type to validate.
 
         Returns:
-            INSTANCE_TYPE: The validated type.
+            InstanceType: The validated type.
         """
-        if v != INSTANCE_TYPE.PART:
+        if v != InstanceType.PART:
             raise ValueError("Type must be Part")
 
         return v
@@ -386,33 +458,42 @@ class AssemblyInstance(IDBase):
 
     Attributes:
         id (str): The unique identifier for the assembly instance.
-        type (INSTANCE_TYPE): The type of the instance, must be 'Assembly'.
+        type (InstanceType): The type of the instance, must be 'Assembly'.
         name (str): The name of the assembly instance.
         suppressed (bool): Indicates if the assembly instance is suppressed.
-        fullConfiguration (str): The full configuration of the assembly instance.
-        configuration (str): The configuration of the assembly instance.
-        documentId (str): The unique identifier of the document containing the assembly.
-        elementId (str): The unique identifier of the element containing the assembly.
-        documentMicroversion (str): The microversion of the document containing the assembly.
+
+    Examples:
+        >>> AssemblyInstance(
+        ...     id="Mon18P7LPP8A9STk+",
+        ...     type=InstanceType.ASSEMBLY,
+        ...     name="subAssembly",
+        ...     suppressed=False,
+        ... )
+        AssemblyInstance(
+            id="Mon18P7LPP8A9STk+",
+            type=InstanceType.ASSEMBLY,
+            name="subAssembly",
+            suppressed=False,
+        )
     """
 
     id: str = Field(..., description="The unique identifier for the assembly instance.")
-    type: INSTANCE_TYPE = Field(..., description="The type of the instance, must be 'Assembly'.")
+    type: InstanceType = Field(..., description="The type of the instance, must be 'Assembly'.")
     name: str = Field(..., description="The name of the assembly instance.")
     suppressed: bool = Field(..., description="Indicates if the assembly instance is suppressed.")
 
     @field_validator("type")
-    def check_type(cls, v: INSTANCE_TYPE) -> INSTANCE_TYPE:
+    def check_type(cls, v: InstanceType) -> InstanceType:
         """
-        Validates that the type is 'Assembly'. Raises a ValueError if not.
+        Validates that the type is 'Assembly'.
 
         Args:
-            v (INSTANCE_TYPE): The type to validate.
+            v (InstanceType): The type to validate.
 
         Returns:
-            INSTANCE_TYPE: The validated type.
+            InstanceType: The validated type.
         """
-        if v != INSTANCE_TYPE.ASSEMBLY:
+        if v != InstanceType.ASSEMBLY:
             raise ValueError("Type must be Assembly")
 
         return v
@@ -437,6 +518,20 @@ class MatedCS(BaseModel):
         yAxis (list[float]): The y-axis vector of the coordinate system.
         zAxis (list[float]): The z-axis vector of the coordinate system.
         origin (list[float]): The origin point of the coordinate system.
+
+    Examples:
+        >>> MatedCS(
+        ...     xAxis=[1.0, 0.0, 0.0],
+        ...     yAxis=[0.0, 0.0, -1.0],
+        ...     zAxis=[0.0, 1.0, 0.0],
+        ...     origin=[0.0, -0.0505, 0.0],
+        ... )
+        MatedCS(
+            xAxis=[1.0, 0.0, 0.0],
+            yAxis=[0.0, 0.0, -1.0],
+            zAxis=[0.0, 1.0, 0.0],
+            origin=[0.0, -0.0505, 0.0]
+        )
     """
 
     xAxis: list[float] = Field(..., description="The x-axis vector of the coordinate system.")
@@ -499,6 +594,26 @@ class MatedEntity(BaseModel):
     Attributes:
         matedOccurrence (list[str]): A list of identifiers for the occurrences that are mated.
         matedCS (MatedCS): The coordinate system used for mating the parts.
+
+    Examples:
+        >>> MatedEntity(
+        ...     matedOccurrence=["MDUJyqGNo7JJll+/h"],
+        ...     matedCS=MatedCS(
+        ...         xAxis=[1.0, 0.0, 0.0],
+        ...         yAxis=[0.0, 0.0, -1.0],
+        ...         zAxis=[0.0, 1.0, 0.0],
+        ...         origin=[0.0, -0.0505, 0.0],
+        ...     ),
+        ... )
+        MatedEntity(
+            matedOccurrence=["MDUJyqGNo7JJll+/h"],
+            matedCS=MatedCS(
+                xAxis=[1.0, 0.0, 0.0],
+                yAxis=[0.0, 0.0, -1.0],
+                zAxis=[0.0, 1.0, 0.0],
+                origin=[0.0, -0.0505, 0.0]
+            )
+        )
     """
 
     matedOccurrence: list[str] = Field(..., description="A list of identifiers for the occurrences that are mated.")
@@ -520,6 +635,16 @@ class MateRelationMate(BaseModel):
     Attributes:
         featureId (str): The unique identifier of the mate feature.
         occurrence (list[str]): A list of identifiers for the occurrences involved in the mate relation.
+
+    Examples:
+        >>> MateRelationMate(
+        ...     featureId="S4/TgCRmQt1nIHHp",
+        ...     occurrence=[],
+        ... )
+        MateRelationMate(
+            featureId="S4/TgCRmQt1nIHHp",
+            occurrence=[],
+        )
     """
 
     featureId: str = Field(..., description="The unique identifier of the mate feature.")
@@ -541,6 +666,14 @@ class MateGroupFeatureOccurrence(BaseModel):
 
     Attributes:
         occurrence (list[str]): A list of identifiers for the occurrences in the mate group feature.
+
+    Examples:
+        >>> MateGroupFeatureOccurrence(
+        ...     occurrence=["MplKLzV/4d+nqmD18"],
+        ... )
+        MateGroupFeatureOccurrence(
+            occurrence=["MplKLzV/4d+nqmD18"]
+        )
     """
 
     occurrence: list[str] = Field(
@@ -567,6 +700,24 @@ class MateGroupFeatureData(BaseModel):
     Attributes:
         occurrences (list[MateGroupFeatureOccurrence]): A list of occurrences in the mate group feature.
         name (str): The name of the mate group feature.
+
+    Examples:
+        >>> MateGroupFeatureData(
+        ...     occurrences=[
+        ...         MateGroupFeatureOccurrence(
+        ...             occurrence=["MplKLzV/4d+nqmD18"],
+        ...         )
+        ...     ],
+        ...     name="Mate group 1",
+        ... )
+        MateGroupFeatureData(
+            occurrences=[
+                MateGroupFeatureOccurrence(
+                    occurrence=["MplKLzV/4d+nqmD18"]
+                )
+            ],
+            name="Mate group 1"
+        )
     """
 
     occurrences: list[MateGroupFeatureOccurrence] = Field(
@@ -583,10 +734,10 @@ class MateConnectorFeatureData(BaseModel):
         ```json
             {
                 "mateConnectorCS": {
-                    "xAxis": [],
-                    "yAxis": [],
-                    "zAxis": [],
-                    "origin": []
+                    "xAxis": [1.0, 0.0, 0.0],
+                    "yAxis": [0.0, 0.0, -1.0],
+                    "zAxis": [0.0, 1.0, 0.0],
+                    "origin": [0.0, -0.0505, 0.0]
                 },
                 "occurrence": [
                     "MplKLzV/4d+nqmD18"
@@ -599,6 +750,28 @@ class MateConnectorFeatureData(BaseModel):
         mateConnectorCS (MatedCS): The coordinate system used for the mate connector.
         occurrence (list[str]): A list of identifiers for the occurrences involved in the mate connector.
         name (str): The name of the mate connector feature.
+
+    Examples:
+        >>> MateConnectorFeatureData(
+        ...     mateConnectorCS=MatedCS(
+        ...         xAxis=[1.0, 0.0, 0.0],
+        ...         yAxis=[0.0, 0.0, -1.0],
+        ...         zAxis=[0.0, 1.0, 0.0],
+        ...         origin=[0.0, -0.0505, 0.0],
+        ...     ),
+        ...     occurrence=["MplKLzV/4d+nqmD18"],
+        ...     name="Mate connector 1",
+        ... )
+        MateConnectorFeatureData(
+            mateConnectorCS=MatedCS(
+                xAxis=[1.0, 0.0, 0.0],
+                yAxis=[0.0, 0.0, -1.0],
+                zAxis=[0.0, 1.0, 0.0],
+                origin=[0.0, -0.0505, 0.0]
+            ),
+            occurrence=["MplKLzV/4d+nqmD18"],
+            name="Mate connector 1"
+        )
     """
 
     mateConnectorCS: MatedCS
@@ -631,14 +804,30 @@ class MateRelationFeatureData(BaseModel):
         ```
 
     Attributes:
-        relationType (RELATION_TYPE): The type of mate relation.
+        relationType (RelationType): The type of mate relation.
         mates (list[MateRelationMate]): A list of mate relations.
         reverseDirection (bool): Indicates if the direction of the mate relation is reversed.
         relationRatio (Union[float, None]): The ratio of the mate relation. Defaults to None.
         name (str): The name of the mate relation feature.
+
+    Examples:
+        >>> MateRelationFeatureData(
+        ...     relationType=RelationType.GEAR,
+        ...     mates=[...],
+        ...     reverseDirection=False,
+        ...     relationRatio=1,
+        ...     name="Gear 1",
+        ... )
+        MateRelationFeatureData(
+            relationType=RelationType.GEAR,
+            mates=[...],
+            reverseDirection=False,
+            relationRatio=1,
+            name="Gear 1"
+        )
     """
 
-    relationType: RELATION_TYPE = Field(..., description="The type of mate relation.")
+    relationType: RelationType = Field(..., description="The type of mate relation.")
     mates: list[MateRelationMate] = Field(..., description="A list of mate relations.")
     reverseDirection: bool = Field(..., description="Indicates if the direction of the mate relation is reversed.")
     relationRatio: Union[float, None] = Field(None, description="The ratio of the mate relation. Defaults to None.")
@@ -681,12 +870,25 @@ class MateFeatureData(BaseModel):
 
     Attributes:
         matedEntities (list[MatedEntity]): A list of mated entities.
-        mateType (MATE_TYPE): The type of mate.
+        mateType (MateType): The type of mate.
         name (str): The name of the mate feature.
+
+    Examples:
+        >>> MateFeatureData(
+        ...     matedEntities=[...],
+        ...     mateType=MateType.FASTENED,
+        ...     name="Fastened 1",
+        ... )
+        MateFeatureData(
+            matedEntities=[...],
+            mateType=MateType.FASTENED,
+            name="Fastened 1"
+        )
+
     """
 
     matedEntities: list[MatedEntity] = Field(..., description="A list of mated entities.")
-    mateType: MATE_TYPE = Field(..., description="The type of mate.")
+    mateType: MateType = Field(..., description="The type of mate.")
     name: str = Field(..., description="The name of the mate feature.")
 
 
@@ -732,14 +934,36 @@ class AssemblyFeature(BaseModel):
     Attributes:
         id (str): The unique identifier of the feature.
         suppressed (bool): Indicates if the feature is suppressed.
-        featureType (ASSEMBLY_FEATURE_TYPE): The type of the feature.
+        featureType (AssemblyFeatureType): The type of the feature.
         featureData (Union[MateGroupFeatureData, MateConnectorFeatureData, MateRelationFeatureData, MateFeatureData]):
             Data associated with the assembly feature.
+
+    Examples:
+        >>> AssemblyFeature(
+        ...     id="Mw+URe/Uaxx5gIdlu",
+        ...     suppressed=False,
+        ...     featureType=AssemblyFeatureType.MATE,
+        ...     featureData=MateFeatureData(
+        ...         matedEntities=[...],
+        ...         mateType=MateType.FASTENED,
+        ...         name="Fastened 1",
+        ...     ),
+        ... )
+        AssemblyFeature(
+            id="Mw+URe/Uaxx5gIdlu",
+            suppressed=False,
+            featureType=AssemblyFeatureType.MATE,
+            featureData=MateFeatureData(
+                matedEntities=[...],
+                mateType=MateType.FASTENED,
+                name="Fastened 1"
+            )
+        )
     """
 
     id: str = Field(..., description="The unique identifier of the feature.")
     suppressed: bool = Field(..., description="Indicates if the feature is suppressed.")
-    featureType: ASSEMBLY_FEATURE_TYPE = Field(..., description="The type of the feature.")
+    featureType: AssemblyFeatureType = Field(..., description="The type of the feature.")
     featureData: Union[MateGroupFeatureData, MateConnectorFeatureData, MateRelationFeatureData, MateFeatureData] = (
         Field(..., description="Data associated with the assembly feature.")
     )
@@ -747,9 +971,10 @@ class AssemblyFeature(BaseModel):
 
 class Pattern(BaseModel):
     """
-    TODO: Represents a pattern feature within an assembly, defining repeated instances of parts or sub-assemblies.
+    Represents a pattern feature within an assembly, defining repeated instances of parts or sub-assemblies.
     """
 
+    # TODO: Implement Pattern model
     pass
 
 
@@ -781,6 +1006,33 @@ class SubAssembly(IDBase):
         documentId (str): The unique identifier of the document containing the sub-assembly.
         elementId (str): The unique identifier of the element containing the sub-assembly.
         documentMicroversion (str): The microversion of the document containing the sub-assembly.
+
+    Properties:
+        uid (str): A unique identifier for the sub-assembly based on documentId, documentMicroversion, elementId, and
+            fullConfiguration.
+
+    Examples:
+        >>> SubAssembly(
+        ...     instances=[...],
+        ...     patterns=[...],
+        ...     features=[...],
+        ...     fullConfiguration="default",
+        ...     configuration="default",
+        ...     documentId="a1c1addf75444f54b504f25c",
+        ...     elementId="0b0c209535554345432581fe",
+        ...     documentMicroversion="349f6413cafefe8fb4ab3b07",
+        ... )
+        SubAssembly(
+            instances=[...],
+            patterns=[...],
+            features=[...],
+            fullConfiguration="default",
+            configuration="default",
+            documentId="a1c1addf75444f54b504f25c",
+            elementId="0b0c209535554345432581fe",
+            documentMicroversion="349f6413cafefe8fb4ab3b07"
+        )
+
     """
 
     instances: list[Union[PartInstance, AssemblyInstance]] = Field(
@@ -831,6 +1083,30 @@ class RootAssembly(SubAssembly):
         documentId (str): The unique identifier of the document containing the root assembly.
         elementId (str): The unique identifier of the element containing the root assembly.
         documentMicroversion (str): The microversion of the document containing the root assembly.
+
+    Examples:
+        >>> RootAssembly(
+        ...     instances=[...],
+        ...     patterns=[...],
+        ...     features=[...],
+        ...     occurrences=[...],
+        ...     fullConfiguration="default",
+        ...     configuration="default",
+        ...     documentId="a1c1addf75444f54b504f25c",
+        ...     elementId="0b0c209535554345432581fe",
+        ...     documentMicroversion="349f6413cafefe8fb4ab3b07",
+        ... )
+        RootAssembly(
+            instances=[...],
+            patterns=[...],
+            features=[...],
+            occurrences=[...],
+            fullConfiguration="default",
+            configuration="default",
+            documentId="a1c1addf75444f54b504f25c",
+            elementId="0b0c209535554345432581fe",
+            documentMicroversion="349f6413cafefe8fb4ab3b07"
+        )
     """
 
     occurrences: list[Occurrence] = Field(..., description="A list of occurrences in the root assembly.")
@@ -868,6 +1144,41 @@ class Assembly(BaseModel):
 
     Custom Attributes:
         document (Union[Document, None]): The document object associated with the assembly. Defaults to None.
+
+
+    Examples:
+        >>> Assembly(
+        ...     rootAssembly=RootAssembly(
+        ...         instances=[...],
+        ...         patterns=[...],
+        ...         features=[...],
+        ...         occurrences=[...],
+        ...         fullConfiguration="default",
+        ...         configuration="default",
+        ...         documentId="a1c1addf75444f54b504f25c",
+        ...         elementId="0b0c209535554345432581fe",
+        ...         documentMicroversion="349f6413cafefe8fb4ab3b07",
+        ...     ),
+        ...     subAssemblies=[...],
+        ...     parts=[...],
+        ...     partStudioFeatures=[...],
+        ... )
+        Assembly(
+            rootAssembly=RootAssembly(
+                instances=[...],
+                patterns=[...],
+                features=[...],
+                occurrences=[...],
+                fullConfiguration="default",
+                configuration="default",
+                documentId="a1c1addf75444f54b504f25c",
+                elementId="0b0c209535554345432581fe",
+                documentMicroversion="349f6413cafefe8fb4ab3b07",
+            ),
+            subAssemblies=[...],
+            parts=[...],
+            partStudioFeatures=[...],
+        )
     """
 
     rootAssembly: RootAssembly = Field(..., description="The root assembly in the document.")

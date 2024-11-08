@@ -14,9 +14,9 @@ from pathlib import Path
 from onshape_api.models.geometry import BoxGeometry, CylinderGeometry
 from onshape_api.models.joint import BaseJoint, JointDynamics, JointLimits, RevoluteJoint
 from onshape_api.models.link import (
-    COLORS,
     Axis,
     CollisionLink,
+    Colors,
     Inertia,
     InertialLink,
     Link,
@@ -37,6 +37,17 @@ class Robot:
         joints: list[BaseJoint]: The joints of the robot.
         document: Document: The document associated with the robot.
         assembly: Assembly: The assembly associated with the robot.
+
+    Methods:
+        to_xml: Converts the robot model to an XML element.
+        save: Saves the robot model to a URDF file.
+
+    Examples:
+        >>> robot = Robot( ... )
+        >>> robot.to_xml()
+        <Element 'robot' at 0x7f8b3c0b4c70>
+
+        >>> robot.save("robot.urdf")
     """
 
     name: str
@@ -48,7 +59,7 @@ class Robot:
         Convert the robot model to an XML element.
 
         Returns:
-            ET.Element: The XML element representing the robot model.
+            The XML element representing the robot model.
 
         Examples:
             >>> robot = Robot( ... )
@@ -92,7 +103,7 @@ if __name__ == "__main__":
                 visual=VisualLink(
                     origin=Origin.zero_origin(),
                     geometry=CylinderGeometry(radius=0.1, length=0.1),
-                    material=Material.from_color(COLORS.RED),
+                    material=Material.from_color(Colors.RED),
                 ),
                 collision=CollisionLink(
                     origin=Origin.zero_origin(),
@@ -116,7 +127,7 @@ if __name__ == "__main__":
                 visual=VisualLink(
                     origin=Origin((0.2, 0.0, 0.0), (0.0, 0.0, 0.0)),
                     geometry=BoxGeometry(size=(0.2, 0.1, 0.1)),
-                    material=Material.from_color(COLORS.CYAN),
+                    material=Material.from_color(Colors.CYAN),
                 ),
                 collision=CollisionLink(
                     origin=Origin.zero_origin(),

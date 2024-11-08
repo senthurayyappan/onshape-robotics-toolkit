@@ -98,15 +98,15 @@ class MassProperties(BaseModel):
     principalAxes: list[PrincipalAxis] = Field(..., description="The principal axes of the part.")
 
     @field_validator("principalAxes")
-    def check_principal_axes(cls, v) -> list[PrincipalAxis]:
+    def check_principal_axes(cls, v: list[PrincipalAxis]) -> list[PrincipalAxis]:
         """
         Validate the principal axes to ensure they have 3 elements.
 
         Args:
-            v (list[PrincipalAxis]): The principal axes to validate.
+            v: The principal axes to validate.
 
         Returns:
-            list[PrincipalAxis]: The validated principal axes.
+            The validated principal axes.
 
         Raises:
             ValueError: If the principal axes do not have 3 elements.
@@ -121,7 +121,7 @@ class MassProperties(BaseModel):
         Returns the principal inertia as a numpy array.
 
         Returns:
-            np.ndarray: The principal inertia.
+            The principal inertia.
         """
         return np.array(self.principalInertia)
 
@@ -131,7 +131,7 @@ class MassProperties(BaseModel):
         Returns the center of mass as a tuple of three floats.
 
         Returns:
-            tuple[float, float, float]: The center of mass.
+            The center of mass.
         """
         return (self.centroid[0], self.centroid[1], self.centroid[2])
 
@@ -141,7 +141,7 @@ class MassProperties(BaseModel):
         Returns the inertia matrix as a 3x3 numpy matrix.
 
         Returns:
-            np.matrix: The inertia matrix.
+            The inertia matrix.
         """
         return np.matrix(np.array(self.inertia[:9]).reshape(3, 3))
 
@@ -151,7 +151,7 @@ class MassProperties(BaseModel):
         Returns the principal axes as a 3x3 numpy matrix.
 
         Returns:
-            np.matrix: The principal axes.
+            The principal axes.
         """
         return np.matrix(np.array([axis.values for axis in self.principalAxes]))
 
@@ -160,10 +160,10 @@ class MassProperties(BaseModel):
         Returns the principal axes with respect to a given reference frame.
 
         Args:
-            reference (np.matrix): The reference frame as a 3x3 matrix.
+            reference: The reference frame as a 3x3 matrix.
 
         Returns:
-            np.matrix: The principal axes with respect to the reference frame.
+            The principal axes with respect to the reference frame.
 
         Raises:
             ValueError: If the reference frame is not a 3x3 matrix.
@@ -178,10 +178,10 @@ class MassProperties(BaseModel):
         Returns the inertia matrix with respect to a given reference frame.
 
         Args:
-            reference (np.matrix): The reference frame as a 3x3 matrix.
+            reference: The reference frame as a 3x3 matrix.
 
         Returns:
-            np.matrix: The inertia matrix with respect to the reference frame.
+            The inertia matrix with respect to the reference frame.
 
         Raises:
             ValueError: If the reference frame is not a 3x3 matrix.
@@ -196,10 +196,10 @@ class MassProperties(BaseModel):
         Returns the center of mass with respect to a given reference frame.
 
         Args:
-            reference (np.matrix): The reference frame as a 4x4 matrix.
+            reference: The reference frame as a 4x4 matrix.
 
         Returns:
-            np.ndarray: The center of mass with respect to the reference frame.
+            The center of mass with respect to the reference frame.
 
         Raises:
             ValueError: If the reference frame is not a 4x4 matrix.

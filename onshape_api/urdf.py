@@ -20,9 +20,9 @@ from onshape_api.models.assembly import (
 from onshape_api.models.geometry import MeshGeometry
 from onshape_api.models.joint import DummyJoint, FixedJoint, JointDynamics, JointLimits, PrismaticJoint, RevoluteJoint
 from onshape_api.models.link import (
-    COLORS,
     Axis,
     CollisionLink,
+    Colors,
     Inertia,
     InertialLink,
     Link,
@@ -98,7 +98,7 @@ def get_robot_link(
         visual=VisualLink(
             origin=_origin,
             geometry=MeshGeometry(_mesh_path),
-            material=Material.from_color(name=f"{name}_material", color=random.SystemRandom().choice(list(COLORS))),
+            material=Material.from_color(name=f"{name}_material", color=random.SystemRandom().choice(list(Colors))),
         ),
         inertial=InertialLink(
             origin=Origin(

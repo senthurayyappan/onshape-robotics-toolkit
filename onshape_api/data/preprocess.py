@@ -8,7 +8,7 @@ import pandas as pd
 from onshape_api.connect import Client
 from onshape_api.models import Assembly
 from onshape_api.models.document import generate_url
-from onshape_api.models.element import ELEMENT_TYPE, Element
+from onshape_api.models.element import Element, ElementType
 from onshape_api.utilities import LOGGER
 
 AUTOMATE_ASSEMBLYID_PATTERN = r"(?P<documentId>\w{24})_(?P<documentMicroversion>\w{24})_(?P<elementId>\w{24})"
@@ -37,7 +37,7 @@ def get_assembly_data(assembly_id: str, client: Client):
         elements: list[Element] = client.get_elements(
             did=document.id, wtype=document.defaultWorkspace.type.shorthand, wid=document.defaultWorkspace.id
         )
-        assembly_ids = [element.id for element in elements.values() if element.elementType == ELEMENT_TYPE.ASSEMBLY]
+        assembly_ids = [element.id for element in elements.values() if element.elementType == ElementType.ASSEMBLY]
 
         ids["elementId"] = assembly_ids
         ids["wtype"] = document.defaultWorkspace.type.shorthand

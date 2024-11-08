@@ -14,29 +14,35 @@ Models:
     - **Element**: Represents an Onshape element, containing the element ID, name, type, and microversion ID.
 
 Enums:
-    - **ELEMENT_TYPE**: Enumerates the possible element types in Onshape (PARTSTUDIO, ASSEMBLY, DRAWING, etc.).
+    - **ElementType**: Enumerates the possible element types in Onshape (PARTSTUDIO, ASSEMBLY, DRAWING, etc.).
 """
 
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
 
-__all__ = ["ELEMENT_TYPE", "Element"]
+__all__ = ["ElementType", "Element"]
 
 
-class ELEMENT_TYPE(str, Enum):
+class ElementType(str, Enum):
     """
     Enumerates the possible element types in Onshape
 
     Attributes:
-        PARTSTUDIO: Part Studio
-        ASSEMBLY: Assembly
-        VARIABLESTUDIO: Variable Studio
-        DRAWING: Drawing
-        BILLOFMATERIALS: Bill of Materials
-        APPLICATION: Application
-        BLOB: Blob
-        FEATURESTUDIO: Feature Studio
+        PARTSTUDIO (str): Part Studio
+        ASSEMBLY (str): Assembly
+        VARIABLESTUDIO (str): Variable Studio
+        DRAWING (str): Drawing
+        BILLOFMATERIALS (str): Bill of Materials
+        APPLICATION (str): Application
+        BLOB (str): Blob
+        FEATURESTUDIO (str): Feature Studio
+
+    Examples:
+        >>> ElementType.PARTSTUDIO
+        'PARTSTUDIO'
+        >>> ElementType.ASSEMBLY
+        'ASSEMBLY'
     """
 
     PARTSTUDIO = "PARTSTUDIO"
@@ -82,6 +88,13 @@ class Element(BaseModel):
         name (str): The name of the element.
         elementType (str): The type of the element (e.g., PARTSTUDIO, ASSEMBLY, DRAWING).
         microversionId (str): The unique identifier of the microversion of the element.
+
+    Examples:
+        >>> element = Element(id="0b0c209535554345432581fe", name="wheelAndFork", elementType="PARTSTUDIO",
+        ...                   microversionId="9b3be6165c7a2b1f6dd61305")
+        >>> element
+        Element(id='0b0c209535554345432581fe', name='wheelAndFork', elementType='PARTSTUDIO',
+                microversionId='9b3be6165c7a2b1f6dd61305')
     """
 
     id: str = Field(..., description="The unique identifier of the element")
@@ -95,16 +108,16 @@ class Element(BaseModel):
         Validate the element type.
 
         Args:
-            value (str): The element type to validate.
+            value: The element type to validate.
 
         Returns:
-            str: The validated element type.
+            The validated element type.
 
         Raises:
             ValueError: If the element type is not one of the valid types.
         """
 
-        if value not in ELEMENT_TYPE.__members__.values():
+        if value not in ElementType.__members__.values():
             raise ValueError(f"Invalid element type: {value}")
 
         return value
@@ -115,10 +128,10 @@ class Element(BaseModel):
         Validate the element ID.
 
         Args:
-            value (str): The element ID to validate.
+            value: The element ID to validate.
 
         Returns:
-            str: The validated element ID.
+            The validated element ID.
 
         Raises:
             ValueError: If the element ID is not 24 characters long.
@@ -135,10 +148,10 @@ class Element(BaseModel):
         Validate the microversion ID.
 
         Args:
-            value (str): The microversion ID to validate.
+            value: The microversion ID to validate.
 
         Returns:
-            str: The validated microversion ID.
+            The validated microversion ID.
 
         Raises:
             ValueError: If the microversion ID is not 24 characters long.

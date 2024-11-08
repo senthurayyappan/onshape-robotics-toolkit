@@ -29,10 +29,16 @@ class VARIABLE_TYPE(str, Enum):
     Enumerates the possible variable types in Onshape
 
     Attributes:
-        LENGTH: Length variable
-        ANGLE: Angle variable
-        NUMBER: Number variable
-        ANY: Any variable
+        LENGTH (str): Length variable type
+        ANGLE (str): Angle variable type
+        NUMBER (str): Number variable type
+        ANY (str): Any variable type
+
+    Examples:
+        >>> VARIABLE_TYPE.LENGTH
+        'LENGTH'
+        >>> VARIABLE_TYPE.ANGLE
+        'ANGLE'
     """
 
     LENGTH = "LENGTH"
@@ -62,6 +68,23 @@ class Variable(BaseModel):
         value (str, optional): The value of the variable.
         description (str, optional): The description of the variable.
         expression (str, optional): The expression of the variable.
+
+    Examples:
+        >>> variable = Variable(
+        ...     type="ANGLE",
+        ...     name="forkAngle",
+        ...     value=None,
+        ...     description="Fork angle for front wheel assembly in deg",
+        ...     expression="15 deg"
+        ... )
+        >>> variable
+        Variable(
+            type='ANGLE',
+            name='forkAngle',
+            value=None,
+            description='Fork angle for front wheel assembly in deg',
+            expression='15 deg'
+        )
     """
 
     type: str = Field(..., description="The type of the variable (LENGTH, ANGLE, NUMBER, ANY)")
