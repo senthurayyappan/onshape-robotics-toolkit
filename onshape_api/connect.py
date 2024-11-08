@@ -112,9 +112,12 @@ class Client:
         Returns:
             - requests.Response: Onshape response data
         """
-        _request_json = self.request(HTTP.GET, "/api/documents/" + did).json()
+        res = self.request(HTTP.GET, "/api/documents/" + did)
 
-        return DocumentMetaData.model_validate(_request_json)
+        if res.status_code == 404:
+            return None
+
+        return DocumentMetaData.model_validate(res.json())
 
     def get_elements(self, did, wtype, wid):
         """
@@ -236,7 +239,7 @@ class Client:
 
         return self.request(HTTP.POST, "/api/assemblies/d/" + did + "/w/" + wid, body=payload)
 
-    def get_assembly(self, did, wtype, wid, eid, configuration="default"):
+    def get_assembly(self, did, wtype, wid, eid, configuration="default", log_response=True):
         _request_path = "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
         _assembly_json = self.request(
             HTTP.GET,
@@ -247,6 +250,7 @@ class Client:
                 "includeNonSolids": "false",
                 "configuration": configuration,
             },
+            log_response=log_response,
         ).json()
 
         _assembly = Assembly.model_validate(_assembly_json)
@@ -379,10 +383,13 @@ class Client:
         )
 
     def _log_response(self, res):
-        if not 200 <= res.status_code <= 206:
-            LOGGER.debug(f"Request failed, details: {res.text}")
-        else:
-            LOGGER.debug(f"Request succeeded, details: {res.text}")
+        try:
+            if not 200 <= res.status_code <= 206:
+                LOGGER.debug(f"Request failed, details: {res.text}")
+            else:
+                LOGGER.debug(f"Request succeeded, details: {res.text}")
+        except UnicodeEncodeError as e:
+            LOGGER.error(f"UnicodeEncodeError: {e}")
 
     def _make_auth(self, method, date, nonce, path, query=None, ctype="application/json"):
         """

@@ -13,10 +13,37 @@ class WORKSPACE_TYPE(str, Enum):
     M = "m"
 
 
+class META_WORKSPACE_TYPE(str, Enum):
+    WORKSPACE = "workspace"
+    VERSION = "version"
+    MICROVERSION = "microversion"
+
+    @property
+    def shorthand(self) -> str:
+        return self.value[0]
+
+
 DOCUMENT_PATTERN = r"https://cad.onshape.com/documents/([\w\d]+)/(w|v|m)/([\w\d]+)/e/([\w\d]+)"
 
 
+def generate_url(did: str, wtype: str, wid: str, eid: str) -> str:
+    return f"https://cad.onshape.com/documents/{did}/{wtype}/{wid}/e/{eid}"
+
+
 def parse_url(url: str) -> str:
+    """
+    Parse Onshape URL and return document ID, workspace type, workspace ID, and element ID
+
+    Args:
+        url: Onshape URL
+
+    Returns:
+        did: Document ID
+        wtype: Workspace type
+        wid: Workspace ID
+        eid: Element ID
+
+    """
     pattern = re.match(
         DOCUMENT_PATTERN,
         url,
@@ -34,6 +61,18 @@ def parse_url(url: str) -> str:
 
 
 class Document(BaseModel):
+    """
+    Data model for Onshape document
+
+    Attributes:
+        url: Onshape URL
+        did: Document ID
+        wtype: Workspace type
+        wid: Workspace ID
+        eid: Element ID
+
+    """
+
     url: Union[str, None] = None
     did: str
     wtype: str
@@ -43,7 +82,7 @@ class Document(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
         if self.url is None:
-            self.url = self._generate_url()
+            self.url = generate_url(self.did, self.wtype, self.wid, self.eid)
 
     @field_validator("did", "wid", "eid")
     def check_ids(cls, value: str) -> str:
@@ -70,17 +109,33 @@ class Document(BaseModel):
         did, wtype, wid, eid = parse_url(url)
         return cls(url=url, did=did, wtype=wtype, wid=wid, eid=eid)
 
-    def _generate_url(self) -> str:
-        return f"https://cad.onshape.com/documents/{self.did}/{self.wtype}/{self.wid}/e/{self.eid}"
-
 
 class DefaultWorkspace(BaseModel):
+    """
+    Data model for Onshape default workspace
+
+    Attributes:
+        id: Workspace ID
+
+    """
+
     id: str
+    type: META_WORKSPACE_TYPE
 
 
 class DocumentMetaData(BaseModel):
+    """
+    Data model for Onshape document metadata
+
+    Attributes:
+        defaultWorkspace: DefaultWorkspace
+        name: Document name
+
+    """
+
     defaultWorkspace: DefaultWorkspace
     name: str
+    id: str
 
 
 if __name__ == "__main__":
