@@ -210,19 +210,3 @@ class MassProperties(BaseModel):
         com = np.matrix([*list(self.center_of_mass), 1.0])
         com_wrt = (reference * com.T)[:3]
         return np.array([com_wrt[0, 0], com_wrt[1, 0], com_wrt[2, 0]])
-
-
-if __name__ == "__main__":
-    mass = MassProperties(
-        volume=[0.003411385108378978, 0.003410724395374695, 0.0034120458213832646],
-        mass=[9.585992154544929, 9.584199206938452, 9.587785102151415],
-        centroid=[-2.07609188073475e-9, 0.0, 0.0],
-        inertia=[0.0994460593470721, 0.09944605954654827, 0.19238058837442526],
-        principalInertia=[0.09944605933465941, 0.09944605954654827, 0.19238058837442526],
-        principalAxes=[
-            PrincipalAxis(x=-0.9702683926946019, y=-5.514078101148926e-9, z=-0.2420314982349062),
-            PrincipalAxis(x=-0.2420314982349062, y=-5.44073563520025e-10, z=0.9702683926946021),
-            PrincipalAxis(x=5.481818620570986e-9, y=-0.9999999999999999, z=8.066832175421143e-10),
-        ],
-    )
-    print(mass.center_of_mass_wrt(np.eye(4)), mass.center_of_mass)
