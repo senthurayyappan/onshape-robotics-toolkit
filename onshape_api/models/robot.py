@@ -1,10 +1,16 @@
+"""
+This module contains classes for creating a URDF robot model
+
+Classes:
+    - **Robot**: Represents a robot model in URDF format, containing links and joints.
+
+"""
+
 import io
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
-from onshape_api.models.assembly import Assembly
-from onshape_api.models.document import Document
 from onshape_api.models.geometry import BoxGeometry, CylinderGeometry
 from onshape_api.models.joint import BaseJoint, JointDynamics, JointLimits, RevoluteJoint
 from onshape_api.models.link import (
@@ -22,13 +28,33 @@ from onshape_api.models.link import (
 
 @dataclass
 class Robot:
+    """
+    Represents a robot model in URDF format, containing links and joints.
+
+    Attributes:
+        name: str: The name of the robot.
+        links: list[Link]: The links of the robot.
+        joints: list[BaseJoint]: The joints of the robot.
+        document: Document: The document associated with the robot.
+        assembly: Assembly: The assembly associated with the robot.
+    """
+
     name: str
     links: list[Link]
     joints: list[BaseJoint]
-    document: Document = None
-    assembly: Assembly = None
 
     def to_xml(self) -> ET.Element:
+        """
+        Convert the robot model to an XML element.
+
+        Returns:
+            ET.Element: The XML element representing the robot model.
+
+        Examples:
+            >>> robot = Robot( ... )
+            >>> robot.to_xml()
+            <Element 'robot' at 0x7f8b3c0b4c70>
+        """
         robot = ET.Element("robot", name=self.name)
         for link in self.links:
             link.to_xml(robot)
@@ -38,17 +64,26 @@ class Robot:
         return robot
 
     def save(self, path: str | Path | io.StringIO) -> None:
+        """
+        Save the robot model to a URDF file.
+
+        Args:
+            path (str, Path, io.StringIO): The path to save the URDF file.
+
+        Examples:
+            >>> robot = Robot( ... )
+            >>> robot.save("robot.urdf")
+        """
+
         tree = ET.ElementTree(self.to_xml())
-        # save to file
         if isinstance(path, (str, Path)):
             tree.write(path, encoding="unicode", xml_declaration=True)
 
 
 if __name__ == "__main__":
     """
-    Example usage of the URDF classes
+    Example usage of the Robot class to create a URDF robot model.
     """
-    # Define the robot
     robot = Robot(
         name="my_robot",
         parts=[
@@ -111,6 +146,4 @@ if __name__ == "__main__":
             ),
         ],
     )
-
-    # Save the robot to a file
     robot.save("test.urdf")

@@ -16,12 +16,9 @@ def xml_escape(unescaped: str) -> str:
     Returns:
         str: Escaped string
 
-    Raises:
-        None
-
-    Usage:
-    >>> xml_escape("hello 'world' \"world\"")
-    "hello &apos;world&apos; &quot;world&quot;"
+    Examples:
+        >>> xml_escape("hello 'world' \"world\"")
+        "hello &apos;world&apos; &quot;world&quot;"
 
     """
     return escape(unescaped, entities={"'": "&apos;", '"': "&quot;"})
@@ -37,12 +34,9 @@ def format_number(value: float) -> str:
     Returns:
         str: Formatted number
 
-    Raises:
-        None
-
-    Usage:
-    >>> format_number(0.123456789)
-    "0.12345679"
+    Examples:
+        >>> format_number(0.123456789)
+        "0.12345679"
 
     """
     return f"{value:.8g}"
@@ -58,12 +52,9 @@ def generate_uid(values: list[str]) -> str:
     Returns:
         str: Unique identifier
 
-    Raises:
-        None
-
-    Usage:
-    >>> generate_uid(["hello", "world"])
-    "c4ca4238a0b92382"
+    Examples:
+        >>> generate_uid(["hello", "world"])
+        "c4ca4238a0b92382"
 
     """
     _value = "".join(values)
@@ -81,16 +72,13 @@ def print_dict(d: dict, indent=0):
     Returns:
         None
 
-    Raises:
-        None
-
-    Usage:
-    >>> print_dict({"a": 1, "b": {"c": 2}})
-    a
-        1
-    b
-        c
-            2
+    Examples:
+        >>> print_dict({"a": 1, "b": {"c": 2}})
+        a
+            1
+        b
+            c
+                2
 
     """
     for key, value in d.items():
