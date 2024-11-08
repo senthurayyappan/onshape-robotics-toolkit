@@ -66,7 +66,7 @@ def make_nonce():
     Generate a unique ID for the request, 25 chars in length
 
     Returns:
-        - str: Cryptographic nonce
+        str: Cryptographic nonce
     """
 
     chars = string.digits + string.ascii_letters
@@ -81,8 +81,8 @@ class Client:
     Provides access to the Onshape REST API.
 
     Attributes:
-        - env (str, default='./.env'): Location of the environment file
-        - logging (bool, default=True): Turn logging on or off
+        env (str, default='./.env'): Location of the environment file
+        logging (bool, default=True): Turn logging on or off
     """
 
     def __init__(self, env="./.env", log_file="./onshape_api", log_level=1):
@@ -93,7 +93,7 @@ class Client:
         you can specify the location of a different file.
 
         Args:
-            - env (str, default='./.env'): Environment file location
+            env (str, default='./.env'): Environment file location
         """
 
         self._url = BASE_URL
@@ -107,10 +107,10 @@ class Client:
         Get details for a specified document.
 
         Args:
-            - did (str): Document ID
+            did (str): Document ID
 
         Returns:
-            - requests.Response: Onshape response data
+            requests.Response: Onshape response data
 
         """
         res = self.request(HTTP.GET, "/api/documents/" + did)
@@ -142,9 +142,9 @@ class Client:
         Get list of elements in a document.
 
         Args:
-            - did (str): Document ID
-            - wtype (str): Workspace type (w, v, or m)
-            - wid (str): Workspace ID
+            did (str): Document ID
+            wtype (str): Workspace type (w, v, or m)
+            wid (str): Workspace ID
 
         Returns:
             -
@@ -164,12 +164,12 @@ class Client:
         Gets the feature list for specified document / workspace / part studio.
 
         Args:
-            - did (str): Document ID
-            - wid (str): Workspace ID
-            - eid (str): Element ID
+            did (str): Document ID
+            wid (str): Workspace ID
+            eid (str): Element ID
 
         Returns:
-            - requests.Response: Onshape response data
+            requests.Response: Onshape response data
         """
 
         return self.request(
@@ -182,12 +182,12 @@ class Client:
         Gets the feature list for specified document / workspace / part studio.
 
         Args:
-            - did (str): Document ID
-            - wid (str): Workspace ID
-            - eid (str): Element ID
+            did (str): Document ID
+            wid (str): Workspace ID
+            eid (str): Element ID
 
         Returns:
-            - json: Onshape response data
+            json: Onshape response data
         """
 
         return self.request(
@@ -199,12 +199,12 @@ class Client:
         Get list of variables in a variable studio.
 
         Args:
-            - did (str): Document ID
-            - wid (str): Workspace ID
-            - eid (str): Element ID
+            did (str): Document ID
+            wid (str): Workspace ID
+            eid (str): Element ID
 
         Returns:
-            - requests.Response: Onshape response data
+            requests.Response: Onshape response data
         """
         _request_path = "/api/variables/d/" + did + "/w/" + wid + "/e/" + eid + "/variables"
 
@@ -220,13 +220,13 @@ class Client:
         Set variables in a variable studio.
 
         Args:
-            - did (str): Document ID
-            - wid (str): Workspace ID
-            - eid (str): Element ID
-            - variables (dict): Dictionary of variable name and value pairs
+            did (str): Document ID
+            wid (str): Workspace ID
+            eid (str): Element ID
+            variables (dict): Dictionary of variable name and value pairs
 
         Returns:
-            - requests.Response: Onshape response data
+            requests.Response: Onshape response data
         """
 
         payload = [variable.model_dump() for variable in variables.values()]
@@ -245,12 +245,12 @@ class Client:
         Creates a new assembly element in the specified document / workspace.
 
         Args:
-            - did (str): Document ID
-            - wid (str): Workspace ID
-            - name (str, default='My Assembly')
+            did (str): Document ID
+            wid (str): Workspace ID
+            name (str, default='My Assembly')
 
         Returns:
-            - requests.Response: Onshape response data
+            requests.Response: Onshape response data
         """
 
         payload = {"name": name}
@@ -285,14 +285,14 @@ class Client:
         Exports STL export from a part studio and saves it to a file.
 
         Args:
-            - did (str): Document ID
-            - wid (str): Workspace ID
-            - eid (str): Element ID
-            - partID (str): Part ID
-            - save_path (str): Path to save the STL file
+            did (str): Document ID
+            wid (str): Workspace ID
+            eid (str): Element ID
+            partID (str): Part ID
+            save_path (str): Path to save the STL file
 
         Returns:
-            - str: Path to the saved STL file or an error message
+            str: Path to the saved STL file or an error message
         """
 
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
@@ -319,13 +319,13 @@ class Client:
         Get mass properties for a part in a part studio.
 
         Args:
-            - did (str): Document ID
-            - wid (str): Workspace ID
-            - eid (str): Element ID
-            - partID (str): Part ID
+            did (str): Document ID
+            wid (str): Workspace ID
+            eid (str): Element ID
+            partID (str): Part ID
 
         Returns:
-            - requests.Response: Onshape response data
+            requests.Response: Onshape response data
         """
         _request_path = "/api/parts/d/" + did + "/w/" + wid + "/e/" + eid + "/partid/" + partID + "/massproperties"
         _resonse_json = self.request(HTTP.GET, _request_path, {"useMassPropertiesOverrides": True}).json()
@@ -337,15 +337,15 @@ class Client:
         Issues a request to Onshape
 
         Args:
-            - method (str): HTTP method
-            - path (str): Path  e.g. /api/documents/:id
-            - query (dict, default={}): Query params in key-value pairs
-            - headers (dict, default={}): Key-value pairs of headers
-            - body (dict, default={}): Body for POST request
-            - base_url (str, default=None): Host, including scheme and port (if different from keys file)
+            method (str): HTTP method
+            path (str): Path  e.g. /api/documents/:id
+            query (dict, default={}): Query params in key-value pairs
+            headers (dict, default={}): Key-value pairs of headers
+            body (dict, default={}): Body for POST request
+            base_url (str, default=None): Host, including scheme and port (if different from keys file)
 
         Returns:
-            - requests.Response: Object containing the response from Onshape
+            requests.Response: Object containing the response from Onshape
         """
         if query is None:
             query = {}
@@ -414,12 +414,12 @@ class Client:
         Create the request signature to authenticate
 
         Args:
-            - method (str): HTTP method
-            - date (str): HTTP date header string
-            - nonce (str): Cryptographic nonce
-            - path (str): URL pathname
-            - query (dict, default={}): URL query string in key-value pairs
-            - ctype (str, default='application/json'): HTTP Content-Type
+            method (str): HTTP method
+            date (str): HTTP date header string
+            nonce (str): Cryptographic nonce
+            path (str): URL pathname
+            query (dict, default={}): URL query string in key-value pairs
+            ctype (str, default='application/json'): HTTP Content-Type
         """
 
         if query is None:
@@ -446,13 +446,13 @@ class Client:
         Creates a headers object to sign the request
 
         Args:
-            - method (str): HTTP method
-            - path (str): Request path, e.g. /api/documents. No query string
-            - query (dict, default={}): Query string in key-value format
-            - headers (dict, default={}): Other headers to pass in
+            method (str): HTTP method
+            path (str): Request path, e.g. /api/documents. No query string
+            query (dict, default={}): Query string in key-value format
+            headers (dict, default={}): Other headers to pass in
 
         Returns:
-            - dict: Dictionary containing all headers
+            dict: Dictionary containing all headers
         """
 
         if headers is None:

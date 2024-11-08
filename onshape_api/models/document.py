@@ -2,28 +2,29 @@
 This module defines data models for Onshape document, workspace, element, and other related entities
 retrieved from Onshape REST API responses.
 
-The data models are implemented as Pydantic BaseModel classes, which are used to:
-    Parse JSON responses from the API into Python objects.
-    Validate the structure and types of the JSON responses.
-    Provide type hints for better code clarity and autocompletion.
+The data models are implemented as Pydantic BaseModel classes, which are used to
+
+    1. Parse JSON responses from the API into Python objects.
+    2. Validate the structure and types of the JSON responses.
+    3. Provide type hints for better code clarity and autocompletion.
 
 These models ensure that the data received from the API adheres to the expected format and types, facilitating easier
 and safer manipulation of the data within the application.
 
 Models:
-    Document: Represents an Onshape document, containing the document ID, workspace type, workspace ID, and element ID.
-    DocumentMetaData: Represents metadata of an Onshape document, containing the default workspace information and name.
+    - **Document**: Represents an Onshape document, containing the document ID, workspace type, workspace ID,
+      and element ID.
+    - **DocumentMetaData**: Represents metadata of an Onshape document, containing the default workspace
+      information and name.
 
 Supplementary models:
-    DefaultWorkspace: Represents the default workspace of an Onshape document, containing the workspace ID and type.
-
-Functions:
-    parse_url: Parses an Onshape URL and returns the document ID, workspace type, workspace ID, and element ID.
-    generate_url: Generates an Onshape URL from the document ID, workspace type, workspace ID, and element ID.
+    - **DefaultWorkspace**: Represents the default workspace of an Onshape document, containing the
+      workspace ID and type.
 
 Enums:
-    WORKSPACE_TYPE: Enumerates the possible workspace types in Onshape (w, v, m).
-    META_WORKSPACE_TYPE: Enumerates the possible meta workspace types in Onshape (workspace, version, microversion).
+    - **WORKSPACE_TYPE**: Enumerates the possible workspace types in Onshape (w, v, m).
+    - **META_WORKSPACE_TYPE**: Enumerates the possible meta workspace types in Onshape (workspace,
+      version, microversion).
 """
 
 from enum import Enum
@@ -236,6 +237,14 @@ class DefaultWorkspace(BaseModel):
     """
     Represents the default workspace of an Onshape document, containing the workspace ID and type.
 
+    JSON:
+        ```json
+        {
+            "id": "739221fb10c88c2bebb456e8"
+            "type": "workspace"
+        }
+        ```
+
     Attributes:
         id: The unique identifier of the workspace
         type: The type of workspace (workspace, version, microversion)
@@ -248,6 +257,18 @@ class DefaultWorkspace(BaseModel):
 class DocumentMetaData(BaseModel):
     """
     Represents metadata of an Onshape document, containing the default workspace information and name.
+
+    JSON:
+        ```json
+        {
+            "defaultWorkspace": {
+                "id": "739221fb10c88c2bebb456e8",
+                "type": "workspace"
+            },
+            "name": "Document Name",
+            "id": "a1c1addf75444f54b504f25c"
+        }
+        ```
 
     Attributes:
         defaultWorkspace: Default workspace information

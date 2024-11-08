@@ -1,41 +1,48 @@
 """
 This module defines data models for Assembly entities retrieved from Onshape REST API responses.
 
-The data models are implemented as Pydantic BaseModel classes, which are used to:
-    Parse JSON responses from the API into Python objects.
-    Validate the structure and types of the JSON responses.
-    Provide type hints for better code clarity and autocompletion.
+The data models are implemented as Pydantic BaseModel classes, which are used to
+
+    1. Parse JSON responses from the API into Python objects.
+    2. Validate the structure and types of the JSON responses.
+    3. Provide type hints for better code clarity and autocompletion.
 
 These models ensure that the data received from the API adheres to the expected format and types, facilitating easier
 and safer manipulation of the data within the application.
 
 Models:
-    Occurrence: Represents an occurrence of a part or sub-assembly within an assembly.
-    Part: Represents a part within an assembly, including its properties and configuration.
-    PartInstance: Represents an instance of a part within an assembly.
-    AssemblyInstance: Represents an instance of an assembly within another assembly.
-    AssemblyFeature: Represents a feature within an assembly, such as a mate or pattern.
-    Pattern: Represents a pattern feature within an assembly, defining repeated instances of parts or sub-assemblies.
-    SubAssembly: Represents a sub-assembly within a larger assembly.
-    RootAssembly: Represents the root assembly, which is the top-level assembly containing all parts and sub-assemblies.
-    Assembly: Represents the overall assembly, including all parts, sub-assemblies, and features.
+    - **Occurrence**: Represents an occurrence of a part or sub-assembly within an assembly.
+    - **Part**: Represents a part within an assembly, including its properties and configuration.
+    - **PartInstance**: Represents an instance of a part within an assembly.
+    - **AssemblyInstance**: Represents an instance of an assembly within another assembly.
+    - **AssemblyFeature**: Represents a feature within an assembly, such as a mate or pattern.
+    - **Pattern**: Represents a pattern feature within an assembly, defining repeated instances of
+      parts or sub-assemblies.
+    - **SubAssembly**: Represents a sub-assembly within a larger assembly.
+    - **RootAssembly**: Represents the root assembly, which is the top-level assembly containing all parts
+      and sub-assemblies.
+    - **Assembly**: Represents the overall assembly, including all parts, sub-assemblies, and features.
 
 Supplementary models:
-    IDBase: Base model providing common attributes for Part, SubAssembly, and AssemblyInstance models.
-    MatedCS: Represents a coordinate system used for mating parts within an assembly.
-    MatedEntity: Represents an entity that is mated within an assembly, including its coordinate system.
-    MateRelationMate: Represents a mate relation within an assembly, defining how parts or sub-assemblies are connected.
-    MateGroupFeatureOccurrence: Represents an occurrence of a mate group feature within an assembly.
-    MateGroupFeatureData: Represents data for a mate group feature within an assembly.
-    MateConnectorFeatureData: Represents data for a mate connector feature within an assembly.
-    MateRelationFeatureData: Represents data for a mate relation feature within an assembly.
-    MateFeatureData: Represents data for a mate feature within an assembly.
+    - **IDBase**: Base model providing common attributes for Part, SubAssembly, and AssemblyInstance models.
+    - **MatedCS**: Represents a coordinate system used for mating parts within an assembly.
+    - **MatedEntity**: Represents an entity that is mated within an assembly, including its coordinate system.
+    - **MateRelationMate**: Represents a mate relation within an assembly, defining how parts or sub-assemblies
+      are connected.
+    - **MateGroupFeatureOccurrence**: Represents an occurrence of a mate group feature within an assembly.
+    - **MateGroupFeatureData**: Represents data for a mate group feature within an assembly.
+    - **MateConnectorFeatureData**: Represents data for a mate connector feature within an assembly.
+    - **MateRelationFeatureData**: Represents data for a mate relation feature within an assembly.
+    - **MateFeatureData**: Represents data for a mate feature within an assembly.
 
 Enums:
-    INSTANCE_TYPE: Enumerates the types of instances in an assembly, e.g. PART, ASSEMBLY.
-    MATE_TYPE: Enumerates the type of mate between two parts or assemblies, e.g. SLIDER, CYLINDRICAL, REVOLUTE, etc.
-    RELATION_TYPE: Enumerates the type of mate relation between two parts or assemblies, e.g. LINEAR, GEAR, SCREW, etc.
-    ASSEMBLY_FEATURE_TYPE: Enumerates the type of assembly feature, e.g. mate, mateRelation, mateGroup, mateConnector
+    - **INSTANCE_TYPE**: Enumerates the types of instances in an assembly, e.g. PART, ASSEMBLY.
+    - **MATE_TYPE**: Enumerates the type of mate between two parts or assemblies, e.g. SLIDER,
+      CYLINDRICAL, REVOLUTE, etc.
+    - **RELATION_TYPE**: Enumerates the type of mate relation between two parts or assemblies, e.g. LINEAR,
+      GEAR, SCREW, etc.
+    - **ASSEMBLY_FEATURE_TYPE**: Enumerates the type of assembly feature, e.g. mate, mateRelation,
+      mateGroup, mateConnector
 
 """
 
@@ -126,18 +133,20 @@ class Occurrence(BaseModel):
     """
     Represents an occurrence of a part or sub-assembly within an assembly.
 
-    Example JSON representation:
-    {
-        "fixed": false,
-        "transform": [
-            0.8660254037844396, 0.0, 0.5000000000000004, 0.09583333333333346,
-            0.0, 1.0, 0.0, -1.53080849893419E-19,
-            -0.5000000000000004, 0.0, 0.8660254037844396, 0.16598820239201767,
-            0.0, 0.0, 0.0, 1.0
-        ],
-        "hidden": false,
-        "path": ["M0Cyvy+yIq8Rd7En0"]
-    }
+    JSON:
+        ```json
+            {
+                "fixed": false,
+                "transform": [
+                    0.8660254037844396, 0.0, 0.5000000000000004, 0.09583333333333346,
+                    0.0, 1.0, 0.0, -1.53080849893419E-19,
+                    -0.5000000000000004, 0.0, 0.8660254037844396, 0.16598820239201767,
+                    0.0, 0.0, 0.0, 1.0
+                ],
+                "hidden": false,
+                "path": ["M0Cyvy+yIq8Rd7En0"]
+            }
+        ```
 
     Attributes:
         fixed (bool): Indicates if the occurrence is fixed in space.
@@ -175,14 +184,16 @@ class IDBase(BaseModel):
     """
     Base model providing common attributes for Part, SubAssembly, and AssemblyInstance models.
 
-    Example JSON representation:
-    {
-        "fullConfiguration" : "default",
-        "configuration" : "default",
-        "documentId" : "a1c1addf75444f54b504f25c",
-        "elementId" : "0b0c209535554345432581fe",
-        "documentMicroversion" : "12fabf866bef5a9114d8c4d2"
-    }
+    JSON:
+        ```json
+            {
+                "fullConfiguration" : "default",
+                "configuration" : "default",
+                "documentId" : "a1c1addf75444f54b504f25c",
+                "elementId" : "0b0c209535554345432581fe",
+                "documentMicroversion" : "12fabf866bef5a9114d8c4d2"
+            }
+        ```
 
     Attributes:
         fullConfiguration (str): The full configuration of the entity.
@@ -233,17 +244,19 @@ class Part(IDBase):
     """
     Represents a part within an assembly, including its properties and configuration.
 
-    Example JSON representation:
-    {
-        "isStandardContent": false,
-        "partId": "RDBD",
-        "bodyType": "solid",
-        "fullConfiguration": "default",
-        "configuration": "default",
-        "documentId": "a1c1addf75444f54b504f25c",
-        "elementId": "0b0c209535554345432581fe",
-        "documentMicroversion": "349f6413cafefe8fb4ab3b07"
-    }
+    JSON:
+        ```json
+            {
+                "isStandardContent": false,
+                "partId": "RDBD",
+                "bodyType": "solid",
+                "fullConfiguration": "default",
+                "configuration": "default",
+                "documentId": "a1c1addf75444f54b504f25c",
+                "elementId": "0b0c209535554345432581fe",
+                "documentMicroversion": "349f6413cafefe8fb4ab3b07"
+            }
+        ```
 
     Attributes:
         isStandardContent (bool): Indicates if the part is standard content.
@@ -281,20 +294,22 @@ class PartInstance(IDBase):
     """
     Represents an instance of a part within an assembly.
 
-    Example JSON representation:
-    {
-        "isStandardContent": false,
-        "type": "Part",
-        "id": "M0Cyvy+yIq8Rd7En0",
-        "name": "Part 1 <2>",
-        "suppressed": false,
-        "partId": "JHD",
-        "fullConfiguration": "default",
-        "configuration": "default",
-        "documentId": "a1c1addf75444f54b504f25c",
-        "elementId": "a86aaf34d2f4353288df8812",
-        "documentMicroversion": "12fabf866bef5a9114d8c4d2"
-    }
+    JSON:
+        ```json
+            {
+                "isStandardContent": false,
+                "type": "Part",
+                "id": "M0Cyvy+yIq8Rd7En0",
+                "name": "Part 1 <2>",
+                "suppressed": false,
+                "partId": "JHD",
+                "fullConfiguration": "default",
+                "configuration": "default",
+                "documentId": "a1c1addf75444f54b504f25c",
+                "elementId": "a86aaf34d2f4353288df8812",
+                "documentMicroversion": "12fabf866bef5a9114d8c4d2"
+            }
+        ```
 
     Attributes:
         isStandardContent (bool): Indicates if the part is standard content.
@@ -354,18 +369,20 @@ class AssemblyInstance(IDBase):
     """
     Represents an instance of an assembly within another assembly.
 
-    Example JSON representation:
-    {
-        "id": "Mon18P7LPP8A9STk+",
-        "type": "Assembly",
-        "name": "subAssembly",
-        "suppressed": false,
-        "fullConfiguration": "default",
-        "configuration": "default",
-        "documentId": "a1c1addf75444f54b504f25c",
-        "elementId": "f0b3a4afab120f778a4037df",
-        "documentMicroversion": "349f6413cafefe8fb4ab3b07"
-    }
+    JSON:
+        ```json
+            {
+                "id": "Mon18P7LPP8A9STk+",
+                "type": "Assembly",
+                "name": "subAssembly",
+                "suppressed": false,
+                "fullConfiguration": "default",
+                "configuration": "default",
+                "documentId": "a1c1addf75444f54b504f25c",
+                "elementId": "f0b3a4afab120f778a4037df",
+                "documentMicroversion": "349f6413cafefe8fb4ab3b07"
+            }
+        ```
 
     Attributes:
         id (str): The unique identifier for the assembly instance.
@@ -405,13 +422,15 @@ class MatedCS(BaseModel):
     """
     Represents a coordinate system used for mating parts within an assembly.
 
-    Example JSON representation:
-    {
-        "xAxis" : [ 1.0, 0.0, 0.0 ],
-        "yAxis" : [ 0.0, 0.0, -1.0 ],
-        "zAxis" : [ 0.0, 1.0, 0.0 ],
-        "origin" : [ 0.0, -0.0505, 0.0 ]
-    }
+    JSON:
+        ```json
+            {
+                "xAxis" : [ 1.0, 0.0, 0.0 ],
+                "yAxis" : [ 0.0, 0.0, -1.0 ],
+                "zAxis" : [ 0.0, 1.0, 0.0 ],
+                "origin" : [ 0.0, -0.0505, 0.0 ]
+            }
+        ```
 
     Attributes:
         xAxis (list[float]): The x-axis vector of the coordinate system.
@@ -464,16 +483,18 @@ class MatedEntity(BaseModel):
     """
     Represents an entity that is mated within an assembly, including its coordinate system.
 
-    Example JSON representation:
-    {
-        "matedOccurrence": ["MDUJyqGNo7JJll+/h"],
-        "matedCS": {
-            "xAxis": [1.0, 0.0, 0.0],
-            "yAxis": [0.0, 0.0, -1.0],
-            "zAxis": [0.0, 1.0, 0.0],
-            "origin": [0.0, -0.0505, 0.0]
-        }
-    }
+    JSON:
+        ```json
+            {
+                "matedOccurrence": ["MDUJyqGNo7JJll+/h"],
+                "matedCS": {
+                    "xAxis": [1.0, 0.0, 0.0],
+                    "yAxis": [0.0, 0.0, -1.0],
+                    "zAxis": [0.0, 1.0, 0.0],
+                    "origin": [0.0, -0.0505, 0.0]
+                }
+            }
+        ```
 
     Attributes:
         matedOccurrence (list[str]): A list of identifiers for the occurrences that are mated.
@@ -488,11 +509,13 @@ class MateRelationMate(BaseModel):
     """
     Represents a mate relation within an assembly, defining how parts or sub-assemblies are connected.
 
-    Example JSON representation:
-    {
-        "featureId": "S4/TgCRmQt1nIHHp",
-        "occurrence": []
-    }
+    JSON:
+        ```json
+            {
+                "featureId": "S4/TgCRmQt1nIHHp",
+                "occurrence": []
+            }
+        ```
 
     Attributes:
         featureId (str): The unique identifier of the mate feature.
@@ -509,10 +532,12 @@ class MateGroupFeatureOccurrence(BaseModel):
     """
     Represents an occurrence of a mate group feature within an assembly.
 
-    Example JSON representation:
-    {
-        "occurrence": ["MplKLzV/4d+nqmD18"]
-    }
+    JSON:
+        ```json
+            {
+                "occurrence": ["MplKLzV/4d+nqmD18"]
+            }
+        ```
 
     Attributes:
         occurrence (list[str]): A list of identifiers for the occurrences in the mate group feature.
@@ -527,15 +552,17 @@ class MateGroupFeatureData(BaseModel):
     """
     Represents data for a mate group feature within an assembly.
 
-    Example JSON representation:
-    {
-        "occurrences": [
+    JSON:
+        ```json
             {
-                "occurrence": ["MplKLzV/4d+nqmD18"]
+                "occurrences": [
+                    {
+                        "occurrence": ["MplKLzV/4d+nqmD18"]
+                    }
+                ],
+                "name": "Mate group 1"
             }
-        ],
-        "name": "Mate group 1"
-    }
+        ```
 
     Attributes:
         occurrences (list[MateGroupFeatureOccurrence]): A list of occurrences in the mate group feature.
@@ -552,19 +579,21 @@ class MateConnectorFeatureData(BaseModel):
     """
     Represents data for a mate connector feature within an assembly.
 
-    Example JSON representation:
-    {
-        "mateConnectorCS": {
-            "xAxis": [],
-            "yAxis": [],
-            "zAxis": [],
-            "origin": []
-        },
-        "occurrence": [
-            "MplKLzV/4d+nqmD18"
-        ],
-        "name": "Mate connector 1"
-    }
+    JSON:
+        ```json
+            {
+                "mateConnectorCS": {
+                    "xAxis": [],
+                    "yAxis": [],
+                    "zAxis": [],
+                    "origin": []
+                },
+                "occurrence": [
+                    "MplKLzV/4d+nqmD18"
+                ],
+                "name": "Mate connector 1"
+            }
+        ```
 
     Attributes:
         mateConnectorCS (MatedCS): The coordinate system used for the mate connector.
@@ -581,23 +610,25 @@ class MateRelationFeatureData(BaseModel):
     """
     Represents data for a mate relation feature within an assembly.
 
-    Example JSON representation:
-    {
-        "relationType": "GEAR",
-        "mates": [
+    JSON:
+        ```json
             {
-            "featureId": "S4/TgCRmQt1nIHHp",
-            "occurrence": []
-            },
-            {
-            "featureId": "QwaoOeXYPifsN7CP",
-            "occurrence": []
+                "relationType": "GEAR",
+                "mates": [
+                    {
+                    "featureId": "S4/TgCRmQt1nIHHp",
+                    "occurrence": []
+                    },
+                    {
+                    "featureId": "QwaoOeXYPifsN7CP",
+                    "occurrence": []
+                    }
+                ],
+                "reverseDirection": false,
+                "relationRatio": 1,
+                "name": "Gear 1"
             }
-        ],
-        "reverseDirection": false,
-        "relationRatio": 1,
-        "name": "Gear 1"
-    }
+        ```
 
     Attributes:
         relationType (RELATION_TYPE): The type of mate relation.
@@ -618,33 +649,35 @@ class MateFeatureData(BaseModel):
     """
     Represents data for a mate feature within an assembly.
 
-    Example JSON representation:
-    {
-        "matedEntities" :
-        [
+    JSON:
+        ```json
             {
-                "matedOccurrence" : [ "MDUJyqGNo7JJll+/h" ],
-                "matedCS" :
-                {
-                    "xAxis" : [ 1.0, 0.0, 0.0 ],
-                    "yAxis" : [ 0.0, 0.0, -1.0 ],
-                    "zAxis" : [ 0.0, 1.0, 0.0 ],
-                    "origin" : [ 0.0, -0.0505, 0.0 ]
-                }
-            }, {
-                "matedOccurrence" : [ "MwoBIsds8rn1/0QXA" ],
-                "matedCS" :
-                {
-                    "xAxis" : [ 0.8660254037844387, 0.0, -0.49999999999999994 ],
-                    "yAxis" : [ -0.49999999999999994, 0.0, -0.8660254037844387 ],
-                    "zAxis" : [ 0.0, 1.0, 0.0 ],
-                    "origin" : [ 0.0, -0.0505, 0.0 ]
-                }
+                "matedEntities" :
+                [
+                    {
+                        "matedOccurrence" : [ "MDUJyqGNo7JJll+/h" ],
+                        "matedCS" :
+                        {
+                            "xAxis" : [ 1.0, 0.0, 0.0 ],
+                            "yAxis" : [ 0.0, 0.0, -1.0 ],
+                            "zAxis" : [ 0.0, 1.0, 0.0 ],
+                            "origin" : [ 0.0, -0.0505, 0.0 ]
+                        }
+                    }, {
+                        "matedOccurrence" : [ "MwoBIsds8rn1/0QXA" ],
+                        "matedCS" :
+                        {
+                            "xAxis" : [ 0.8660254037844387, 0.0, -0.49999999999999994 ],
+                            "yAxis" : [ -0.49999999999999994, 0.0, -0.8660254037844387 ],
+                            "zAxis" : [ 0.0, 1.0, 0.0 ],
+                            "origin" : [ 0.0, -0.0505, 0.0 ]
+                        }
+                    }
+                ],
+                "mateType" : "FASTENED",
+                "name" : "Fastened 1"
             }
-        ],
-        "mateType" : "FASTENED",
-        "name" : "Fastened 1"
-    }
+        ```
 
     Attributes:
         matedEntities (list[MatedEntity]): A list of mated entities.
@@ -661,38 +694,40 @@ class AssemblyFeature(BaseModel):
     """
     Represents a feature within an assembly, such as a mate or pattern.
 
-    Example JSON representation:
-    {
-    "id": "Mw+URe/Uaxx5gIdlu",
-    "suppressed": false,
-    "featureType": "mate",
-    "featureData": {
-        "matedEntities" :
-        [
+    JSON:
+        ```json
             {
-                "matedOccurrence" : [ "MDUJyqGNo7JJll+/h" ],
-                "matedCS" :
-                {
-                    "xAxis" : [ 1.0, 0.0, 0.0 ],
-                    "yAxis" : [ 0.0, 0.0, -1.0 ],
-                    "zAxis" : [ 0.0, 1.0, 0.0 ],
-                    "origin" : [ 0.0, -0.0505, 0.0 ]
-                }
-            }, {
-                "matedOccurrence" : [ "MwoBIsds8rn1/0QXA" ],
-                "matedCS" :
-                {
-                    "xAxis" : [ 0.8660254037844387, 0.0, -0.49999999999999994 ],
-                    "yAxis" : [ -0.49999999999999994, 0.0, -0.8660254037844387 ],
-                    "zAxis" : [ 0.0, 1.0, 0.0 ],
-                    "origin" : [ 0.0, -0.0505, 0.0 ]
+            "id": "Mw+URe/Uaxx5gIdlu",
+            "suppressed": false,
+            "featureType": "mate",
+            "featureData": {
+                "matedEntities" :
+                [
+                    {
+                        "matedOccurrence" : [ "MDUJyqGNo7JJll+/h" ],
+                        "matedCS" :
+                        {
+                            "xAxis" : [ 1.0, 0.0, 0.0 ],
+                            "yAxis" : [ 0.0, 0.0, -1.0 ],
+                            "zAxis" : [ 0.0, 1.0, 0.0 ],
+                            "origin" : [ 0.0, -0.0505, 0.0 ]
+                        }
+                    }, {
+                        "matedOccurrence" : [ "MwoBIsds8rn1/0QXA" ],
+                        "matedCS" :
+                        {
+                            "xAxis" : [ 0.8660254037844387, 0.0, -0.49999999999999994 ],
+                            "yAxis" : [ -0.49999999999999994, 0.0, -0.8660254037844387 ],
+                            "zAxis" : [ 0.0, 1.0, 0.0 ],
+                            "origin" : [ 0.0, -0.0505, 0.0 ]
+                        }
+                    }
+                ],
+                "mateType" : "FASTENED",
+                "name" : "Fastened 1"
                 }
             }
-        ],
-        "mateType" : "FASTENED",
-        "name" : "Fastened 1"
-        }
-    }
+        ```
 
     Attributes:
         id (str): The unique identifier of the feature.
@@ -722,17 +757,19 @@ class SubAssembly(IDBase):
     """
     Represents a sub-assembly within a root assembly.
 
-    Example JSON representation:
-    {
-        "instances": [],
-        "patterns": [],
-        "features": [],
-        "fullConfiguration": "default",
-        "configuration": "default",
-        "documentId": "a1c1addf75444f54b504f25c",
-        "elementId": "0b0c209535554345432581fe",
-        "documentMicroversion": "349f6413cafefe8fb4ab3b07"
-    }
+    JSON:
+        ```json
+            {
+                "instances": [],
+                "patterns": [],
+                "features": [],
+                "fullConfiguration": "default",
+                "configuration": "default",
+                "documentId": "a1c1addf75444f54b504f25c",
+                "elementId": "0b0c209535554345432581fe",
+                "documentMicroversion": "349f6413cafefe8fb4ab3b07"
+            }
+        ```
 
     Attributes:
         instances (list[Union[PartInstance, AssemblyInstance]]):
@@ -768,18 +805,20 @@ class RootAssembly(SubAssembly):
     """
     Represents the root assembly, which is the top-level assembly containing all parts and sub-assemblies.
 
-    Example JSON representation:
-    {
-        "instances": [],
-        "patterns": [],
-        "features": [],
-        "occurrences": [],
-        "fullConfiguration": "default",
-        "configuration": "default",
-        "documentId": "a1c1addf75444f54b504f25c",
-        "elementId": "0b0c209535554345432581fe",
-        "documentMicroversion": "349f6413cafefe8fb4ab3b07"
-    }
+    JSON:
+        ```json
+            {
+                "instances": [],
+                "patterns": [],
+                "features": [],
+                "occurrences": [],
+                "fullConfiguration": "default",
+                "configuration": "default",
+                "documentId": "a1c1addf75444f54b504f25c",
+                "elementId": "0b0c209535554345432581fe",
+                "documentMicroversion": "349f6413cafefe8fb4ab3b07"
+            }
+        ```
 
     Attributes:
         instances (list[Union[PartInstance, AssemblyInstance]]):
@@ -801,23 +840,25 @@ class Assembly(BaseModel):
     """
     Represents the overall assembly, including all parts, sub-assemblies, and features.
 
-    Example JSON representation:
-    {
-        "rootAssembly": {
-            "instances": [],
-            "patterns": [],
-            "features": [],
-            "occurrences": [],
-            "fullConfiguration": "default",
-            "configuration": "default",
-            "documentId": "a1c1addf75444f54b504f25c",
-            "elementId": "0b0c209535554345432581fe",
-            "documentMicroversion": "349f6413cafefe8fb4ab3b07"
-        },
-        "subAssemblies": [],
-        "parts": [],
-        "partStudioFeatures": []
-    }
+    JSON:
+        ```json
+            {
+                "rootAssembly": {
+                    "instances": [],
+                    "patterns": [],
+                    "features": [],
+                    "occurrences": [],
+                    "fullConfiguration": "default",
+                    "configuration": "default",
+                    "documentId": "a1c1addf75444f54b504f25c",
+                    "elementId": "0b0c209535554345432581fe",
+                    "documentMicroversion": "349f6413cafefe8fb4ab3b07"
+                },
+                "subAssemblies": [],
+                "parts": [],
+                "partStudioFeatures": []
+            }
+        ```
 
     Attributes:
         rootAssembly (RootAssembly): The root assembly in the document.
