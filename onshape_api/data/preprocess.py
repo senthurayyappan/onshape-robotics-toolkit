@@ -61,8 +61,10 @@ if __name__ == "__main__":
     client = Client()
     # save_all_jsons(client)
 
-    json_file_path = "mate_relations.json"
+    json_file_path = "mate_connectors.json"
+    # json_file_path = "mate_relations.json"
     with open(json_file_path) as json_file:
         assembly_json = json.load(json_file)
 
     assembly = Assembly.model_validate(assembly_json)
+    print(assembly)

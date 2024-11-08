@@ -1,8 +1,8 @@
 from enum import Enum
-from typing import Literal, Union
+from typing import Union
 
 import numpy as np
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, field_validator
 
 from onshape_api.models.document import Document
 from onshape_api.models.mass import MassProperties
@@ -259,6 +259,75 @@ class MatedEntity(BaseModel):
     matedCS: MatedCS
 
 
+class MateRelationMate(BaseModel):
+    """
+    {
+        "featureId": "S4/TgCRmQt1nIHHp",
+        "occurrence": []
+    },
+    """
+
+    featureId: str
+    occurrence: list[str]
+
+
+class MateGroupFeatureOccurrence(BaseModel):
+    occurrence: list[str]
+
+
+class MateGroupFeatureData(BaseModel):
+    occurrences: list[MateGroupFeatureOccurrence]
+    name: str
+
+
+class MateConnectorFeatureData(BaseModel):
+    """
+    {
+        "mateConnectorCS": {
+            "xAxis": [],
+            "yAxis": [],
+            "zAxis": [],
+            "origin": []
+        },
+        "occurrence": [
+            "MplKLzV/4d+nqmD18"
+        ],
+        "name": "Mate connector 1"
+    }
+    """
+
+    mateConnectorCS: MatedCS
+    occurrence: list[str]
+    name: str
+
+
+class MateRelationFeatureData(BaseModel):
+    """
+    {
+        "relationType": "GEAR",
+        "mates": [
+            {
+            "featureId": "S4/TgCRmQt1nIHHp",
+            "occurrence": []
+            },
+            {
+            "featureId": "QwaoOeXYPifsN7CP",
+            "occurrence": []
+            }
+        ],
+        "reverseDirection": false,
+        "relationRatio": 1,
+        "name": "Gear 1"
+    }
+    """
+
+    relationType: RELATION_TYPE
+    mates: list[MateRelationMate]
+    reverseDirection: bool
+    relationRatio: Union[float, None] = None
+    name: str
+
+
 class MateFeatureData(BaseModel):
     """
     MateFeatureData data model
@@ -295,171 +364,11 @@ class MateFeatureData(BaseModel):
     name: str
 
 
-class BaseAssemblyFeature(BaseModel):
-    featureType: str
-
-
-class MateFeature(BaseAssemblyFeature):
-    """
-    Feature model
-    {
-        "id" : "M11CFUi4PcoWOBxpJ",
-        "suppressed" : false,
-        "featureType" : "mate",
-        "featureData" :
-        {
-          "matedEntities" :
-            [
-                {
-                    "matedOccurrence" : [ "MDUJyqGNo7JJll+/h" ],
-                    "matedCS" :
-                    {
-                        "xAxis" : [ 1.0, 0.0, 0.0 ],
-                        "yAxis" : [ 0.0, 0.0, -1.0 ],
-                        "zAxis" : [ 0.0, 1.0, 0.0 ],
-                        "origin" : [ 0.0, -0.0505, 0.0 ]
-                    }
-                }, {
-                    "matedOccurrence" : [ "MwoBIsds8rn1/0QXA" ],
-                    "matedCS" :
-                    {
-                        "xAxis" : [ 0.8660254037844387, 0.0, -0.49999999999999994 ],
-                        "yAxis" : [ -0.49999999999999994, 0.0, -0.8660254037844387 ],
-                        "zAxis" : [ 0.0, 1.0, 0.0 ],
-                        "origin" : [ 0.0, -0.0505, 0.0 ]
-                    }
-                }
-            ],
-          "mateType" : "FASTENED",
-          "name" : "Fastened 1"
-        }
-    }
-    """
-
+class AssemblyFeature(BaseModel):
     id: str
     suppressed: bool
-    featureType: Literal["MateFeature"] = "MateFeature"
-    featureData: MateFeatureData
-
-
-class MateRelationMate(BaseModel):
-    """
-    {
-        "featureId": "S4/TgCRmQt1nIHHp",
-        "occurrence": []
-    },
-    """
-
-    featureId: str
-    occurrence: list[str]
-
-
-class MateRelationFeatureData(BaseModel):
-    """
-    {
-        "relationType": "GEAR",
-        "mates": [
-            {
-            "featureId": "S4/TgCRmQt1nIHHp",
-            "occurrence": []
-            },
-            {
-            "featureId": "QwaoOeXYPifsN7CP",
-            "occurrence": []
-            }
-        ],
-        "reverseDirection": false,
-        "relationRatio": 1,
-        "name": "Gear 1"
-    }
-    """
-
-    relationType: RELATION_TYPE
-    mates: list[MateRelationMate]
-    reverseDirection: bool
-    relationRatio: float
-    name: str
-
-
-class MateRelationFeature(BaseAssemblyFeature):
-    """
-    {
-        "id": "amcpeia1Lm2LN2He",
-        "suppressed": false,
-        "featureType": "mateRelation",
-        "featureData":
-        {
-            "relationType": "GEAR",
-            "mates": [
-                {
-                "featureId": "S4/TgCRmQt1nIHHp",
-                "occurrence": []
-                },
-                {
-                "featureId": "QwaoOeXYPifsN7CP",
-                "occurrence": []
-                }
-            ],
-            "reverseDirection": false,
-            "relationRatio": 1,
-            "name": "Gear 1"
-        }
-    },
-    """
-
-    id: str
-    suppressed: bool
-    featureType: Literal["MateRelationFeature"] = "MateRelationFeature"
-    featureData: MateRelationFeatureData
-
-
-class MateGroupFeatureOccurrence(BaseModel):
-    occurrence: list[str]
-
-
-class MateGroupFeatureData(BaseModel):
-    occurrences: list[MateGroupFeatureOccurrence]
-    name: str
-
-
-class MateGroupFeature(BaseAssemblyFeature):
-    id: str
-    suppressed: bool
-    featureType: Literal["MateGroupFeature"] = "MateGroupFeature"
-    featureData: MateGroupFeatureData
-
-
-class MateConnectorFeatureData(BaseModel):
-    mateConnectorCS: MatedCS
-    occurence: list[str]
-    name: str
-
-
-class MateConnectorFeature(BaseAssemblyFeature):
-    """
-    {
-        "id": "MftzXroqpwJJDurRm",
-        "suppressed": false,
-        "featureType": "mateConnector",
-        "featureData": {
-            "mateConnectorCS": {
-                "xAxis": [],
-                "yAxis": [],
-                "zAxis": [],
-                "origin": []
-            },
-            "occurrence": [
-                "MplKLzV/4d+nqmD18"
-            ],
-            "name": "Mate connector 1"
-        }
-    },
-    """
-
-    id: str
-    suppressed: bool
-    featureType: Literal["MateConnectorFeature"] = "MateConnectorFeature"
-    featureData: MateConnectorFeatureData
+    featureType: ASSEMBLY_FEATURE_TYPE
+    featureData: Union[MateGroupFeatureData, MateConnectorFeatureData, MateRelationFeatureData, MateFeatureData]
 
 
 class Pattern(BaseModel):
@@ -473,9 +382,7 @@ class SubAssembly(IDBase):
 
     instances: list[Union[PartInstance, AssemblyInstance]]
     patterns: list[Pattern]
-    features: list[Union[MateFeature, MateRelationFeature, MateGroupFeature, MateConnectorFeature]] = Field(
-        ..., discriminator="featureType"
-    )
+    features: list[AssemblyFeature]
 
     @property
     def uid(self) -> str:
