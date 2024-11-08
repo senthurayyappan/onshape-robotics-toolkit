@@ -37,6 +37,12 @@ class PrincipalAxis(BaseModel):
         x (float): The x-component of the principal axis.
         y (float): The y-component of the principal axis.
         z (float): The z-component of the principal axis.
+
+    Examples:
+        >>> axis = PrincipalAxis(x=0.0, y=0.0, z=1.0)
+        >>> axis.values
+        array([0., 0., 1.])
+
     """
 
     x: float = Field(..., description="The x-component of the principal axis.")
@@ -88,6 +94,35 @@ class MassProperties(BaseModel):
         inertia (list[float]): The inertia of the part.
         principalInertia (list[float, float, float]): The principal inertia of the part.
         principalAxes (list[PrincipalAxis]): The principal axes of the part.
+
+    Properties:
+        principal_inertia: The principal inertia as a numpy array.
+        center_of_mass: The center of mass as a tuple of three floats.
+        inertia_matrix: The inertia matrix as a 3x3 numpy matrix.
+        principal_axes: The principal axes as a 3x3 numpy matrix.
+
+    Methods:
+        principal_axes_wrt: Returns the principal axes with respect to a given reference frame.
+        inertia_wrt: Returns the inertia matrix with respect to a given reference frame.
+        center_of_mass_wrt: Returns the center of mass with respect to a given reference frame.
+
+    Examples:
+        >>> mass_properties = MassProperties(
+        ...     volume=[0.003411385108378978, 0.003410724395374695, 0.0034120458213832646],
+        ...     mass=[9.585992154544929, 9.584199206938452, 9.587785102151415],
+        ...     centroid=[...],
+        ...     inertia=[...],
+        ...     principalInertia=[0.09944605933465941, 0.09944605954654827, 0.19238058837442526],
+        ...     principalAxes=[...]
+        ... )
+        >>> mass_properties.principal_inertia
+        array([0.09944606, 0.09944606, 0.19238059])
+
+        >>> mass_properties.center_of_mass_wrt(np.eye(4))
+        array([0., 0., 0.])
+
+        >>> mass_properties.principal_axes_wrt(np.eye(3))
+        array([0.09944605933465941, 0.09944605954654827, 0.19238058837442526])
     """
 
     volume: list[float] = Field(..., description="The volume of the part.")
@@ -167,6 +202,10 @@ class MassProperties(BaseModel):
 
         Raises:
             ValueError: If the reference frame is not a 3x3 matrix.
+
+        Examples:
+            >>> mass_properties.principal_axes_wrt(np.eye(3))
+            array([0.09944605933465941, 0.09944605954654827, 0.19238058837442526])
         """
         if reference.shape != (3, 3):
             raise ValueError("Reference frame must be a 3x3 matrix")
@@ -185,6 +224,10 @@ class MassProperties(BaseModel):
 
         Raises:
             ValueError: If the reference frame is not a 3x3 matrix.
+
+        Examples:
+            >>> mass_properties.inertia_wrt(np.eye(3))
+            array([0.09944605933465941, 0.09944605954654827, 0.19238058837442526])
         """
         if reference.shape != (3, 3):
             raise ValueError("Reference frame must be a 3x3 matrix")
@@ -203,6 +246,10 @@ class MassProperties(BaseModel):
 
         Raises:
             ValueError: If the reference frame is not a 4x4 matrix.
+
+        Examples:
+            >>> mass_properties.center_of_mass_wrt(np.eye(4))
+            array([0., 0., 0.])
         """
         if reference.shape != (4, 4):
             raise ValueError("Reference frame must be a 4x4 matrix")

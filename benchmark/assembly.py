@@ -17,7 +17,7 @@ from onshape_api.parse import (
     get_parts,
 )
 from onshape_api.urdf import get_urdf_components
-from onshape_api.utilities.helpers import get_random_file
+from onshape_api.utilities.helpers import get_random_files
 
 SCRIPT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 JSON_DIRECTORY = "/../onshape_api/data/json"
@@ -29,7 +29,7 @@ def main():
 
     json_path = SCRIPT_DIRECTORY + JSON_DIRECTORY
     parquet_path = SCRIPT_DIRECTORY + PARQUET_FILE
-    json_file_path, document_id = get_random_file(directory=json_path, file_extension=".json", count=1)
+    json_file_path, document_id = get_random_files(directory=json_path, file_extension=".json", count=1)
     assembly_df = pd.read_parquet(parquet_path, engine="pyarrow")
 
     json_data = json.load(open(json_file_path[0]))

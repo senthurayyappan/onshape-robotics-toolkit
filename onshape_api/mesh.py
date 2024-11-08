@@ -1,3 +1,12 @@
+"""
+This module contains functions for transforming meshes and inertia matrices.
+
+Functions:
+    - **transform_vectors**: Apply a transformation matrix to a set of vectors.
+    - **transform_mesh**: Apply a transformation matrix to an STL mesh.
+    - **transform_inertia_matrix**: Transform an inertia matrix to a new reference frame.
+"""
+
 from functools import partial
 
 import numpy as np
@@ -9,27 +18,34 @@ def transform_vectors(vectors: np.ndarray, rotation: np.ndarray, translation: np
     Apply a transformation matrix to a set of vectors.
 
     Args:
-        - vectors (np.ndarray): Array of vectors to transform
-        - rotation (np.ndarray): Rotation matrix
-        - translation (np.ndarray): Translation vector
+        vectors: Array of vectors to use for transformation
+        rotation: Rotation matrix to apply to the vectors
+        translation: Translation matrix to apply to the vectors
 
     Returns:
-        - np.ndarray: Transformed vectors
+        Array of transformed vectors
     """
+
     return np.dot(vectors, rotation.T) + translation * len(vectors)
 
 
 def transform_mesh(mesh: mesh.Mesh, transform: np.ndarray) -> mesh.Mesh:
     """
-    Apply a transformation matrix to a mesh.
+    Apply a transformation matrix to an STL mesh.
 
     Args:
-        - mesh (stl.mesh.Mesh): Mesh to transform
-        - transform (np.ndarray): Transformation matrix
+        mesh: STL mesh to use for transformation
+        transform: Transformation matrix to apply to the mesh
 
     Returns:
-        - stl.mesh.Mesh: Transformed mesh
+        Transformed STL mesh
+
+    Examples:
+        >>> mesh = mesh.Mesh.from_file("mesh.stl")
+        >>> transform = np.eye(4)
+        >>> transform_mesh(mesh, transform)
     """
+
     _transform_vectors = partial(
         transform_vectors, rotation=transform[:3, :3], translation=transform[0:3, 3:4].T.tolist()
     )
@@ -44,13 +60,14 @@ def transform_mesh(mesh: mesh.Mesh, transform: np.ndarray) -> mesh.Mesh:
 
 def transform_inertia_matrix(inertia_matrix: np.matrix, rotation: np.matrix) -> np.matrix:
     """
-    Transform an inertia matrix to a new reference frame.
+    Transform an inertia matrix
 
     Args:
-        - inertia_matrix (np.matrix): Inertia matrix to transform
-        - rotation (np.matrix): Rotation matrix
+        inertia_matrix: Inertia matrix to use for transformation
+        rotation: Rotation matrix to apply to the inertia matrix
 
     Returns:
-        - np.matrix: Transformed inertia matrix
+        Transformed inertia matrix
     """
+
     return rotation @ inertia_matrix @ rotation.T

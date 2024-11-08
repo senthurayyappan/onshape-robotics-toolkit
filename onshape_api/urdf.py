@@ -1,3 +1,13 @@
+"""
+This module contains functions to generate URDF components from Onshape assembly data.
+
+Functions:
+    - **download_stl_mesh**: Download an STL mesh from an Onshape part studio and save it to a file.
+    - **get_robot_link**: Generate a URDF link from an Onshape part.
+    - **get_robot_joint**: Generate a URDF joint from an Onshape mate.
+    - **get_urdf_components**: Generate URDF links and joints from an Onshape assembly.
+"""
+
 import io
 import os
 import random
@@ -12,13 +22,21 @@ from onshape_api.graph import convert_to_digraph
 from onshape_api.log import LOGGER
 from onshape_api.mesh import transform_mesh
 from onshape_api.models.assembly import (
-    MATETYPE,
     Assembly,
     MateFeatureData,
+    MateType,
     Part,
 )
 from onshape_api.models.geometry import MeshGeometry
-from onshape_api.models.joint import DummyJoint, FixedJoint, JointDynamics, JointLimits, PrismaticJoint, RevoluteJoint
+from onshape_api.models.joint import (
+    BaseJoint,
+    DummyJoint,
+    FixedJoint,
+    JointDynamics,
+    JointLimits,
+    PrismaticJoint,
+    RevoluteJoint,
+)
 from onshape_api.models.link import (
     Axis,
     CollisionLink,
@@ -31,13 +49,39 @@ from onshape_api.models.link import (
     VisualLink,
 )
 from onshape_api.parse import MATE_JOINER
-from onshape_api.utilities.helpers import generate_names
+from onshape_api.utilities.helpers import get_random_names
 
 SCRIPT_DIR = os.path.dirname(__file__)
 CURRENT_DIR = os.getcwd()
 
 
-def download_stl_mesh(did, wid, eid, partID, client: Client, transform: np.ndarray, file_name: str) -> str:
+def download_stl_mesh(
+    did: str, wid: str, eid: str, partID: str, client: Client, transform: np.ndarray, file_name: str
+) -> str:
+    """
+    Download an STL mesh from an Onshape part studio, transform it, and save it to a file.
+
+    Args:
+        did: The unique identifier of the document.
+        wid: The unique identifier of the workspace.
+        eid: The unique identifier of the element.
+        partID: The unique identifier of the part.
+        client: The Onshape client object to use for sending API requests.
+        transform: The transformation matrix to apply to the mesh.
+        file_name: The name of the file to save the mesh to.
+
+    Returns:
+        str: The relative path to the saved mesh file.
+
+    Raises:
+        Exception: If an error occurs while downloading the mesh.
+
+    Examples:
+        >>> download_stl_mesh("0b0c209535554345432581fe", "0b0c209535554345432581fe", "0b0c209535554345432581fe",
+        ...                   "0b0c209535554345432581fe", client, np.eye(4), "part.stl")
+        "meshes/part.stl"
+    """
+
     try:
         with io.BytesIO() as buffer:
             LOGGER.info(f"Downloading mesh for {file_name}...")
@@ -67,9 +111,32 @@ def get_robot_link(
     wid: str,
     client: Client,
     mate: Optional[Union[MateFeatureData, None]] = None,
-):
-    LOGGER.info(f"Creating robot link for {name}")
+) -> tuple[Link, np.matrix]:
+    """
+    Generate a URDF link from an Onshape part.
 
+    Args:
+        name: The name of the link.
+        part: The Onshape part object.
+        wid: The unique identifier of the workspace.
+        client: The Onshape client object to use for sending API requests.
+        mate: MateFeatureData object to use for generating the transformation matrix.
+
+    Returns:
+        tuple[Link, np.matrix]: The generated link object
+            and the transformation matrix from the STL origin to the link origin.
+
+    Examples:
+        >>> get_robot_link("root", part, wid, client)
+        (
+            Link(name='root', visual=VisualLink(...), collision=CollisionLink(...), inertial=InertialLink(...)),
+            np.matrix([[1., 0., 0., 0.],
+                [0., 1., 0., 0.],
+                [0., 0., 1., 0.],
+                [0., 0., 0., 1.]])
+        )
+
+    """
     if mate is None:
         _link_to_stl_tf = np.eye(4)
         _link_to_stl_tf[:3, 3] = np.array(part.MassProperty.center_of_mass).reshape(3)
@@ -82,6 +149,8 @@ def get_robot_link(
     _com = part.MassProperty.center_of_mass_wrt(_stl_to_link_tf)
     _inertia = part.MassProperty.inertia_wrt(np.matrix(_stl_to_link_tf[:3, :3]))
     _principal_axes_rotation = (0.0, 0.0, 0.0)
+
+    LOGGER.info(f"Creating robot link for {name}")
 
     _mesh_path = download_stl_mesh(
         part.documentId,
@@ -129,15 +198,41 @@ def get_robot_joint(
     child: str,
     mate: MateFeatureData,
     stl_to_parent_tf: np.matrix,
-):
-    LOGGER.info(f"Creating robot joint from {parent} to {child}")
+) -> BaseJoint:
+    """
+    Generate a URDF joint from an Onshape mate feature.
+
+    Args:
+        parent: The name of the parent link.
+        child: The name of the child link.
+        mate: The Onshape mate feature object.
+        stl_to_parent_tf: The transformation matrix from the STL origin to the parent link origin.
+
+    Returns:
+        Joint object that represents the URDF joint.
+
+    Examples:
+        >>> get_robot_joint("root", "link1", mate, np.eye(4))
+        RevoluteJoint(
+            name='base_link_to_link1',
+            parent='root',
+            child='link1',
+            origin=Origin(...),
+            limits=JointLimits(...),
+            axis=Axis(...),
+            dynamics=JointDynamics(...)
+        )
+
+    """
 
     parent_to_mate_tf = mate.matedEntities[1].matedCS.part_to_mate_tf
     stl_to_mate_tf = stl_to_parent_tf @ parent_to_mate_tf
 
     origin = Origin.from_matrix(stl_to_mate_tf)
 
-    if mate.mateType == MATETYPE.REVOLUTE:
+    LOGGER.info(f"Creating robot joint from {parent} to {child}")
+
+    if mate.mateType == MateType.REVOLUTE:
         return RevoluteJoint(
             name=f"{parent}_to_{child}",
             parent=parent,
@@ -153,10 +248,10 @@ def get_robot_joint(
             dynamics=JointDynamics(damping=0.1, friction=0.1),
         )
 
-    elif mate.mateType == MATETYPE.FASTENED:
+    elif mate.mateType == MateType.FASTENED:
         return FixedJoint(name=f"{parent}_to_{child}", parent=parent, child=child, origin=origin)
 
-    elif mate.mateType == MATETYPE.SLIDER:
+    elif mate.mateType == MateType.SLIDER:
         return PrismaticJoint(
             name=f"{parent}_to_{child}",
             parent=parent,
@@ -183,14 +278,42 @@ def get_urdf_components(
     parts: dict[str, Part],
     mates: dict[str, MateFeatureData],
     client: Client,
-):
+) -> tuple[list[Link], list[BaseJoint]]:
+    """
+    Generate URDF links and joints from an Onshape assembly.
+
+    Args:
+        assembly: The Onshape assembly object.
+        graph: The graph representation of the assembly.
+        parts: The dictionary of parts in the assembly.
+        mates: The dictionary of mates in the assembly.
+        client: The Onshape client object to use for sending API requests.
+
+    Returns:
+        tuple[list[Link], list[BaseJoint]]: The generated URDF links and joints.
+
+    Examples:
+        >>> get_urdf_components(assembly, graph, parts, mates, client)
+        (
+            [
+                Link(name='root', visual=VisualLink(...), collision=CollisionLink(...), inertial=InertialLink(...)),
+                Link(name='link1', visual=VisualLink(...), collision=CollisionLink(...), inertial=InertialLink(...)),
+                Link(name='link2', visual=VisualLink(...), collision=CollisionLink(...), inertial=InertialLink(...))
+            ],
+            [
+                RevoluteJoint(...),
+                FixedJoint(...),
+            ]
+        )
+
+    """
     if not isinstance(graph, DiGraph):
         graph, root_node = convert_to_digraph(graph)
 
     joints = []
     links = []
 
-    _readable_names = generate_names(directory=SCRIPT_DIR, max_length=len(graph.nodes))
+    _readable_names = get_random_names(directory=SCRIPT_DIR, count=len(graph.nodes))
     _readable_names_mapping = dict(zip(graph.nodes, _readable_names))
     _stl_to_link_tf_mapping = {}
 

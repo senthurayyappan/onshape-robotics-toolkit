@@ -1,3 +1,15 @@
+"""
+This module contains utility functions used across the Onshape API package.
+
+Functions:
+    - **xml_escape**: Escape XML characters in a string.
+    - **format_number**: Format a number to 8 significant figures.
+    - **generate_uid**: Generate a 16-character unique identifier from a list of strings.
+    - **print_dict**: Print a dictionary with indentation for nested dictionaries.
+    - **get_random_files**: Get random files from a directory with a specific file extension and count.
+    - **get_random_names**: Generate random names from a list of words in a file.
+"""
+
 import hashlib
 import os
 import random
@@ -20,7 +32,10 @@ def xml_escape(unescaped: str) -> str:
         >>> xml_escape("hello 'world' \"world\"")
         "hello &apos;world&apos; &quot;world&quot;"
 
+        >>> xml_escape("hello <world>")
+        "hello &lt;world&gt;"
     """
+
     return escape(unescaped, entities={"'": "&apos;", '"': "&quot;"})
 
 
@@ -38,7 +53,10 @@ def format_number(value: float) -> str:
         >>> format_number(0.123456789)
         "0.12345679"
 
+        >>> format_number(123456789)
+        "123456789"
     """
+
     return f"{value:.8g}"
 
 
@@ -55,13 +73,13 @@ def generate_uid(values: list[str]) -> str:
     Examples:
         >>> generate_uid(["hello", "world"])
         "c4ca4238a0b92382"
-
     """
+
     _value = "".join(values)
     return hashlib.sha256(_value.encode()).hexdigest()[:16]
 
 
-def print_dict(d: dict, indent=0):
+def print_dict(d: dict, indent=0) -> None:
     """
     Print a dictionary with indentation for nested dictionaries
 
@@ -79,8 +97,8 @@ def print_dict(d: dict, indent=0):
         b
             c
                 2
-
     """
+
     for key, value in d.items():
         print("\t" * indent + str(key))
         if isinstance(value, dict):
@@ -89,7 +107,7 @@ def print_dict(d: dict, indent=0):
             print("\t" * (indent + 1) + str(value))
 
 
-def get_random_file(directory: str, file_extension: str, count: int) -> list[str]:
+def get_random_files(directory: str, file_extension: str, count: int) -> list[str]:
     """
     Get random files from a directory with a specific file extension and count
 
@@ -104,11 +122,14 @@ def get_random_file(directory: str, file_extension: str, count: int) -> list[str
     Raises:
         ValueError: Not enough files in directory if count exceeds number of files
 
-    Usage:
-    >>> get_random_file("json", ".json", 1)
-    ["json/file.json"]
+    Examples:
+        >>> get_random_files("json", ".json", 1)
+        ["json/file.json"]
 
+        >>> get_random_files("json", ".json", 2)
+        ["json/file1.json", "json/file2.json"]
     """
+
     _files = [file for file in os.listdir(directory) if file.endswith(file_extension)]
 
     if len(_files) < count:
@@ -122,17 +143,39 @@ def get_random_file(directory: str, file_extension: str, count: int) -> list[str
     return file_paths, [x.split(".")[0] for x in selected_files]
 
 
-def generate_names(directory: str, max_length: int, filename: str = "words.txt") -> list[str]:
+def get_random_names(directory: str, count: int, filename: str = "words.txt") -> list[str]:
+    """
+    Generate random names from a list of words in a file
+
+    Args:
+        directory: Path to directory containing words file
+        count: Number of random names to generate
+        filename: File containing list of words. Default is "words.txt"
+
+    Returns:
+        List of random names
+
+    Raises:
+        ValueError: If count exceeds the number of available words
+
+    Examples:
+        >>> get_random_names(directory="../", count=1)
+        ["charizard"]
+
+        >>> get_random_names(directory="../", count=2)
+        ["charizard", "pikachu"]
+    """
+
     words_file_path = os.path.join(directory, filename)
 
     with open(words_file_path) as file:
         words = file.read().splitlines()
 
-    if max_length > len(words):
-        raise ValueError("max_length exceeds the number of available words")
+    if count > len(words):
+        raise ValueError("count exceeds the number of available words")
 
-    return random.sample(words, max_length)
+    return random.sample(words, count)
 
 
 if __name__ == "__main__":
-    print(get_random_file("json", ".json", 1))
+    print(get_random_files("json", ".json", 1))

@@ -10,6 +10,7 @@ copyright: Maintained by <a href="https://imsenthur.com">Florian</a>.
 nav:
   - Home: index.md
   - Models: models.md
+  - Utilities: utilities.md
 
 plugins:
   - search
