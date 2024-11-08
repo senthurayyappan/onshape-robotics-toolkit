@@ -1,35 +1,41 @@
 """
-This module contains the data models for the Assembly API responses from Onshape REST API. The data models are Pydantic
-BaseModel classes that are used to parse the JSON responses from the API into Python objects. The data models are used
-to validate the JSON responses and to provide type hints for the data structures.
+This module defines data models for Assembly entities retrieved from Onshape REST API responses.
+
+The data models are implemented as Pydantic BaseModel classes, which are used to:
+    Parse JSON responses from the API into Python objects.
+    Validate the structure and types of the JSON responses.
+    Provide type hints for better code clarity and autocompletion.
+
+These models ensure that the data received from the API adheres to the expected format and types, facilitating easier
+and safer manipulation of the data within the application.
 
 Models:
-- Occurrence: Occurence model
-- Part: Part data model
-- PartInstance: Part Instance model
-- AssemblyInstance: Assembly Instance model
-- AssemblyFeature: AssemblyFeature data model
-- Pattern: Pattern data model
-- SubAssembly: SubAssembly data model
-- RootAssembly: RootAssembly data model
-- Assembly: Assembly data model
+    Occurrence: Represents an occurrence of a part or sub-assembly within an assembly.
+    Part: Represents a part within an assembly, including its properties and configuration.
+    PartInstance: Represents an instance of a part within an assembly.
+    AssemblyInstance: Represents an instance of an assembly within another assembly.
+    AssemblyFeature: Represents a feature within an assembly, such as a mate or pattern.
+    Pattern: Represents a pattern feature within an assembly, defining repeated instances of parts or sub-assemblies.
+    SubAssembly: Represents a sub-assembly within a larger assembly.
+    RootAssembly: Represents the root assembly, which is the top-level assembly containing all parts and sub-assemblies.
+    Assembly: Represents the overall assembly, including all parts, sub-assemblies, and features.
 
 Supplementary models:
-- IDBase: Base model for Part, SubAssembly, and AssemblyInstance in Assembly context
-- MatedCS: Mated CS model
-- MatedEntity: MatedEntity data model
-- MateRelationMate: MateRelationMate data model
-- MateGroupFeatureOccurrence: MateGroupFeatureOccurrence data model
-- MateGroupFeatureData: MateGroupFeatureData data model
-- MateConnectorFeatureData: MateConnectorFeatureData data model
-- MateRelationFeatureData: MateRelationFeatureData data model
-- MateFeatureData: MateFeatureData data model
+    IDBase: Base model providing common attributes for Part, SubAssembly, and AssemblyInstance models.
+    MatedCS: Represents a coordinate system used for mating parts within an assembly.
+    MatedEntity: Represents an entity that is mated within an assembly, including its coordinate system.
+    MateRelationMate: Represents a mate relation within an assembly, defining how parts or sub-assemblies are connected.
+    MateGroupFeatureOccurrence: Represents an occurrence of a mate group feature within an assembly.
+    MateGroupFeatureData: Represents data for a mate group feature within an assembly.
+    MateConnectorFeatureData: Represents data for a mate connector feature within an assembly.
+    MateRelationFeatureData: Represents data for a mate relation feature within an assembly.
+    MateFeatureData: Represents data for a mate feature within an assembly.
 
 Enums:
-- INSTANCE_TYPE: Instance type to distinguish between Part and Assembly
-- MATE_TYPE: Type of mate between two parts or assemblies, e.g. SLIDER, CYLINDRICAL, REVOLUTE, etc.
-- RELATION_TYPE: Type of mate relation between two parts or assemblies, e.g. LINEAR, GEAR, SCREW, etc.
-- ASSEMBLY_FEATURE_TYPE: Type of assembly feature, e.g. mate, mateRelation, mateGroup, mateConnector
+    INSTANCE_TYPE: Enumerates the types of instances in an assembly, e.g. PART, ASSEMBLY.
+    MATE_TYPE: Enumerates the type of mate between two parts or assemblies, e.g. SLIDER, CYLINDRICAL, REVOLUTE, etc.
+    RELATION_TYPE: Enumerates the type of mate relation between two parts or assemblies, e.g. LINEAR, GEAR, SCREW, etc.
+    ASSEMBLY_FEATURE_TYPE: Enumerates the type of assembly feature, e.g. mate, mateRelation, mateGroup, mateConnector
 
 """
 
@@ -46,7 +52,7 @@ from onshape_api.utilities.helpers import generate_uid
 
 class INSTANCE_TYPE(str, Enum):
     """
-    Enum to distinguish between Part and Assembly.
+    Enumerates the types of instances in an assembly, e.g. PART, ASSEMBLY.
 
     Attributes:
         PART (str): Represents a part instance.
@@ -59,7 +65,7 @@ class INSTANCE_TYPE(str, Enum):
 
 class MATE_TYPE(str, Enum):
     """
-    Enum to represent the type of mate between two parts or assemblies.
+    Enumerates the type of mate between two parts or assemblies, e.g. SLIDER, CYLINDRICAL, REVOLUTE, etc.
 
     Attributes:
         SLIDER (str): Represents a slider mate.
@@ -84,7 +90,7 @@ class MATE_TYPE(str, Enum):
 
 class RELATION_TYPE(str, Enum):
     """
-    Enum to represent the type of mate relation between two parts or assemblies.
+    Enumerates the type of mate relation between two parts or assemblies, e.g. LINEAR, GEAR, SCREW, etc.
 
     Attributes:
         LINEAR (str): Represents a linear relation.
@@ -101,7 +107,7 @@ class RELATION_TYPE(str, Enum):
 
 class ASSEMBLY_FEATURE_TYPE(str, Enum):
     """
-    Enum to represent the type of assembly feature.
+    Enumerates the type of assembly feature, e.g. mate, mateRelation, mateGroup, mateConnector
 
     Attributes:
         MATE (str): Represents a mate feature.
@@ -118,7 +124,7 @@ class ASSEMBLY_FEATURE_TYPE(str, Enum):
 
 class Occurrence(BaseModel):
     """
-    Occurrence model representing the state of an instance in an assembly.
+    Represents an occurrence of a part or sub-assembly within an assembly.
 
     Example JSON representation:
     {
@@ -167,7 +173,7 @@ class Occurrence(BaseModel):
 
 class IDBase(BaseModel):
     """
-    Base model for Part, SubAssembly, and AssemblyInstance in Assembly context.
+    Base model providing common attributes for Part, SubAssembly, and AssemblyInstance models.
 
     Example JSON representation:
     {
@@ -225,7 +231,7 @@ class IDBase(BaseModel):
 
 class Part(IDBase):
     """
-    Part data model representing a part in an assembly.
+    Represents a part within an assembly, including its properties and configuration.
 
     Example JSON representation:
     {
@@ -273,7 +279,7 @@ class Part(IDBase):
 
 class PartInstance(IDBase):
     """
-    PartInstance model representing an instance of a part in an assembly.
+    Represents an instance of a part within an assembly.
 
     Example JSON representation:
     {
@@ -346,7 +352,7 @@ class PartInstance(IDBase):
 
 class AssemblyInstance(IDBase):
     """
-    AssemblyInstance model representing an instance of an assembly.
+    Represents an instance of an assembly within another assembly.
 
     Example JSON representation:
     {
@@ -397,7 +403,7 @@ class AssemblyInstance(IDBase):
 
 class MatedCS(BaseModel):
     """
-    MatedCS model representing a coordinate system used for mating parts in an assembly.
+    Represents a coordinate system used for mating parts within an assembly.
 
     Example JSON representation:
     {
@@ -456,7 +462,7 @@ class MatedCS(BaseModel):
 
 class MatedEntity(BaseModel):
     """
-    MatedEntity data model representing an entity that is mated in an assembly.
+    Represents an entity that is mated within an assembly, including its coordinate system.
 
     Example JSON representation:
     {
@@ -480,7 +486,7 @@ class MatedEntity(BaseModel):
 
 class MateRelationMate(BaseModel):
     """
-    MateRelationMate model represents a mate relation in an assembly.
+    Represents a mate relation within an assembly, defining how parts or sub-assemblies are connected.
 
     Example JSON representation:
     {
@@ -501,7 +507,7 @@ class MateRelationMate(BaseModel):
 
 class MateGroupFeatureOccurrence(BaseModel):
     """
-    MateGroupFeatureOccurrence model representing an occurrence in a mate group feature.
+    Represents an occurrence of a mate group feature within an assembly.
 
     Example JSON representation:
     {
@@ -519,7 +525,7 @@ class MateGroupFeatureOccurrence(BaseModel):
 
 class MateGroupFeatureData(BaseModel):
     """
-    MateGroupFeatureData model representing a mate group feature in an assembly.
+    Represents data for a mate group feature within an assembly.
 
     Example JSON representation:
     {
@@ -544,7 +550,7 @@ class MateGroupFeatureData(BaseModel):
 
 class MateConnectorFeatureData(BaseModel):
     """
-    MateConnectorFeatureData model representing a mate connector feature in an assembly.
+    Represents data for a mate connector feature within an assembly.
 
     Example JSON representation:
     {
@@ -573,7 +579,7 @@ class MateConnectorFeatureData(BaseModel):
 
 class MateRelationFeatureData(BaseModel):
     """
-    MateRelationFeatureData model representing a mate relation feature in an assembly.
+    Represents data for a mate relation feature within an assembly.
 
     Example JSON representation:
     {
@@ -610,7 +616,7 @@ class MateRelationFeatureData(BaseModel):
 
 class MateFeatureData(BaseModel):
     """
-    MateFeatureData model representing a mate feature in an assembly.
+    Represents data for a mate feature within an assembly.
 
     Example JSON representation:
     {
@@ -653,7 +659,7 @@ class MateFeatureData(BaseModel):
 
 class AssemblyFeature(BaseModel):
     """
-    AssemblyFeature model representing a feature in an assembly.
+    Represents a feature within an assembly, such as a mate or pattern.
 
     Example JSON representation:
     {
@@ -706,7 +712,7 @@ class AssemblyFeature(BaseModel):
 
 class Pattern(BaseModel):
     """
-    Dummy model to hold pattern data in an assembly.
+    TODO: Represents a pattern feature within an assembly, defining repeated instances of parts or sub-assemblies.
     """
 
     pass
@@ -714,7 +720,7 @@ class Pattern(BaseModel):
 
 class SubAssembly(IDBase):
     """
-    SubAssembly model representing a sub-assembly in an assembly.
+    Represents a sub-assembly within a root assembly.
 
     Example JSON representation:
     {
@@ -760,7 +766,7 @@ class SubAssembly(IDBase):
 
 class RootAssembly(SubAssembly):
     """
-    RootAssembly model representing the root assembly in an assembly.
+    Represents the root assembly, which is the top-level assembly containing all parts and sub-assemblies.
 
     Example JSON representation:
     {
@@ -793,7 +799,7 @@ class RootAssembly(SubAssembly):
 
 class Assembly(BaseModel):
     """
-    Assembly model representing an assembly in an Onshape document.
+    Represents the overall assembly, including all parts, sub-assemblies, and features.
 
     Example JSON representation:
     {
