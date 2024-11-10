@@ -51,6 +51,23 @@ def save_graph(graph: nx.Graph, file_name: str) -> None:
     plt.savefig(file_name)
 
 
+def get_root_node(graph: nx.DiGraph) -> str:
+    """
+    Get the root node of a directed graph.
+
+    Args:
+        graph: The directed graph.
+
+    Returns:
+        The root node of the graph.
+
+    Examples:
+        >>> graph = nx.DiGraph()
+        >>> get_root_node(graph)
+    """
+    return next(nx.topological_sort(graph))
+
+
 def convert_to_digraph(graph: nx.Graph) -> nx.DiGraph:
     """
     Convert a graph to a directed graph and calculate the root node using closeness centrality.
@@ -77,7 +94,6 @@ def create_graph(
     instances: dict[str, Union[PartInstance, AssemblyInstance]],
     parts: dict[str, Part],
     mates: dict[str, MateFeatureData],
-    directed: bool = True,
 ) -> Union[nx.Graph, nx.DiGraph]:
     """
     Create a graph from onshape assembly data.
@@ -119,9 +135,8 @@ def create_graph(
         except KeyError:
             LOGGER.warning(f"Mate {mate} not found")
 
-    if directed:
-        graph = convert_to_digraph(graph)
+    graph, root_node = convert_to_digraph(graph)
 
-    LOGGER.info(f"Graph created with {len(graph.nodes)} nodes and {len(graph.edges)} edges")
+    LOGGER.info(f"Graph created with {len(graph.nodes)} nodes and {len(graph.edges)} edges with root node: {root_node}")
 
-    return graph
+    return graph, root_node

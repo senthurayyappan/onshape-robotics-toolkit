@@ -92,7 +92,7 @@ def get_assembly_df(automate_assembly_df: pd.DataFrame, client: Client, chunk_si
 
 def save_all_jsons(client: Client):
     if not os.path.exists("assemblies.parquet"):
-        # TODO: Reprocess the automate data if assemblies.parquet is empty
+        # TODO: Re-process the automate data if assemblies.parquet is empty
         automate_assembly_df = pd.read_parquet("automate_assemblies.parquet", engine="pyarrow")
         assembly_df = get_assembly_df(automate_assembly_df, client=client)
         assembly_df.to_parquet("assemblies.parquet", engine="pyarrow")

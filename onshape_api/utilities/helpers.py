@@ -100,6 +100,7 @@ def print_dict(d: dict, indent=0) -> None:
     """
 
     for key, value in d.items():
+        print()
         print("\t" * indent + str(key))
         if isinstance(value, dict):
             print_dict(value, indent + 1)
@@ -177,5 +178,32 @@ def get_random_names(directory: str, count: int, filename: str = "words.txt") ->
     return random.sample(words, count)
 
 
+def get_sanitized_name(name: str, replace_with: str = "-") -> str:
+    """
+    Sanitize a name by removing special characters, preserving "-" and "_", and
+    replacing spaces with a specified character.
+
+    Args:
+        name: Name to sanitize
+        replace_with: Character to replace spaces with (default is '-')
+
+    Returns:
+        Sanitized name
+
+    Examples:
+        >>> get_sanitized_name("wheel1 <3>", '-')
+        "wheel1-3"
+        >>> get_sanitized_name("Hello World!", '_')
+        "Hello_World"
+    """
+
+    if replace_with not in "-_":
+        raise ValueError("replace_with must be either '-' or '_'")
+
+    sanitized_name = "".join(char if char.isalnum() or char in "-_ " else "" for char in name)
+    return sanitized_name.replace(" ", replace_with)
+
+
 if __name__ == "__main__":
-    print(get_random_files("json", ".json", 1))
+    # print(get_random_files("json", ".json", 1))
+    print(get_sanitized_name(input("Enter a name: ")))

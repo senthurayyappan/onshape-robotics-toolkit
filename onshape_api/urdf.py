@@ -10,10 +10,9 @@ from typing import Optional, Union
 
 import numpy as np
 import stl
-from networkx import DiGraph, Graph
+from networkx import DiGraph
 
 from onshape_api.connect import Client
-from onshape_api.graph import convert_to_digraph
 from onshape_api.log import LOGGER
 from onshape_api.mesh import transform_mesh
 from onshape_api.models.assembly import (
@@ -44,7 +43,6 @@ from onshape_api.models.link import (
     VisualLink,
 )
 from onshape_api.parse import MATE_JOINER
-from onshape_api.utilities.helpers import get_random_names
 
 SCRIPT_DIR = os.path.dirname(__file__)
 CURRENT_DIR = os.getcwd()
@@ -269,7 +267,8 @@ def get_robot_joint(
 
 def get_urdf_components(
     assembly: Assembly,
-    graph: Union[Graph, DiGraph],
+    graph: DiGraph,
+    root_node: str,
     parts: dict[str, Part],
     mates: dict[str, MateFeatureData],
     client: Client,
@@ -302,30 +301,23 @@ def get_urdf_components(
         )
 
     """
-    if not isinstance(graph, DiGraph):
-        graph, root_node = convert_to_digraph(graph)
-
     joints = []
     links = []
 
-    _readable_names = get_random_names(directory=SCRIPT_DIR, count=len(graph.nodes))
-    _readable_names_mapping = dict(zip(graph.nodes, _readable_names))
-    _stl_to_link_tf_mapping = {}
+    _stl_to_link_tf_map = {}
 
-    LOGGER.info(f"Processing root node: {_readable_names_mapping[root_node]}")
+    LOGGER.info(f"Processing root node: {root_node}")
 
-    root_link, stl_to_root_tf = get_robot_link(
-        _readable_names_mapping[root_node], parts[root_node], assembly.document.wid, client, None
-    )
+    root_link, stl_to_root_tf = get_robot_link(root_node, parts[root_node], assembly.document.wid, client, None)
 
     links.append(root_link)
-    _stl_to_link_tf_mapping[root_node] = stl_to_root_tf
+    _stl_to_link_tf_map[root_node] = stl_to_root_tf
 
     LOGGER.info(f"Processing remaining {len(graph.nodes) - 1} nodes using {len(graph.edges)} edges")
 
     for edge in graph.edges:
         parent, child = edge
-        _parent_tf = _stl_to_link_tf_mapping[parent]
+        _parent_tf = _stl_to_link_tf_map[parent]
 
         # TODO: should mate keys be parent to child in the parser?
         _mate_key = f"{child}{MATE_JOINER}{parent}"
@@ -339,21 +331,21 @@ def get_urdf_components(
             continue
 
         _joint = get_robot_joint(
-            _readable_names_mapping[parent],
-            _readable_names_mapping[child],
+            parent,
+            child,
             mates[_mate_key],
             _parent_tf,
         )
         joints.append(_joint)
 
         _link, _stl_to_link_tf = get_robot_link(
-            _readable_names_mapping[child],
+            child,
             parts[child],
             assembly.document.wid,
             client,
             mates[_mate_key],
         )
-        _stl_to_link_tf_mapping[child] = _stl_to_link_tf
+        _stl_to_link_tf_map[child] = _stl_to_link_tf
         links.append(_link)
 
     return links, joints

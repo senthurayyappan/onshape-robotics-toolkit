@@ -26,16 +26,16 @@ variables["forkAngle"].expression = "20 deg"
 client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
 assembly, _ = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
 
-occurences = get_occurences(assembly)
-instances = get_instances(assembly)
+instances, id_to_name_map = get_instances(assembly)
+occurences = get_occurences(assembly, id_to_name_map)
 subassemblies = get_subassemblies(assembly, instances)
 parts = get_parts(assembly, client, instances)
-mates = get_mates(assembly)
+mates = get_mates(assembly, subassembly_map=subassemblies, id_to_name_map=id_to_name_map)
 
-graph = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates, directed=False)
+graph, root_node = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates)
 show_graph(graph)
 
-links, joints = get_urdf_components(assembly, graph, parts, mates, client)
+links, joints = get_urdf_components(assembly, graph, root_node, parts, mates, client)
 
 robot = Robot(name="bike", links=links, joints=joints)
 robot.save("bike.urdf")

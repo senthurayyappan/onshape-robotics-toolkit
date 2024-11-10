@@ -283,6 +283,10 @@ class IDBase(BaseModel):
         return generate_uid([self.documentId, self.documentMicroversion, self.elementId, self.fullConfiguration])
 
 
+class PartMetadata(BaseModel):
+    pass
+
+
 class Part(IDBase):
     """
     Represents a part within an assembly, including its properties and configuration.
