@@ -4,6 +4,7 @@ import re
 from functools import partial
 
 import pandas as pd
+from tqdm import tqdm
 
 from onshape_api.connect import Client
 from onshape_api.models import Assembly
@@ -43,7 +44,7 @@ def get_assembly_data(assembly_id: str, client: Client):
         ids["wtype"] = document.defaultWorkspace.type.shorthand
         ids["workspaceId"] = document.defaultWorkspace.id
 
-        LOGGER.info(f"Assembly data retrieved for element: {ids['elementId']}")
+        # LOGGER.info(f"Assembly data retrieved for element: {ids['elementId']}")
 
     except Exception as e:
         LOGGER.warning(f"Error getting assembly data for {assembly_id}")
@@ -72,8 +73,9 @@ def get_assembly_df(automate_assembly_df: pd.DataFrame, client: Client) -> pd.Da
             "is_subassembly":false
         }
     """
+    tqdm.pandas()
     _get_assembly_data = partial(get_assembly_data, client=client)
-    assembly_df = automate_assembly_df["assemblyId"].apply(_get_assembly_data).apply(pd.Series)
+    assembly_df = automate_assembly_df["assemblyId"].progress_apply(_get_assembly_data).apply(pd.Series)
     return assembly_df
 
 
@@ -88,7 +90,7 @@ def save_all_jsons(client: Client):
     json_dir = "json"
     os.makedirs(json_dir, exist_ok=True)
 
-    for _, row in assembly_df.iterrows():
+    for _, row in tqdm(assembly_df.iterrows(), total=len(assembly_df)):
         try:
             for element_id in row["elementId"]:
                 _, assembly_json = client.get_assembly(

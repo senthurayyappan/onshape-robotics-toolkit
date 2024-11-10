@@ -234,14 +234,14 @@ class BaseJoint(ABC):
 
         joint = ET.Element("joint") if root is None else ET.SubElement(root, "joint")
         joint.set("name", self.name)
-        joint.set("type", self.joint_type())
+        joint.set("type", self.joint_type)
         self.origin.to_xml(joint)
         ET.SubElement(joint, "parent", link=self.parent)
         ET.SubElement(joint, "child", link=self.child)
         return joint
 
-    @abstractmethod
     @property
+    @abstractmethod
     def joint_type(self) -> str:
         """
         The type of the joint.
