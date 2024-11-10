@@ -47,40 +47,52 @@ def get_assembly_data(assembly_id: str, client: Client):
         # LOGGER.info(f"Assembly data retrieved for element: {ids['elementId']}")
 
     except Exception as e:
-        LOGGER.warning(f"Error getting assembly data for {assembly_id}")
+        # LOGGER.warning(f"Error getting assembly data for {assembly_id}")
         LOGGER.warning(e)
         ids = {"documentId": None, "documentMicroversion": None, "elementId": None, "wtype": None, "workspaceId": None}
 
     return ids
 
 
-def get_assembly_df(automate_assembly_df: pd.DataFrame, client: Client) -> pd.DataFrame:
+def get_assembly_df_chunk(automate_assembly_df_chunk: pd.DataFrame, client: Client) -> pd.DataFrame:
     """
-    Automate assembly data format:
-        {
-            "assemblyId":"000355ca65fdcbb0e3d825e6_811a5312224ae67ce5b1e180_4bd8ec79e9921e03b989f893_default",
-            "n_subassemblies":1,
-            "n_parts":11,
-            "n_parasolid":11,
-            "n_parasolid_errors":0,
-            "n_step":11,
-            "n_occurrences":11,
-            "n_mates":10,
-            "n_ps_mates":10,
-            "n_step_mates":10,
-            "n_groups":0,
-            "n_relations":0,
-            "is_subassembly":false
-        }
+    Process a chunk of the automate assembly DataFrame.
+    """
+    _get_assembly_data = partial(get_assembly_data, client=client)
+    assembly_df_chunk = automate_assembly_df_chunk["assemblyId"].progress_apply(_get_assembly_data).apply(pd.Series)
+    return assembly_df_chunk
+
+
+def get_assembly_df(automate_assembly_df: pd.DataFrame, client: Client, chunk_size: int = 1000) -> pd.DataFrame:
+    """
+    Process the automate assembly DataFrame in chunks and save checkpoints.
     """
     tqdm.pandas()
-    _get_assembly_data = partial(get_assembly_data, client=client)
-    assembly_df = automate_assembly_df["assemblyId"].progress_apply(_get_assembly_data).apply(pd.Series)
+    total_rows = len(automate_assembly_df)
+    chunks = (total_rows // chunk_size) + 1
+
+    assembly_df_list = []
+    try:
+        for i in tqdm(range(chunks), desc="Processing chunks"):
+            start_idx = i * chunk_size
+            end_idx = min((i + 1) * chunk_size, total_rows)
+            automate_assembly_df_chunk = automate_assembly_df.iloc[start_idx:end_idx]
+            assembly_df_chunk = get_assembly_df_chunk(automate_assembly_df_chunk, client)
+            assembly_df_list.append(assembly_df_chunk)
+            checkpoint_path = f"assemblies_checkpoint_{i}.parquet"
+            assembly_df_chunk.to_parquet(checkpoint_path, engine="pyarrow")
+
+    except KeyboardInterrupt:
+        print("Processing interrupted. Saving progress...")
+
+    assembly_df = pd.concat(assembly_df_list, ignore_index=True) if assembly_df_list else pd.DataFrame()
+
     return assembly_df
 
 
 def save_all_jsons(client: Client):
     if not os.path.exists("assemblies.parquet"):
+        # TODO: Reprocess the automate data if assemblies.parquet is empty
         automate_assembly_df = pd.read_parquet("automate_assemblies.parquet", engine="pyarrow")
         assembly_df = get_assembly_df(automate_assembly_df, client=client)
         assembly_df.to_parquet("assemblies.parquet", engine="pyarrow")
