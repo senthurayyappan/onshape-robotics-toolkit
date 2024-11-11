@@ -36,6 +36,5 @@ graph, root_node = create_graph(occurences=occurences, instances=instances, part
 show_graph(graph)
 
 links, joints = get_urdf_components(assembly, graph, root_node, parts, mates, client)
-
 robot = Robot(name="bike", links=links, joints=joints)
 robot.save("bike.urdf")

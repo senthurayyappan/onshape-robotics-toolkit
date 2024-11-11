@@ -42,7 +42,7 @@ from onshape_api.models.link import (
     Origin,
     VisualLink,
 )
-from onshape_api.parse import MATE_JOINER
+from onshape_api.parse import MATE_JOINER, PARENT
 
 SCRIPT_DIR = os.path.dirname(__file__)
 CURRENT_DIR = os.getcwd()
@@ -218,7 +218,7 @@ def get_robot_joint(
 
     """
 
-    parent_to_mate_tf = mate.matedEntities[1].matedCS.part_to_mate_tf
+    parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
     stl_to_mate_tf = stl_to_parent_tf @ parent_to_mate_tf
 
     origin = Origin.from_matrix(stl_to_mate_tf)
@@ -265,6 +265,51 @@ def get_robot_joint(
         return DummyJoint(name=f"{parent}_to_{child}", parent=parent, child=child, origin=origin)
 
 
+def get_topological_mates(graph: DiGraph, mates: dict[str, MateFeatureData]) -> dict[str, MateFeatureData]:
+    """
+    Get the topological mates from the graph. This shuffles the order of the mates to match the directed graph edges.
+
+    Args:
+        graph: The graph representation of the assembly.
+        mates: The dictionary of mates in the assembly.
+
+    Returns:
+        dict[str, MateFeatureData]: The topological mates.
+
+    Examples:
+        >>> get_topological_mates(graph, mates)
+        {
+            'link1-MATE-body': MateFeatureData(...),
+            'subassembly1-SUB-link2-MATE-body': MateFeatureData(...),
+        }
+    """
+    topological_mates: dict[str, MateFeatureData] = {}
+
+    mate_keys = {tuple(key.split(MATE_JOINER)) for key in mates}
+    graph_edges = set(graph.edges)
+
+    rogue_mates = mate_keys.difference(graph_edges)
+
+    for edge in graph.edges:
+        parent, child = edge
+        key = f"{parent}{MATE_JOINER}{child}"
+
+        if (child, parent) in rogue_mates:
+            # the only way it can be a rogue mate is if the parent and child are swapped
+            LOGGER.info(f"Rogue mate found: {edge}")
+            rogue_key = f"{child}{MATE_JOINER}{parent}"
+            topological_mates[key] = mates[rogue_key]
+
+            print(topological_mates[key].matedEntities)
+            topological_mates[key].matedEntities = topological_mates[key].matedEntities[::-1]
+            print(topological_mates[key].matedEntities)
+
+        else:
+            topological_mates[key] = mates[key]
+
+    return topological_mates
+
+
 def get_urdf_components(
     assembly: Assembly,
     graph: DiGraph,
@@ -304,48 +349,45 @@ def get_urdf_components(
     joints = []
     links = []
 
-    _stl_to_link_tf_map = {}
+    topological_mates = get_topological_mates(graph, mates)
+
+    stl_to_link_tf_map = {}
 
     LOGGER.info(f"Processing root node: {root_node}")
 
     root_link, stl_to_root_tf = get_robot_link(root_node, parts[root_node], assembly.document.wid, client, None)
 
     links.append(root_link)
-    _stl_to_link_tf_map[root_node] = stl_to_root_tf
+    stl_to_link_tf_map[root_node] = stl_to_root_tf
 
     LOGGER.info(f"Processing remaining {len(graph.nodes) - 1} nodes using {len(graph.edges)} edges")
 
     for edge in graph.edges:
         parent, child = edge
-        _parent_tf = _stl_to_link_tf_map[parent]
+        mate_key = f"{parent}{MATE_JOINER}{child}"
 
-        # TODO: should mate keys be parent to child in the parser?
-        _mate_key = f"{child}{MATE_JOINER}{parent}"
-
-        if _mate_key not in mates:
-            # TODO: subassembly to root mates have a funky convention
-            _mate_key = f"{parent}{MATE_JOINER}{child}"
+        parent_tf = stl_to_link_tf_map[parent]
 
         if parent and child not in parts:
             LOGGER.warning(f"Part {parent} or {child} not found in parts")
             continue
 
-        _joint = get_robot_joint(
+        joint = get_robot_joint(
             parent,
             child,
-            mates[_mate_key],
-            _parent_tf,
+            topological_mates[mate_key],
+            parent_tf,
         )
-        joints.append(_joint)
+        joints.append(joint)
 
-        _link, _stl_to_link_tf = get_robot_link(
+        link, stl_to_link_tf = get_robot_link(
             child,
             parts[child],
             assembly.document.wid,
             client,
-            mates[_mate_key],
+            topological_mates[mate_key],
         )
-        _stl_to_link_tf_map[child] = _stl_to_link_tf
-        links.append(_link)
+        stl_to_link_tf_map[child] = stl_to_link_tf
+        links.append(link)
 
     return links, joints

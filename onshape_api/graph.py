@@ -89,6 +89,29 @@ def convert_to_digraph(graph: nx.Graph) -> nx.DiGraph:
     return _graph, _root_node
 
 
+def get_topological_order(graph: nx.DiGraph) -> tuple[str]:
+    """
+    Get the topological order of a directed graph.
+
+    Args:
+        graph: The directed graph.
+
+    Returns:
+        The topological order of the graph.
+
+    Examples:
+        >>> graph = nx.DiGraph()
+        >>> get_topological_order(graph)
+    """
+    try:
+        order = tuple(nx.topological_sort(graph))
+    except nx.NetworkXUnfeasible:
+        LOGGER.warning("Graph has one or more cycles")
+        order = None
+
+    return order
+
+
 def create_graph(
     occurences: dict[str, Occurrence],
     instances: dict[str, Union[PartInstance, AssemblyInstance]],
@@ -131,7 +154,7 @@ def create_graph(
     for mate in mates:
         try:
             child, parent = mate.split(MATE_JOINER)
-            graph.add_edge(child, parent, **mates[mate].model_dump())
+            graph.add_edge(parent, child, **mates[mate].model_dump())
         except KeyError:
             LOGGER.warning(f"Mate {mate} not found")
 

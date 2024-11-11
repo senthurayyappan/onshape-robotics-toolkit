@@ -30,8 +30,8 @@ os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\
 SUBASSEMBLY_JOINER = "-SUB-"
 MATE_JOINER = "-MATE-"
 
-PARENT = 0
-CHILD = 1
+CHILD = 0
+PARENT = 1
 
 
 def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, str]]:
