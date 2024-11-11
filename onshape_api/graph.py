@@ -117,7 +117,7 @@ def create_graph(
     instances: dict[str, Union[PartInstance, AssemblyInstance]],
     parts: dict[str, Part],
     mates: dict[str, MateFeatureData],
-) -> Union[nx.Graph, nx.DiGraph]:
+) -> tuple[nx.DiGraph, str]:
     """
     Create a graph from onshape assembly data.
 
@@ -126,7 +126,6 @@ def create_graph(
         instances: Dictionary of instances in the assembly.
         parts: Dictionary of parts in the assembly.
         mates: Dictionary of mates in the assembly.
-        directed: Whether the graph should be directed or not.
 
     Returns:
         The graph created from the assembly data.
@@ -139,7 +138,7 @@ def create_graph(
         >>> create_graph(occurences, instances, parts, mates, directed=True)
     """
 
-    graph = nx.Graph()
+    graph: nx.Graph = nx.Graph()
 
     for occurence in occurences:
         if instances[occurence].type == InstanceType.PART:
