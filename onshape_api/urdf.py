@@ -299,10 +299,7 @@ def get_topological_mates(graph: DiGraph, mates: dict[str, MateFeatureData]) -> 
             LOGGER.info(f"Rogue mate found: {edge}")
             rogue_key = f"{child}{MATE_JOINER}{parent}"
             topological_mates[key] = mates[rogue_key]
-
-            print(topological_mates[key].matedEntities)
             topological_mates[key].matedEntities = topological_mates[key].matedEntities[::-1]
-            print(topological_mates[key].matedEntities)
 
         else:
             topological_mates[key] = mates[key]

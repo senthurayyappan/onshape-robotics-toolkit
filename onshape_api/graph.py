@@ -35,7 +35,7 @@ def show_graph(graph: nx.Graph) -> None:
     plt.show()
 
 
-def save_graph(graph: nx.Graph, file_name: str) -> None:
+def save_graph(graph: Union[nx.Graph, nx.DiGraph], file_name: str) -> None:
     """
     Save the graph as an image file.
 
@@ -139,6 +139,9 @@ def create_graph(
     """
 
     graph: nx.Graph = nx.Graph()
+
+    if len(mates) == 0:
+        raise ValueError("No mates found in assembly")
 
     for occurence in occurences:
         if instances[occurence].type == InstanceType.PART:

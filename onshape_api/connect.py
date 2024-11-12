@@ -185,9 +185,12 @@ class Client:
                 id="a1c1addf75444f54b504f25c"
             )
         """
+        if len(did) != 24:
+            raise ValueError(f"Invalid document ID: {did}")
+
         res = self.request(HTTP.GET, "/api/documents/" + did)
 
-        if res.status_code == 404 or res.status_code == 403:
+        if res.status_code == 404:
             """
             404: Document not found
                 {
@@ -196,16 +199,19 @@ class Client:
                     "status": 404,
                     "moreInfoUrl": ""
                 }
-
-            403: Resource does not exist
+            """
+            raise ValueError(f"Document does not exist: {did}")
+        elif res.status_code == 403:
+            """
+            403: Forbidden
                 {
-                    "message": "Resource does not exist, or you do not have permission to access it.",
-                    "code": 1002,
+                    "message": "Forbidden",
+                    "code": 0,
                     "status": 403,
-                    "moreInfoUrl": null
+                    "moreInfoUrl": ""
                 }
             """
-            return None
+            raise ValueError(f"Access forbidden for document: {did}")
 
         return DocumentMetaData.model_validate(res.json())
 
@@ -470,7 +476,16 @@ class Client:
             )
         """
         _request_path = "/api/parts/d/" + did + "/w/" + wid + "/e/" + eid + "/partid/" + partID + "/massproperties"
-        _resonse_json = self.request(HTTP.GET, _request_path, {"useMassPropertiesOverrides": True}).json()
+        res = self.request(HTTP.GET, _request_path, {"useMassPropertiesOverrides": True})
+
+        if res.status_code == 404:
+            # TODO: There doesn't seem to be a way to assign material to a part currently
+            raise ValueError(f"Part: {partID} does not have a material assigned")
+
+        _resonse_json = res.json()
+
+        if "bodies" not in _resonse_json:
+            raise KeyError(f"Bodies not found in response, broken part? {partID}")
 
         return MassProperties.model_validate(_resonse_json["bodies"][partID])
 
@@ -483,6 +498,7 @@ class Client:
         body: Optional[dict[str, Any]] = None,
         base_url: Optional[str] = None,
         log_response: bool = True,
+        timeout: int = 20,
     ) -> requests.Response:
         """
         Send a request to the Onshape API.
@@ -513,7 +529,7 @@ class Client:
         LOGGER.debug(f"Request headers: {req_headers}")
         LOGGER.debug(f"Request URL: {url}")
 
-        res = self._send_request(method, url, req_headers, body)
+        res = self._send_request(method, url, req_headers, body, timeout)
 
         if res.status_code == 307:
             return self._handle_redirect(res, method, headers, log_response)
@@ -526,7 +542,7 @@ class Client:
     def _build_url(self, base_url, path, query):
         return base_url + path + "?" + urlencode(query)
 
-    def _send_request(self, method, url, headers, body):
+    def _send_request(self, method, url, headers, body, timeout):
         return requests.request(
             method,
             url,
@@ -534,7 +550,7 @@ class Client:
             json=body,
             allow_redirects=False,
             stream=True,
-            timeout=10,  # Specify an appropriate timeout value in seconds
+            timeout=timeout,  # Specify an appropriate timeout value in seconds
         )
 
     def _handle_redirect(self, res, method, headers, log_response=True):

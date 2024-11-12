@@ -2,9 +2,9 @@
 name = "onshape_api"
 version = "0.0.1"
 description = "A python library to facilitate interaction with Onshape's REST API"
-authors = ["Senthur Ayyappan <imsenthur@gmail.com>"]
-repository = "https://github.com/imsenthur/onshape-api"
-documentation = "https://imsenthur.github.io/onshape-api/"
+authors = ["Senthur Ayyappan <senthurayyappan@gmail.com>"]
+repository = "https://github.com/senthurayyappan/onshape-api"
+documentation = "https://senthurayyappan.github.io/onshape-api/"
 readme = "README.md"
 packages = [
   {include = "onshape_api"}
