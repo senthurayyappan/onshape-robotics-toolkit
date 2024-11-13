@@ -115,6 +115,7 @@ def process_all_checkpoints(client: Client):
 
     # now for every elementId in the list, we will have a separate row
     assemblies_df = assemblies_df.explode("elementId")
+    assembly_df["url"] = assembly_df.apply(get_assembly_url, axis=1)
     assemblies_df.to_parquet("assemblies.parquet", engine="pyarrow")
 
 
@@ -163,6 +164,17 @@ def validate_assembly_json(json_file_path: str):
     return Assembly.model_validate(assembly_json)
 
 
+def get_assembly_url(row):
+    return generate_url(row["documentId"], row["wtype"], row["workspaceId"], row["elementId"])
+
+
 if __name__ == "__main__":
     client = Client()
-    save_all_jsons(client)
+    # save_all_jsons(client)
+
+    try:
+        assembly_df = pd.read_parquet("assemblies.parquet", engine="pyarrow")
+        LOGGER.info(assembly_df.head(), assembly_df.shape)
+
+    except FileNotFoundError:
+        LOGGER.warning("assemblies.parquet not found. Please run get_assembly_df() first.")
