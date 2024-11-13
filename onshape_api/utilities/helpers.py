@@ -205,5 +205,4 @@ def get_sanitized_name(name: str, replace_with: str = "-") -> str:
 
 
 if __name__ == "__main__":
-    # print(get_random_files("json", ".json", 1))
-    print(get_sanitized_name(input("Enter a name: ")))
+    LOGGER.info(get_sanitized_name(input("Enter a name: ")))

@@ -19,6 +19,7 @@ from onshape_api.models.assembly import (
     Occurrence,
     Part,
     PartInstance,
+    RelationType,
     RootAssembly,
     SubAssembly,
 )
@@ -28,7 +29,7 @@ os.environ["TCL_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\
 os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"
 
 SUBASSEMBLY_JOINER = "-SUB-"
-MATE_JOINER = "-MATE-"
+MATE_JOINER = "_to_"
 
 CHILD = 1
 PARENT = 0
@@ -295,8 +296,8 @@ def get_mates_and_relations(
     def traverse_assembly(
         root: Union[RootAssembly, SubAssembly], subassembly_prefix: Optional[str] = None
     ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
-        _mates_map = {}
-        _relations_map = {}
+        _mates_map: dict[str, MateFeatureData] = {}
+        _relations_map: dict[str, MateRelationFeatureData] = {}
 
         for feature in root.features:
             feature.featureData.id = feature.id
@@ -329,7 +330,17 @@ def get_mates_and_relations(
                 ] = feature.featureData
 
             elif feature.featureType == AssemblyFeatureType.MATERELATION:
-                child_joint_id = feature.featureData.mates[CHILD].featureId
+                if feature.featureData.relationType == RelationType.SCREW:
+                    # Screw relations only have one reference entity
+                    child_joint_id = feature.featureData.mates[0].featureId
+                else:
+                    child_joint_id = feature.featureData.mates[CHILD].featureId
+
+                if feature.featureData.relationType == RelationType.GEAR:
+                    parent_joint_id = feature.featureData.mates[PARENT].featureId
+                    _relations_map[parent_joint_id] = feature.featureData
+                    _relations_map[parent_joint_id].relationRatio = 1 / feature.featureData.relationRatio
+
                 _relations_map[child_joint_id] = feature.featureData
 
         return _mates_map, _relations_map

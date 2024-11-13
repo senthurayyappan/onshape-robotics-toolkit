@@ -97,8 +97,13 @@ def download_stl_mesh(
             return os.path.relpath(save_path, CURRENT_DIR)
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        LOGGER.warning(f"An error occurred: {e}")
         raise
+
+
+def get_joint_name(mate_id: str, mates: dict[str, MateFeatureData]) -> str:
+    reverse_mates = {mate.id: key for key, mate in mates.items()}
+    return reverse_mates.get(mate_id)
 
 
 def get_robot_link(
@@ -194,7 +199,7 @@ def get_robot_joint(
     child: str,
     mate: MateFeatureData,
     stl_to_parent_tf: np.matrix,
-    relation: Optional[MateRelationFeatureData] = None,
+    mimic: Optional[JointMimic] = None,
 ) -> BaseJoint:
     """
     Generate a URDF joint from an Onshape mate feature.
@@ -224,30 +229,15 @@ def get_robot_joint(
 
     parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
     stl_to_mate_tf = stl_to_parent_tf @ parent_to_mate_tf
-    joint_mimic = None
 
     origin = Origin.from_matrix(stl_to_mate_tf)
 
     LOGGER.info(f"Creating robot joint from {parent} to {child}")
-
-    if relation:
-        if relation.relationType == RelationType.RACK_AND_PINION:
-            multiplier = relation.relationLength
-
-        elif relation.relationType == RelationType.GEAR:
-            multiplier = relation.relationRatio
-
-        joint_mimic = JointMimic(
-            joint="Base-1_to_Pinion-Gear-1",  # TODO: This should be the parent joint's name
-            multiplier=multiplier,
-            offset=0.0,
-        )
-
-        print(f"Joint mimic: {joint_mimic}")
+    LOGGER.info(f"Joint mimic: {mimic}")
 
     if mate.mateType == MateType.REVOLUTE:
         return RevoluteJoint(
-            name=f"{parent}_to_{child}",
+            name=f"{parent}{MATE_JOINER}{child}",
             parent=parent,
             child=child,
             origin=origin,
@@ -257,17 +247,17 @@ def get_robot_joint(
                 lower=-np.pi,
                 upper=np.pi,
             ),
-            axis=Axis((0.0, 0.0, 1.0)),
+            axis=Axis((0.0, 0.0, -1.0)),
             dynamics=JointDynamics(damping=0.1, friction=0.1),
-            mimic=joint_mimic,
+            mimic=mimic,
         )
 
     elif mate.mateType == MateType.FASTENED:
-        return FixedJoint(name=f"{parent}_to_{child}", parent=parent, child=child, origin=origin)
+        return FixedJoint(name=f"{parent}{MATE_JOINER}{child}", parent=parent, child=child, origin=origin)
 
-    elif mate.mateType == MateType.SLIDER:
+    elif mate.mateType == MateType.SLIDER or mate.mateType == MateType.CYLINDRICAL:
         return PrismaticJoint(
-            name=f"{parent}_to_{child}",
+            name=f"{parent}{MATE_JOINER}{child}",
             parent=parent,
             child=child,
             origin=origin,
@@ -277,14 +267,14 @@ def get_robot_joint(
                 lower=-0.1,
                 upper=0.1,
             ),
-            axis=Axis((0.0, 0.0, 1.0)),
+            axis=Axis((0.0, 0.0, -1.0)),
             dynamics=JointDynamics(damping=0.1, friction=0.1),
-            mimic=joint_mimic,
+            mimic=mimic,
         )
 
     else:
         LOGGER.warning(f"Unsupported joint type: {mate.mateType}")
-        return DummyJoint(name=f"{parent}_to_{child}", parent=parent, child=child, origin=origin)
+        return DummyJoint(name=f"{parent}{MATE_JOINER}{child}", parent=parent, child=child, origin=origin)
 
 
 def get_topological_mates(
@@ -401,13 +391,25 @@ def get_urdf_components(
             LOGGER.warning(f"Part {parent} or {child} not found in parts")
             continue
 
-        joint = get_robot_joint(
-            parent,
-            child,
-            topological_mates[mate_key],
-            parent_tf,
-            topological_relations.get(topological_mates[mate_key].id),
-        )
+        relation = topological_relations.get(topological_mates[mate_key].id)
+
+        if relation:
+            multiplier = 1.0
+            if relation.relationType == RelationType.RACK_AND_PINION:
+                multiplier = relation.relationLength
+
+            elif relation.relationType == RelationType.GEAR or relation.relationType == RelationType.LINEAR:
+                multiplier = relation.relationRatio
+
+            joint_mimic = JointMimic(
+                joint=get_joint_name(relation.mates[PARENT].featureId, topological_mates),
+                multiplier=multiplier,
+                offset=0.0,
+            )
+        else:
+            joint_mimic = None
+
+        joint = get_robot_joint(parent, child, topological_mates[mate_key], parent_tf, joint_mimic)
         joints.append(joint)
 
         link, stl_to_link_tf = get_robot_link(

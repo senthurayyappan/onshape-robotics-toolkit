@@ -22,7 +22,7 @@ if __name__ == "__main__":
         name=document.name,
     )
 
-    print(assembly.document.url)
+    opa.LOGGER.info(assembly.document.url)
 
     instances, id_to_name_map = opa.get_instances(assembly)
     occurences = opa.get_occurences(assembly, id_to_name_map)
@@ -36,6 +36,7 @@ if __name__ == "__main__":
         parts=parts,
         mates=mates,
     )
+    opa.save_graph(graph, "robot.png")
 
     links, joints = opa.get_urdf_components(
         assembly=assembly,

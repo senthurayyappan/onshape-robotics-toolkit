@@ -83,7 +83,7 @@ def get_assembly_df(automate_assembly_df: pd.DataFrame, client: Client, chunk_si
             assembly_df_chunk.to_parquet(checkpoint_path, engine="pyarrow")
 
     except KeyboardInterrupt:
-        print("Processing interrupted. Saving progress...")
+        LOGGER.warning("Processing interrupted. Saving progress...")
 
     assembly_df = pd.concat(assembly_df_list, ignore_index=True) if assembly_df_list else pd.DataFrame()
 

@@ -81,6 +81,5 @@ class Robot:
         if isinstance(path, (str, Path)):
             xml_str = ET.tostring(tree.getroot(), encoding="unicode")
             pretty_xml_str = minidom.parseString(xml_str).toprettyxml(indent="    ")
-            print(pretty_xml_str)
             with open(path, "w", encoding="utf-8") as f:
                 f.write(pretty_xml_str)
