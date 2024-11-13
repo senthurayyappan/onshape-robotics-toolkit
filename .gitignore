@@ -174,3 +174,4 @@ benchmark/**/*.urdf
 benchmark/**/*.stl
 benchmark/**/*.png
 benchmark/**/*.prof
+benchmark/**/*.json

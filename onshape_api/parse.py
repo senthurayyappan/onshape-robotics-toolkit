@@ -11,11 +11,11 @@ from onshape_api.connect import Client
 from onshape_api.log import LOGGER
 from onshape_api.models.assembly import (
     Assembly,
-    AssemblyFeature,
     AssemblyFeatureType,
     AssemblyInstance,
     InstanceType,
     MateFeatureData,
+    MateRelationFeatureData,
     Occurrence,
     Part,
     PartInstance,
@@ -30,8 +30,8 @@ os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\
 SUBASSEMBLY_JOINER = "-SUB-"
 MATE_JOINER = "-MATE-"
 
-CHILD = 0
-PARENT = 1
+CHILD = 1
+PARENT = 0
 
 
 def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, str]]:
@@ -265,13 +265,13 @@ def join_mate_occurences(parent: list[str], child: list[str], prefix: Optional[s
         return f"{parent_occurence}{MATE_JOINER}{child_occurence}"
 
 
-def get_mates(
+def get_mates_and_relations(
     assembly: Assembly,
     subassembly_map: dict[str, SubAssembly],
     id_to_name_map: dict[str, str],
-) -> dict[str, AssemblyFeature]:
+) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
-    Get mates of the assembly.
+    Get mates and relations of an Onshape assembly.
 
     Args:
         assembly: The Onshape assembly object to use for extracting mates.
@@ -282,20 +282,29 @@ def get_mates(
 
     Examples:
         >>> assembly = Assembly(...)
-        >>> get_mates(assembly)
-        {
+        >>> get_mates_and_relations(assembly)
+        ({
             "subassembly1-SUB-part1-MATE-subassembly2-SUB-part2": AssemblyFeature(...),
-            "part1-MATE-part2": AssemblyFeature(...),
-        }
+            "part1-MATE-part2": MateFeatureData(...),
+        },
+        {
+            "MuwOg31fsdH/5O2nX": MateRelationFeatureData(...),
+        })
     """
 
     def traverse_assembly(
         root: Union[RootAssembly, SubAssembly], subassembly_prefix: Optional[str] = None
-    ) -> dict[str, MateFeatureData]:
+    ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
         _mates_map = {}
+        _relations_map = {}
 
         for feature in root.features:
-            if feature.featureType == AssemblyFeatureType.MATE and not feature.suppressed:
+            feature.featureData.id = feature.id
+
+            if feature.suppressed:
+                continue
+
+            if feature.featureType == AssemblyFeatureType.MATE:
                 if len(feature.featureData.matedEntities) < 2:
                     # TODO: will there be features with just one mated entity?
                     LOGGER.warning(f"Invalid mate feature: {feature}")
@@ -319,11 +328,17 @@ def get_mates(
                     )
                 ] = feature.featureData
 
-        return _mates_map
+            elif feature.featureType == AssemblyFeatureType.MATERELATION:
+                child_joint_id = feature.featureData.mates[CHILD].featureId
+                _relations_map[child_joint_id] = feature.featureData
 
-    mates_map = traverse_assembly(assembly.rootAssembly)
+        return _mates_map, _relations_map
+
+    mates_map, relations_map = traverse_assembly(assembly.rootAssembly)
 
     for key, subassembly in subassembly_map.items():
-        mates_map.update(traverse_assembly(subassembly, key))
+        sub_mates_map, sub_relations_map = traverse_assembly(subassembly, key)
+        mates_map.update(sub_mates_map)
+        relations_map.update(sub_relations_map)
 
-    return mates_map
+    return mates_map, relations_map

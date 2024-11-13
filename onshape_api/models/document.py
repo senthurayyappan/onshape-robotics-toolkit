@@ -155,6 +155,7 @@ class Document(BaseModel):
         wtype: The type of workspace (w, v, m)
         wid: The unique identifier of the workspace
         eid: The unique identifier of the element
+        name: The name of the document
 
     Methods:
         from_url: Create a Document instance from an Onshape URL
@@ -181,6 +182,7 @@ class Document(BaseModel):
     wtype: str = Field(..., description="The type of workspace (w, v, m)")
     wid: str = Field(..., description="The unique identifier of the workspace")
     eid: str = Field(..., description="The unique identifier of the element")
+    name: str = Field(None, description="The name of the document")
 
     def __init__(self, **data):
         super().__init__(**data)

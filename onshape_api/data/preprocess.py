@@ -3,6 +3,7 @@ import os
 import re
 from functools import partial
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
@@ -90,6 +91,33 @@ def get_assembly_df(automate_assembly_df: pd.DataFrame, client: Client, chunk_si
     return assembly_df
 
 
+def process_all_checkpoints(client: Client):
+    assemblies_df = pd.DataFrame()
+    MAX_CHECKPOINTS = 256
+
+    for i in range(MAX_CHECKPOINTS):
+        checkpoint_path = f"assemblies_checkpoint_{i}.parquet"
+        if os.path.exists(checkpoint_path):
+            assembly_df = pd.read_parquet(checkpoint_path, engine="pyarrow")
+            LOGGER.info(f"Processing checkpoint: {checkpoint_path} with {assembly_df.shape[0]} rows")
+            assembly_df.dropna(subset=["documentId", "elementId"], inplace=True)
+
+            assembly_df["elementId"] = assembly_df["elementId"].apply(
+                lambda x: ", ".join(x) if isinstance(x, (list, np.ndarray)) else x
+            )
+            # drop all duplicate entries
+            assembly_df.drop_duplicates(subset=["documentId", "elementId"], inplace=True)
+            LOGGER.info(f"Checkpoint {checkpoint_path} processed with {assembly_df.shape[0]} rows")
+            LOGGER.info("--" * 20)
+            assemblies_df = pd.concat([assemblies_df, assembly_df], ignore_index=True)
+
+    assemblies_df["elementId"] = assemblies_df["elementId"].apply(lambda x: x.split(", ") if isinstance(x, str) else x)
+
+    # now for every elementId in the list, we will have a separate row
+    assemblies_df = assemblies_df.explode("elementId")
+    assemblies_df.to_parquet("assemblies.parquet", engine="pyarrow")
+
+
 def save_all_jsons(client: Client):
     if not os.path.exists("assemblies.parquet"):
         # TODO: Re-process the automate data if assemblies.parquet is empty
@@ -104,30 +132,28 @@ def save_all_jsons(client: Client):
 
     for _, row in tqdm(assembly_df.iterrows(), total=len(assembly_df)):
         try:
-            for element_id in row["elementId"]:
-                _, assembly_json = client.get_assembly(
-                    did=row["documentId"],
-                    wtype=row["wtype"],
-                    wid=row["workspaceId"],
-                    eid=element_id,
-                    log_response=False,
-                )
+            _, assembly_json = client.get_assembly(
+                did=row["documentId"],
+                wtype=row["wtype"],
+                wid=row["workspaceId"],
+                eid=row["elementId"],
+                log_response=False,
+            )
 
-                json_file_path = os.path.join(json_dir, f"{row['documentId']}_{element_id}.json")
-                with open(json_file_path, "w") as json_file:
-                    json.dump(assembly_json, json_file, indent=4)
+            json_file_path = os.path.join(json_dir, f"{row['documentId']}_{row["elementId"]}.json")
+            with open(json_file_path, "w") as json_file:
+                json.dump(assembly_json, json_file, indent=4)
 
-                LOGGER.info(f"Assembly JSON saved to {json_file_path}")
+            LOGGER.info(f"Assembly JSON saved to {json_file_path}")
 
         except Exception as e:
             LOGGER.warning(f"Error saving assembly JSON: {os.path.abspath(json_file_path)}")
-            document_url = generate_url(row["documentId"], row["wtype"], row["workspaceId"], element_id)
+            document_url = generate_url(row["documentId"], row["wtype"], row["workspaceId"], row["elementId"])
             LOGGER.warning(f"Onshape document: {document_url}")
             LOGGER.warning(f"Assembly JSON: {assembly_json}")
             LOGGER.warning(f"Element ID: {row['elementId']}")
             LOGGER.warning(e)
-
-            break
+            continue
 
 
 def validate_assembly_json(json_file_path: str):

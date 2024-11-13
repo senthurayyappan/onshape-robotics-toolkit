@@ -11,5 +11,9 @@ def get_version() -> str:
 __version__: str = get_version()
 
 from onshape_api.connect import *  # noqa: F403 E402
+from onshape_api.graph import *  # noqa: F403 E402
 from onshape_api.log import *  # noqa: F403 E402
+from onshape_api.mesh import *  # noqa: F403 E402
 from onshape_api.models import *  # noqa: F403 E402
+from onshape_api.parse import *  # noqa: F403 E402
+from onshape_api.urdf import *  # noqa: F403 E402

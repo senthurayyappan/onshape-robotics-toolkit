@@ -11,6 +11,8 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
+from defusedxml import minidom
+
 from onshape_api.models.joint import BaseJoint
 from onshape_api.models.link import Link
 
@@ -77,4 +79,8 @@ class Robot:
 
         tree = ET.ElementTree(self.to_xml())
         if isinstance(path, (str, Path)):
-            tree.write(path, encoding="unicode", xml_declaration=True)
+            xml_str = ET.tostring(tree.getroot(), encoding="unicode")
+            pretty_xml_str = minidom.parseString(xml_str).toprettyxml(indent="    ")
+            print(pretty_xml_str)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(pretty_xml_str)

@@ -18,8 +18,10 @@ from onshape_api.mesh import transform_mesh
 from onshape_api.models.assembly import (
     Assembly,
     MateFeatureData,
+    MateRelationFeatureData,
     MateType,
     Part,
+    RelationType,
 )
 from onshape_api.models.geometry import MeshGeometry
 from onshape_api.models.joint import (
@@ -28,6 +30,7 @@ from onshape_api.models.joint import (
     FixedJoint,
     JointDynamics,
     JointLimits,
+    JointMimic,
     PrismaticJoint,
     RevoluteJoint,
 )
@@ -191,6 +194,7 @@ def get_robot_joint(
     child: str,
     mate: MateFeatureData,
     stl_to_parent_tf: np.matrix,
+    relation: Optional[MateRelationFeatureData] = None,
 ) -> BaseJoint:
     """
     Generate a URDF joint from an Onshape mate feature.
@@ -220,10 +224,26 @@ def get_robot_joint(
 
     parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
     stl_to_mate_tf = stl_to_parent_tf @ parent_to_mate_tf
+    joint_mimic = None
 
     origin = Origin.from_matrix(stl_to_mate_tf)
 
     LOGGER.info(f"Creating robot joint from {parent} to {child}")
+
+    if relation:
+        if relation.relationType == RelationType.RACK_AND_PINION:
+            multiplier = relation.relationLength
+
+        elif relation.relationType == RelationType.GEAR:
+            multiplier = relation.relationRatio
+
+        joint_mimic = JointMimic(
+            joint="Base-1_to_Pinion-Gear-1",  # TODO: This should be the parent joint's name
+            multiplier=multiplier,
+            offset=0.0,
+        )
+
+        print(f"Joint mimic: {joint_mimic}")
 
     if mate.mateType == MateType.REVOLUTE:
         return RevoluteJoint(
@@ -239,6 +259,7 @@ def get_robot_joint(
             ),
             axis=Axis((0.0, 0.0, 1.0)),
             dynamics=JointDynamics(damping=0.1, friction=0.1),
+            mimic=joint_mimic,
         )
 
     elif mate.mateType == MateType.FASTENED:
@@ -258,6 +279,7 @@ def get_robot_joint(
             ),
             axis=Axis((0.0, 0.0, 1.0)),
             dynamics=JointDynamics(damping=0.1, friction=0.1),
+            mimic=joint_mimic,
         )
 
     else:
@@ -265,7 +287,11 @@ def get_robot_joint(
         return DummyJoint(name=f"{parent}_to_{child}", parent=parent, child=child, origin=origin)
 
 
-def get_topological_mates(graph: DiGraph, mates: dict[str, MateFeatureData]) -> dict[str, MateFeatureData]:
+def get_topological_mates(
+    graph: DiGraph,
+    mates: dict[str, MateFeatureData],
+    relations: Optional[dict[str, MateRelationFeatureData]] = None,
+) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
     Get the topological mates from the graph. This shuffles the order of the mates to match the directed graph edges.
 
@@ -284,6 +310,7 @@ def get_topological_mates(graph: DiGraph, mates: dict[str, MateFeatureData]) -> 
         }
     """
     topological_mates: dict[str, MateFeatureData] = {}
+    topological_relations: dict[str, MateRelationFeatureData] = relations or {}
 
     mate_keys = {tuple(key.split(MATE_JOINER)) for key in mates}
     graph_edges = set(graph.edges)
@@ -296,15 +323,19 @@ def get_topological_mates(graph: DiGraph, mates: dict[str, MateFeatureData]) -> 
 
         if (child, parent) in rogue_mates:
             # the only way it can be a rogue mate is if the parent and child are swapped
-            LOGGER.info(f"Rogue mate found: {edge}")
+            # LOGGER.info(f"Rogue mate found: {edge}")
             rogue_key = f"{child}{MATE_JOINER}{parent}"
             topological_mates[key] = mates[rogue_key]
             topological_mates[key].matedEntities = topological_mates[key].matedEntities[::-1]
 
+            if relations and rogue_key in topological_relations:
+                topological_relations[key] = topological_relations[rogue_key]
+                topological_relations.pop(rogue_key)
+
         else:
             topological_mates[key] = mates[key]
 
-    return topological_mates
+    return topological_mates, topological_relations
 
 
 def get_urdf_components(
@@ -313,6 +344,7 @@ def get_urdf_components(
     root_node: str,
     parts: dict[str, Part],
     mates: dict[str, MateFeatureData],
+    relations: dict[str, MateRelationFeatureData],
     client: Client,
 ) -> tuple[list[Link], list[BaseJoint]]:
     """
@@ -346,7 +378,7 @@ def get_urdf_components(
     joints = []
     links = []
 
-    topological_mates = get_topological_mates(graph, mates)
+    topological_mates, topological_relations = get_topological_mates(graph, mates, relations)
 
     stl_to_link_tf_map = {}
 
@@ -374,6 +406,7 @@ def get_urdf_components(
             child,
             topological_mates[mate_key],
             parent_tf,
+            topological_relations.get(topological_mates[mate_key].id),
         )
         joints.append(joint)
 

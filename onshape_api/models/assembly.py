@@ -705,6 +705,9 @@ class MateGroupFeatureData(BaseModel):
         occurrences (list[MateGroupFeatureOccurrence]): A list of occurrences in the mate group feature.
         name (str): The name of the mate group feature.
 
+    Custom Attributes:
+        id (str): The unique identifier of the feature.
+
     Examples:
         >>> MateGroupFeatureData(
         ...     occurrences=[
@@ -728,6 +731,8 @@ class MateGroupFeatureData(BaseModel):
         ..., description="A list of occurrences in the mate group feature."
     )
     name: str = Field(..., description="The name of the mate group feature.")
+
+    id: str = Field(None, description="The unique identifier of the feature.")
 
 
 class MateConnectorFeatureData(BaseModel):
@@ -755,6 +760,9 @@ class MateConnectorFeatureData(BaseModel):
         occurrence (list[str]): A list of identifiers for the occurrences involved in the mate connector.
         name (str): The name of the mate connector feature.
 
+    Custom Attributes:
+        id (str): The unique identifier of the feature.
+
     Examples:
         >>> MateConnectorFeatureData(
         ...     mateConnectorCS=MatedCS(
@@ -778,9 +786,13 @@ class MateConnectorFeatureData(BaseModel):
         )
     """
 
-    mateConnectorCS: MatedCS
-    occurrence: list[str]
-    name: str
+    mateConnectorCS: MatedCS = Field(..., description="The coordinate system used for the mate connector.")
+    occurrence: list[str] = Field(
+        ..., description="A list of identifiers for the occurrences involved in the mate connector."
+    )
+    name: str = Field(..., description="The name of the mate connector feature.")
+
+    id: str = Field(None, description="The unique identifier of the feature.")
 
 
 class MateRelationFeatureData(BaseModel):
@@ -811,8 +823,12 @@ class MateRelationFeatureData(BaseModel):
         relationType (RelationType): The type of mate relation.
         mates (list[MateRelationMate]): A list of mate relations.
         reverseDirection (bool): Indicates if the direction of the mate relation is reversed.
-        relationRatio (Union[float, None]): The ratio of the mate relation. Defaults to None.
+        relationRatio (Union[float, None]): The ratio of the GEAR mate relation. Defaults to None.
+        relationLength (Union[float, None]): The length of the RACK_AND_PINION mate relation. Defaults to None.
         name (str): The name of the mate relation feature.
+
+    Custom Attributes:
+        id (str): The unique identifier of the feature.
 
     Examples:
         >>> MateRelationFeatureData(
@@ -834,8 +850,15 @@ class MateRelationFeatureData(BaseModel):
     relationType: RelationType = Field(..., description="The type of mate relation.")
     mates: list[MateRelationMate] = Field(..., description="A list of mate relations.")
     reverseDirection: bool = Field(..., description="Indicates if the direction of the mate relation is reversed.")
-    relationRatio: Union[float, None] = Field(None, description="The ratio of the mate relation. Defaults to None.")
+    relationRatio: Union[float, None] = Field(
+        None, description="The ratio of the GEAR mate relation. Defaults to None."
+    )
+    relationLength: Union[float, None] = Field(
+        None, description="The length of the RACK_AND_PINION mate relation. Defaults to None."
+    )
     name: str = Field(..., description="The name of the mate relation feature.")
+
+    id: str = Field(None, description="The unique identifier of the feature.")
 
 
 class MateFeatureData(BaseModel):
@@ -877,6 +900,9 @@ class MateFeatureData(BaseModel):
         mateType (MateType): The type of mate.
         name (str): The name of the mate feature.
 
+    Custom Attributes:
+        id (str): The unique identifier of the feature.
+
     Examples:
         >>> MateFeatureData(
         ...     matedEntities=[...],
@@ -894,6 +920,8 @@ class MateFeatureData(BaseModel):
     matedEntities: list[MatedEntity] = Field(..., description="A list of mated entities.")
     mateType: MateType = Field(..., description="The type of mate.")
     name: str = Field(..., description="The name of the mate feature.")
+
+    id: str = Field(None, description="The unique identifier of the feature.")
 
 
 class AssemblyFeature(BaseModel):
