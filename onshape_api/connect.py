@@ -33,6 +33,7 @@ from onshape_api.models.document import Document, DocumentMetaData
 from onshape_api.models.element import Element
 from onshape_api.models.mass import MassProperties
 from onshape_api.models.variable import Variable
+from onshape_api.utilities.helpers import get_sanitized_name
 
 __all__ = ["Client", "BASE_URL", "HTTP"]
 
@@ -213,7 +214,10 @@ class Client:
             """
             raise ValueError(f"Access forbidden for document: {did}")
 
-        return DocumentMetaData.model_validate(res.json())
+        _document = DocumentMetaData.model_validate(res.json())
+        _document.name = get_sanitized_name(_document.name)
+
+        return _document
 
     def get_elements(self, did: str, wtype: str, wid: str) -> dict[str, Element]:
         """
@@ -327,8 +331,69 @@ class Client:
             body=payload,
         )
 
+    def get_assembly_name(
+        self,
+        did: str,
+        wtype: str,
+        wid: str,
+        eid: str,
+        configuration: str = "default",
+    ) -> str:
+        """
+        Get assembly name for a specified document / workspace / assembly.
+
+        Args:
+            did: The unique identifier of the document.
+            wtype: The type of workspace.
+            wid: The unique identifier of the workspace.
+            eid: The unique identifier of the assembly.
+
+        Returns:
+            str: Assembly name
+
+        Examples:
+            >>> assembly_name = client.get_assembly_name(
+            ...     did="a1c1addf75444f54b504f25c",
+            ...     wtype="w",
+            ...     wid="0d17b8ebb2a4c76be9fff3c7",
+            ...     eid="a86aaf34d2f4353288df8812"
+            ... )
+            >>> print(assembly_name)
+            "Assembly Name"
+        """
+        _request_path = "/api/metadata/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
+        result_json = self.request(
+            HTTP.GET,
+            _request_path,
+            query={
+                "inferMetadataOwner": "false",
+                "includeComputedProperties": "false",
+                "includeComputedAssemblyProperties": "false",
+                "thumbnail": "false",
+                "configuration": configuration,
+            },
+            log_response=False,
+        ).json()
+
+        name = None
+        try:
+            name = result_json["properties"][0]["value"]
+            name = get_sanitized_name(name)
+
+        except KeyError:
+            LOGGER.warning(f"Assembly name not found for document: {did}")
+
+        return name
+
     def get_assembly(
-        self, did: str, wtype: str, wid: str, eid: str, configuration: str = "default", log_response: bool = True
+        self,
+        did: str,
+        wtype: str,
+        wid: str,
+        eid: str,
+        configuration: str = "default",
+        log_response: bool = True,
+        with_meta_data: bool = False,
     ) -> tuple[Assembly, dict]:
         """
         Get assembly data for a specified document / workspace / assembly.
@@ -340,6 +405,7 @@ class Client:
             eid: The unique identifier of the assembly.
             configuration: The configuration of the assembly.
             log_response: Log the response from the API request.
+            with_meta_data: Include meta data in the assembly data.
 
         Returns:
             Assembly: Assembly object containing the assembly data
@@ -393,6 +459,11 @@ class Client:
         _assembly = Assembly.model_validate(_assembly_json)
         _document = Document(did=did, wtype=wtype, wid=wid, eid=eid)
         _assembly.document = _document
+
+        if with_meta_data:
+            _assembly.name = self.get_assembly_name(did, wtype, wid, eid, configuration)
+            _document_meta_data = self.get_document_metadata(did)
+            _assembly.document.name = _document_meta_data.name
 
         return _assembly, _assembly_json
 

@@ -277,9 +277,13 @@ def get_mates_and_relations(
     Args:
         assembly: The Onshape assembly object to use for extracting mates.
         subassembly_map: Mapping of subassembly IDs to their corresponding subassembly objects.
+        id_to_name_map: Mapping of instance IDs to their corresponding sanitized names. This can be obtained
+            by calling the `get_instances` function.
 
     Returns:
-        A dictionary mapping occurrence paths to their corresponding mate data.
+        A tuple containing:
+        - A dictionary mapping mate IDs to their corresponding mate feature data.
+        - A dictionary mapping mate relation IDs to their corresponding mate relation feature data.
 
     Examples:
         >>> assembly = Assembly(...)

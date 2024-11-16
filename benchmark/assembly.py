@@ -3,87 +3,87 @@ import json
 import os
 import pstats
 
+import pandas as pd
+
 from onshape_api.connect import Client
 from onshape_api.graph import create_graph, save_graph
-from onshape_api.models.assembly import Assembly
-from onshape_api.models.document import Document, DocumentMetaData
 from onshape_api.models.robot import Robot
 from onshape_api.parse import (
     get_instances,
-    get_mates,
+    get_mates_and_relations,
     get_occurences,
     get_parts,
     get_subassemblies,
 )
 from onshape_api.urdf import get_urdf_components
 from onshape_api.utilities import LOGGER
-from onshape_api.utilities.helpers import get_random_files, get_sanitized_name
 
 SCRIPT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 DATA_DIRECTORY = "/../onshape_api/data"
+ERRORED_ASSEMBLY = "errored_assembly.json"
 
 
-def main(checkpoint: int = 0):
-    client = Client()
+def get_random_assembly(assembly_df: pd.DataFrame) -> dict:
+    return assembly_df.sample().to_dict(orient="records")[0]
 
-    if os.path.exists(f"checkpoint_document_{checkpoint}.json") and os.path.exists(
-        f"checkpoint_assembly_{checkpoint}.json"
-    ):
-        with open(f"checkpoint_document_{checkpoint}.json") as f:
-            document_meta_data = DocumentMetaData.model_validate_json(json.load(f))
-        assembly = Assembly.model_validate_json(json.load(open(f"checkpoint_assembly_{checkpoint}.json")))
 
+def get_random_urdf(data_path: str, client: Client):
+    assembly_df = pd.read_parquet(data_path, engine="pyarrow")
+
+    if os.path.exists(ERRORED_ASSEMBLY):
+        assembly_dict = json.load(open(ERRORED_ASSEMBLY))
     else:
-        json_path = SCRIPT_DIRECTORY + DATA_DIRECTORY + f"/assemblies_checkpoint_{checkpoint}_json"
-        json_file_path, document_id = get_random_files(directory=json_path, file_extension=".json", count=1)
+        assembly_dict = get_random_assembly(assembly_df)
 
-        json_data = json.load(open(json_file_path[0]))
+    assembly, _ = client.get_assembly(
+        did=assembly_dict["documentId"],
+        wtype=assembly_dict["wtype"],
+        wid=assembly_dict["workspaceId"],
+        eid=assembly_dict["elementId"],
+        with_meta_data=True,
+    )
 
-        did = document_id[0].split("_")[0]
-        eid = document_id[0].split("_")[1]
-
-        document_meta_data = client.get_document_metadata(did)
-        document_meta_data.name = get_sanitized_name(document_meta_data.name)
-
-        document = Document(did=did, wtype="w", wid=document_meta_data.defaultWorkspace.id, eid=eid)
-        assembly = Assembly(**json_data)
-        assembly.document = document
+    assembly_robot_name = f"{assembly.document.name + '-' + assembly.name}"
 
     try:
         instances, id_to_name_map = get_instances(assembly)
         occurences = get_occurences(assembly, id_to_name_map)
         parts = get_parts(assembly, client, instances)
         subassemblies = get_subassemblies(assembly, instances)
-        mates = get_mates(assembly, subassemblies, id_to_name_map)
+        mates, relations = get_mates_and_relations(assembly, subassemblies, id_to_name_map)
 
         graph, root_node = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates)
-        save_graph(graph, f"{document_meta_data.name}.png")
+        save_graph(graph, f"{assembly_robot_name}.png")
 
         links, joints = get_urdf_components(
-            assembly=assembly, graph=graph, root_node=root_node, parts=parts, mates=mates, client=client
+            assembly=assembly,
+            graph=graph,
+            root_node=root_node,
+            parts=parts,
+            mates=mates,
+            relations=relations,
+            client=client,
         )
 
-        robot = Robot(name=f"{document_meta_data.name}", links=links, joints=joints)
-        robot.save(f"{document_meta_data.name}.urdf")
+        robot = Robot(name=f"{assembly_robot_name}", links=links, joints=joints)
+        robot.save(f"{assembly_robot_name}.urdf")
         LOGGER.info(f"Onshape document: {assembly.document.url}")
-        LOGGER.info(f"URDF saved to {os.path.abspath(f"{document_meta_data.name}.urdf")}")
+        LOGGER.info(f"URDF saved to {os.path.abspath(f"{assembly_robot_name}.urdf")}")
 
     except Exception as e:
-        LOGGER.warning(f"Error processing assembly: {document_meta_data.name}")
+        LOGGER.warning(f"Error processing robot: {assembly_robot_name}")
         LOGGER.warning(e)
         LOGGER.warning(f"Onshape document: {assembly.document.url}")
 
-        with open(f"checkpoint_document_{checkpoint}.json", "w") as f:
-            json.dump(document_meta_data.model_dump_json(), f)
-
-        with open(f"checkpoint_assembly_{checkpoint}.json", "w") as f:
-            json.dump(assembly.model_dump_json(), f)
+        with open(ERRORED_ASSEMBLY, "w") as f:
+            json.dump(assembly_dict, f, indent=4)
 
 
 if __name__ == "__main__":
     profiler = cProfile.Profile()
     profiler.enable()
-    main()
+    client = Client()
+    get_random_urdf(f"{SCRIPT_DIRECTORY}{DATA_DIRECTORY}/assemblies.parquet", client)
     profiler.disable()
     stats = pstats.Stats(profiler).sort_stats("cumtime")
     stats.dump_stats("onshape.prof")

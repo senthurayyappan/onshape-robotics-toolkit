@@ -1176,6 +1176,7 @@ class Assembly(BaseModel):
 
     Custom Attributes:
         document (Union[Document, None]): The document object associated with the assembly. Defaults to None.
+        name (Union[str, None]): The name of the assembly. Defaults to None.
 
 
     Examples:
@@ -1219,3 +1220,4 @@ class Assembly(BaseModel):
     partStudioFeatures: list[dict] = Field(..., description="A list of part studio features in the document.")
 
     document: Union[Document, None] = Field(None, description="The document associated with the assembly.")
+    name: Union[str, None] = Field(None, description="The name of the assembly.")
