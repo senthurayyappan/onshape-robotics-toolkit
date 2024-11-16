@@ -2,6 +2,7 @@ import json
 import os
 import re
 from functools import partial
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -91,7 +92,7 @@ def get_assembly_df(automate_assembly_df: pd.DataFrame, client: Client, chunk_si
     return assembly_df
 
 
-def process_all_checkpoints(client: Client):
+def process_all_checkpoints():
     assemblies_df = pd.DataFrame()
     MAX_CHECKPOINTS = 256
 
@@ -119,44 +120,6 @@ def process_all_checkpoints(client: Client):
     assemblies_df.to_parquet("assemblies.parquet", engine="pyarrow")
 
 
-def save_all_jsons(client: Client):
-    if not os.path.exists("assemblies.parquet"):
-        # TODO: Re-process the automate data if assemblies.parquet is empty
-        automate_assembly_df = pd.read_parquet("automate_assemblies.parquet", engine="pyarrow")
-        assembly_df = get_assembly_df(automate_assembly_df, client=client)
-        assembly_df.to_parquet("assemblies.parquet", engine="pyarrow")
-    else:
-        assembly_df = pd.read_parquet("assemblies.parquet", engine="pyarrow")
-
-    json_dir = "json"
-    os.makedirs(json_dir, exist_ok=True)
-
-    for _, row in tqdm(assembly_df.iterrows(), total=len(assembly_df)):
-        try:
-            _, assembly_json = client.get_assembly(
-                did=row["documentId"],
-                wtype=row["wtype"],
-                wid=row["workspaceId"],
-                eid=row["elementId"],
-                log_response=False,
-            )
-
-            json_file_path = os.path.join(json_dir, f"{row['documentId']}_{row["elementId"]}.json")
-            with open(json_file_path, "w") as json_file:
-                json.dump(assembly_json, json_file, indent=4)
-
-            LOGGER.info(f"Assembly JSON saved to {json_file_path}")
-
-        except Exception as e:
-            LOGGER.warning(f"Error saving assembly JSON: {os.path.abspath(json_file_path)}")
-            document_url = generate_url(row["documentId"], row["wtype"], row["workspaceId"], row["elementId"])
-            LOGGER.warning(f"Onshape document: {document_url}")
-            LOGGER.warning(f"Assembly JSON: {assembly_json}")
-            LOGGER.warning(f"Element ID: {row['elementId']}")
-            LOGGER.warning(e)
-            continue
-
-
 def validate_assembly_json(json_file_path: str):
     with open(json_file_path) as json_file:
         assembly_json = json.load(json_file)
@@ -168,13 +131,35 @@ def get_assembly_url(row):
     return generate_url(row["documentId"], row["wtype"], row["workspaceId"], row["elementId"])
 
 
+def get_automate_assembly_df(path: str = "automate_assemblies.parquet") -> Optional[pd.DataFrame]:
+    if os.path.exists(path):
+        automate_assembly_df = pd.read_parquet("automate_assemblies.parquet", engine="pyarrow")
+    else:
+        LOGGER.warning(
+            "Download automate dataset from here: https://zenodo.org/records/7776208/files/assemblies.parquet?download=1"
+        )
+        automate_assembly_df = None
+
+    return automate_assembly_df
+
+
 if __name__ == "__main__":
     client = Client()
-    # save_all_jsons(client)
 
     try:
         assembly_df = pd.read_parquet("assemblies.parquet", engine="pyarrow")
-        LOGGER.info(assembly_df.head(), assembly_df.shape)
 
     except FileNotFoundError:
-        LOGGER.warning("assemblies.parquet not found. Please run get_assembly_df() first.")
+        LOGGER.warning("assemblies.parquet not found, looking for automate dataset...")
+        automate_assembly_df = get_automate_assembly_df()
+
+        if automate_assembly_df:
+            assembly_df = get_assembly_df(automate_assembly_df, client)
+            assembly_df.to_parquet("assemblies.parquet", engine="pyarrow")
+
+        else:
+            LOGGER.warning("Automate dataset not found. Exiting...")
+            exit()
+
+    LOGGER.info(assembly_df.head())
+    LOGGER.info(assembly_df.shape)
