@@ -68,12 +68,13 @@ def get_root_node(graph: nx.DiGraph) -> str:
     return next(nx.topological_sort(graph))
 
 
-def convert_to_digraph(graph: nx.Graph) -> nx.DiGraph:
+def convert_to_digraph(graph: nx.Graph, user_defined_root: Union[str, None] = None) -> nx.DiGraph:
     """
     Convert a graph to a directed graph and calculate the root node using closeness centrality.
 
     Args:
         graph: The graph to convert.
+        user_defined_root: The node to use as the root node.
 
     Returns:
         The directed graph and the root node of the graph, calculated using closeness centrality.
@@ -83,10 +84,21 @@ def convert_to_digraph(graph: nx.Graph) -> nx.DiGraph:
         >>> convert_to_digraph(graph)
         (digraph, root_node)
     """
-    _centrality = nx.closeness_centrality(graph)
-    _root_node = max(_centrality, key=_centrality.get)
-    _graph = nx.bfs_tree(graph, _root_node)
-    return _graph, _root_node
+    centrality = nx.closeness_centrality(graph)
+    root_node = user_defined_root if user_defined_root else max(centrality, key=centrality.get)
+
+    bfs_graph = nx.bfs_tree(graph, root_node)
+    di_graph = nx.DiGraph(bfs_graph)
+
+    for u, v in graph.edges:
+        if not di_graph.has_edge(u, v) and not di_graph.has_edge(v, u):
+            # decide which edge to keep
+            if centrality[u] > centrality[v]:
+                di_graph.add_edge(u, v)
+            else:
+                di_graph.add_edge(v, u)
+
+    return di_graph, root_node
 
 
 def get_topological_order(graph: nx.DiGraph) -> tuple[str]:
@@ -117,6 +129,8 @@ def create_graph(
     instances: dict[str, Union[PartInstance, AssemblyInstance]],
     parts: dict[str, Part],
     mates: dict[str, MateFeatureData],
+    directed: bool = True,
+    use_user_defined_root: bool = True,
 ) -> tuple[nx.DiGraph, str]:
     """
     Create a graph from onshape assembly data.
@@ -139,11 +153,16 @@ def create_graph(
     """
 
     graph: nx.Graph = nx.Graph()
+    root_node = None
+    user_defined_root = None
 
     if len(mates) == 0:
         raise ValueError("No mates found in assembly")
 
     for occurence in occurences:
+        if use_user_defined_root and occurences[occurence].fixed:
+            user_defined_root = occurence
+
         if instances[occurence].type == InstanceType.PART:
             try:
                 if occurences[occurence].hidden:
@@ -160,7 +179,8 @@ def create_graph(
         except KeyError:
             LOGGER.warning(f"Mate {mate} not found")
 
-    graph, root_node = convert_to_digraph(graph)
+    if directed:
+        graph, root_node = convert_to_digraph(graph, user_defined_root)
 
     LOGGER.info(f"Graph created with {len(graph.nodes)} nodes and {len(graph.edges)} edges with root node: {root_node}")
 

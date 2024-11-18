@@ -351,6 +351,9 @@ def get_mates_and_relations(
 
                 _relations_map[child_joint_id] = feature.featureData
 
+            elif feature.featureType == AssemblyFeatureType.MATECONNECTOR:
+                pass
+
         return _mates_map, _relations_map
 
     mates_map, relations_map = traverse_assembly(assembly.rootAssembly)

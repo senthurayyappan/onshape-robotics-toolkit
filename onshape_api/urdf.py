@@ -233,7 +233,6 @@ def get_robot_joint(
     origin = Origin.from_matrix(stl_to_mate_tf)
 
     LOGGER.info(f"Creating robot joint from {parent} to {child}")
-    LOGGER.info(f"Joint mimic: {mimic}")
 
     if mate.mateType == MateType.REVOLUTE:
         return RevoluteJoint(
@@ -319,7 +318,7 @@ def get_topological_mates(
             topological_mates[key].matedEntities = topological_mates[key].matedEntities[::-1]
 
             if relations and rogue_key in topological_relations:
-                print(f"Rogue relation found: {rogue_key}")
+                LOGGER.info(f"Rogue relation found: {rogue_key}")
                 topological_relations[key] = topological_relations[rogue_key]
                 topological_relations.pop(rogue_key)
 
@@ -382,9 +381,11 @@ def get_urdf_components(
 
     LOGGER.info(f"Processing remaining {len(graph.nodes) - 1} nodes using {len(graph.edges)} edges")
 
+    # reorder the edges to start with the root node
     for edge in graph.edges:
         parent, child = edge
         mate_key = f"{parent}{MATE_JOINER}{child}"
+        LOGGER.info(f"Processing edge: {parent} -> {child}")
 
         parent_tf = stl_to_link_tf_map[parent]
 

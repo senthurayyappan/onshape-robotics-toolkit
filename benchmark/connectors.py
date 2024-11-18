@@ -9,7 +9,6 @@ if __name__ == "__main__":
     client = opa.Client()
 
     # connectors: https://cad.onshape.com/documents/8df4a8934dea6cc8a51a6f85/w/5473d6310f998d61ffe1045e/e/dcf8d3ded2234a1bea3856ba
-
     document = Document.from_url(
         "https://cad.onshape.com/documents/a6286c1e44b5c2b74af3271f/w/0f4019a5df5bd9f85d8d8c44/e/79a6f37f589bddff34769e6a"
     )
@@ -35,6 +34,8 @@ if __name__ == "__main__":
         instances=instances,
         parts=parts,
         mates=mates,
+        directed=True,
+        use_user_defined_root=True,
     )
     opa.save_graph(graph, f"{assembly_robot_name}.png")
 
