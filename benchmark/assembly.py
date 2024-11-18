@@ -44,6 +44,7 @@ def get_random_urdf(data_path: str, client: Client):
     )
 
     assembly_robot_name = f"{assembly.document.name + '-' + assembly.name}"
+    LOGGER.info(assembly.document.url)
 
     try:
         instances, id_to_name_map = get_instances(assembly)

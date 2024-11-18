@@ -8,12 +8,10 @@ SCRIPT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 if __name__ == "__main__":
     client = opa.Client()
 
-    # arbor press: https://cad.onshape.com/documents/00fdecd70b9459267a70825e/w/5b8859e00b5d129724548da1/e/8bb8553f756c40770e11d5b4
-    # all relations: https://cad.onshape.com/documents/803be93f774b2e9ca86c62ee/w/eaea71496511e472d717774f/e/55d451923bedd28a364efb84
-    # gears: https://cad.onshape.com/documents/8df4a8934dea6cc8a51a6f85/w/5473d6310f998d61ffe1045e/e/dcf8d3ded2234a1bea3856ba
+    # connectors: https://cad.onshape.com/documents/8df4a8934dea6cc8a51a6f85/w/5473d6310f998d61ffe1045e/e/dcf8d3ded2234a1bea3856ba
 
     document = Document.from_url(
-        "https://cad.onshape.com/documents/8df4a8934dea6cc8a51a6f85/w/5473d6310f998d61ffe1045e/e/dcf8d3ded2234a1bea3856ba"
+        "https://cad.onshape.com/documents/a6286c1e44b5c2b74af3271f/w/0f4019a5df5bd9f85d8d8c44/e/79a6f37f589bddff34769e6a"
     )
     assembly, _ = client.get_assembly(
         did=document.did,

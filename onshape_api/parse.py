@@ -31,8 +31,11 @@ os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\
 SUBASSEMBLY_JOINER = "-SUB-"
 MATE_JOINER = "_to_"
 
-CHILD = 1
-PARENT = 0
+CHILD = 0
+PARENT = 1
+
+RELATION_CHILD = 1
+RELATION_PARENT = 0
 
 
 def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, str]]:
@@ -338,12 +341,13 @@ def get_mates_and_relations(
                     # Screw relations only have one reference entity
                     child_joint_id = feature.featureData.mates[0].featureId
                 else:
-                    child_joint_id = feature.featureData.mates[CHILD].featureId
+                    # TODO: Verify mate relation convention
+                    child_joint_id = feature.featureData.mates[RELATION_CHILD].featureId
 
-                if feature.featureData.relationType == RelationType.GEAR:
-                    parent_joint_id = feature.featureData.mates[PARENT].featureId
-                    _relations_map[parent_joint_id] = feature.featureData
-                    _relations_map[parent_joint_id].relationRatio = 1 / feature.featureData.relationRatio
+                # if feature.featureData.relationType == RelationType.GEAR:
+                #     parent_joint_id = feature.featureData.mates[RELATION_PARENT].featureId
+                #     _relations_map[parent_joint_id] = feature.featureData
+                #     _relations_map[parent_joint_id].relationRatio = 1 / feature.featureData.relationRatio
 
                 _relations_map[child_joint_id] = feature.featureData
 

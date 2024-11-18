@@ -45,7 +45,7 @@ from onshape_api.models.link import (
     Origin,
     VisualLink,
 )
-from onshape_api.parse import MATE_JOINER, PARENT
+from onshape_api.parse import MATE_JOINER, PARENT, RELATION_PARENT
 
 SCRIPT_DIR = os.path.dirname(__file__)
 CURRENT_DIR = os.getcwd()
@@ -319,6 +319,7 @@ def get_topological_mates(
             topological_mates[key].matedEntities = topological_mates[key].matedEntities[::-1]
 
             if relations and rogue_key in topological_relations:
+                print(f"Rogue relation found: {rogue_key}")
                 topological_relations[key] = topological_relations[rogue_key]
                 topological_relations.pop(rogue_key)
 
@@ -402,7 +403,7 @@ def get_urdf_components(
                 multiplier = relation.relationRatio
 
             joint_mimic = JointMimic(
-                joint=get_joint_name(relation.mates[PARENT].featureId, topological_mates),
+                joint=get_joint_name(relation.mates[RELATION_PARENT].featureId, topological_mates),
                 multiplier=multiplier,
                 offset=0.0,
             )

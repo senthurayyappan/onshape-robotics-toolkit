@@ -3,7 +3,7 @@ from onshape_api.graph import create_graph, show_graph
 from onshape_api.models.robot import Robot
 from onshape_api.parse import (
     get_instances,
-    get_mates,
+    get_mates_and_relations,
     get_occurences,
     get_parts,
     get_subassemblies,
@@ -30,11 +30,11 @@ instances, id_to_name_map = get_instances(assembly)
 occurences = get_occurences(assembly, id_to_name_map)
 subassemblies = get_subassemblies(assembly, instances)
 parts = get_parts(assembly, client, instances)
-mates = get_mates(assembly, subassembly_map=subassemblies, id_to_name_map=id_to_name_map)
+mates, relations = get_mates_and_relations(assembly, subassembly_map=subassemblies, id_to_name_map=id_to_name_map)
 
 graph, root_node = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates)
 show_graph(graph)
 
-links, joints = get_urdf_components(assembly, graph, root_node, parts, mates, client)
+links, joints = get_urdf_components(assembly, graph, root_node, parts, mates, relations, client)
 robot = Robot(name="bike", links=links, joints=joints)
 robot.save("bike.urdf")
