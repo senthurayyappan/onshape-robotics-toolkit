@@ -6,7 +6,7 @@ This module contains functions for transforming meshes and inertia matrices.
 from functools import partial
 
 import numpy as np
-from stl import mesh
+from stl.mesh import Mesh
 
 
 def transform_vectors(vectors: np.ndarray, rotation: np.ndarray, translation: np.ndarray) -> np.ndarray:
@@ -25,7 +25,7 @@ def transform_vectors(vectors: np.ndarray, rotation: np.ndarray, translation: np
     return np.dot(vectors, rotation.T) + translation * len(vectors)
 
 
-def transform_mesh(mesh: mesh.Mesh, transform: np.ndarray) -> mesh.Mesh:
+def transform_mesh(mesh: Mesh, transform: np.ndarray) -> Mesh:
     """
     Apply a transformation matrix to an STL mesh.
 
@@ -37,7 +37,7 @@ def transform_mesh(mesh: mesh.Mesh, transform: np.ndarray) -> mesh.Mesh:
         Transformed STL mesh
 
     Examples:
-        >>> mesh = mesh.Mesh.from_file("mesh.stl")
+        >>> mesh = Mesh.from_file("mesh.stl")
         >>> transform = np.eye(4)
         >>> transform_mesh(mesh, transform)
     """
