@@ -9,12 +9,15 @@
 
 <img src="tutorials/export/export-header.gif" alt="Header" style="width: 100%;">
 
-This library was inspired by [onshape-to-robot](https://github.com/Rhoban/onshape-to-robot), a tool renowned for its streamlined approach to URDF generation. While onshape-to-robot library focuses on predefined workflows and design-time considerations, the `onshape-api` library offers greater flexibility. It provides access to nearly all of Onshape's REST API calls, enabling headless manipulation, detailed analysis, and seamless export of CAD assemblies. Users can programmatically edit variable studios, generate graph-based visualizations, and export URDF files tailored to their specific needs—all without being restricted by rigid workflows or naming conventions. By removing these constraints, the `onshape-api` library empowers the robotics and CAD communities to create custom solutions for algorithmic design, optimization, and automation.
+&nbsp;
+This library was inspired by <a href="https://github.com/Rhoban/onshape-to-robot" target="_blank">onshape-to-robot</a>, a tool renowned for its streamlined approach to URDF generation. While onshape-to-robot library focuses on predefined workflows and design-time considerations, the `onshape-api` library offers greater flexibility. It provides access to nearly all of Onshape's REST API calls, enabling headless manipulation, detailed analysis, and seamless export of CAD assemblies. Users can programmatically edit variable studios, generate graph-based visualizations, and export URDF files tailored to their specific needs—all without being restricted by rigid workflows or naming conventions. By removing these constraints, the `onshape-api` library empowers the robotics and CAD communities to create custom solutions for algorithmic design, optimization, and automation.
+
 &nbsp;
 
 # Key Features of `onshape-api`
 
 The `onshape-api` library is designed for users seeking a scalable, versatile API that empowers innovative robot design and control workflows. By integrating Onshape into algorithmic processes such as design optimization and automation, it unlocks the full potential of Onshape's cloud-based CAD system, fostering creativity and efficiency in robotics and beyond.
+
 &nbsp;
 
 | Feature                              | `onshape-api`                        | `onshape-to-robot`                      |
@@ -32,9 +35,9 @@ The `onshape-api` library is designed for users seeking a scalable, versatile AP
 
 Before you begin, ensure you have the following:
 
-- [Python 3.10](https://www.python.org/downloads/release/python-3100/) or higher installed on your machine.
-- [An Onshape account](https://www.onshape.com/en/) if you don't already have one.
-- [Onshape API keys (access key and secret key)](https://onshape-public.github.io/docs/auth/apikeys/)
+- <a href="https://www.python.org/downloads/release/python-3100/" target="_blank">Python 3.10</a> or higher installed on your machine.
+- <a href="https://www.onshape.com/en/" target="_blank">An Onshape account</a> if you don't already have one.
+- <a href="https://onshape-public.github.io/docs/auth/apikeys/" target="_blank">Onshape API keys (access key and secret key)</a>
 
 ## Installation
 

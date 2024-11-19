@@ -14,7 +14,7 @@ Before you begin, make sure you have:
   ```
 - **API Keys**: Set up your Onshape API keys in a `.env` file as outlined in the [Getting Started](../getting-started.md) guide.
 - **Access to the Onshape Document**: Use a CAD document with a Variable Studio. For this tutorial, we’ll use the following example:
-  [Example CAD Document](https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812).
+  <a href="https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812" target="_blank">Example CAD Document</a>.
 
 ---
 
