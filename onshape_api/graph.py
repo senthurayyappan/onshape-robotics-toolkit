@@ -3,6 +3,7 @@ This module contains functions to create and manipulate graphs from Onshape asse
 
 """
 
+import random
 from typing import Union
 
 import matplotlib.pyplot as plt
@@ -48,7 +49,7 @@ def save_graph(graph: Union[nx.Graph, nx.DiGraph], file_name: str) -> None:
         >>> save_graph(graph, "graph.png")
     """
 
-    colors = [f"#{i:06x}" for i in range(0, 16777215, 16777215 // len(graph.nodes))]
+    colors = [f"#{random.randint(0, 0xFFFFFF):06x}" for _ in range(len(graph.nodes))]  # noqa: S311
     plt.figure(figsize=(8, 8))
     pos = nx.circular_layout(graph)
     nx.draw(

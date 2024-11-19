@@ -3,13 +3,30 @@
 [![Commit activity](https://img.shields.io/github/commit-activity/m/senthurayyappan/onshape-api)](https://img.shields.io/github/commit-activity/m/senthurayyappan/onshape-api)
 [![License](https://img.shields.io/github/license/senthurayyappan/onshape-api)](https://img.shields.io/github/license/senthurayyappan/onshape-api) -->
 
-`onshape-api` is a Python library designed to interface with Onshape's REST API. It allows users to retrieve CAD data, modify it, and export it as a URDF (Unified Robot Description Format) for use in robotic system simulations.
+# onshape-api
 
-## Features
+`onshape-api` is a feature-rich Python library that significantly extends the capabilities of Onshape's web-based CAD platform. The library provides a comprehensive API for automating robot design tasks, including solid model manipulation, robot assembly management, graph-based visualizations, and exporting CAD assemblies to URDF files for simulation and control. Intended as a resource for the robotics community, this library leverages Onshape's REST API to facilitate advanced workflows that bridge CAD design and robotics applications.
 
-    - Access and manipulate CAD data from Onshape documents.
-    - Update variables and elements within Onshape documents.
-    - Convert Onshape assemblies to URDF format for robotic simulations.
+<img src="tutorials/export/export-header.gif" alt="Header" style="width: 100%;">
+
+This library was inspired by [onshape-to-robot](https://github.com/Rhoban/onshape-to-robot), a tool renowned for its streamlined approach to URDF generation. While onshape-to-robot library focuses on predefined workflows and design-time considerations, the `onshape-api` library offers greater flexibility. It provides access to nearly all of Onshape's REST API calls, enabling headless manipulation, detailed analysis, and seamless export of CAD assemblies. Users can programmatically edit variable studios, generate graph-based visualizations, and export URDF files tailored to their specific needs—all without being restricted by rigid workflows or naming conventions. By removing these constraints, the `onshape-api` library empowers the robotics and CAD communities to create custom solutions for algorithmic design, optimization, and automation.
+&nbsp;
+
+# Key Features of `onshape-api`
+
+The `onshape-api` library is designed for users seeking a scalable, versatile API that empowers innovative robot design and control workflows. By integrating Onshape into algorithmic processes such as design optimization and automation, it unlocks the full potential of Onshape's cloud-based CAD system, fostering creativity and efficiency in robotics and beyond.
+&nbsp;
+
+| Feature                              | `onshape-api`                        | `onshape-to-robot`                      |
+| ------------------------------------ | ------------------------------------ | --------------------------------------- |
+| **Workflow Flexibility**             | ✅ Open-ended and customizable       | ❌ Predefined and rigid                 |
+| **Design-Time Considerations**       | ✅ None                              | ❌ Requires specific naming conventions |
+| **Custom URDF Workflow**             | ✅ Supports any assembly             | ❌ Limited by design rules              |
+| **Variable Studio Editing**          | ✅ Yes                               | ❌ No                                   |
+| **Ease of Setup**                    | ❌ Moderate (requires python coding) | ✅ Easy (no coding required)            |
+| **Headless Integration**             | ✅ Yes (e.g., optimization)          | ❌ No out-of-the-box support            |
+| **Access to Full Onshape API**       | ✅ Yes                               | ❌ Limited                              |
+| **Graph Visualization and Analysis** | ✅ Supports graph generation         | ❌ Not supported                        |
 
 ## Prerequisites
 

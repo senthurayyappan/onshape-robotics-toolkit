@@ -2,7 +2,7 @@
 
 This tutorial demonstrates a streamlined workflow for converting an Onshape assembly to a URDF file using the `onshape-api` library. Follow these steps to easily generate a URDF file and visualize your assembly's structure.
 
-<img src="assembly-urdf.gif" alt="Assembly Graph" style="width: 100%;">
+<img src="export-header.gif" alt="Export Header" style="width: 100%;">
 
 ---
 
@@ -14,7 +14,7 @@ Before you begin, ensure the following:
   ```bash
   pip install onshape-api
   ```
-- **API Keys**: Set up your Onshape API keys in a `.env` file. Refer to the [Getting Started](../contributing.md) guide if needed.
+- **API Keys**: Set up your Onshape API keys in a `.env` file. Refer to the [Getting Started](../getting-started.md) guide if needed.
 - **Document URL**: Have the URL of the Onshape assembly you want to convert. For this example, we’ll use:
   [Arbor Press Assembly](https://cad.onshape.com/documents/00fdecd70b9459267a70825e/w/5b8859e00b5d129724548da1/e/8bb8553f756c40770e11d5b4).
 
