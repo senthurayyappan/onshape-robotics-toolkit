@@ -5,13 +5,15 @@ site_description: A python library to facilitate interaction with Onshape's REST
 site_author: Senthur Ayyappan
 edit_uri: edit/main/docs/
 repo_name: senthurayyappan/onshape-api
-copyright: Maintained by <a href="https://senthurayyappan.com">Florian</a>.
+copyright: Maintained by <a href="https://senthurayyappan.com">Senthur Ayyappan</a>.
 
 nav:
   - Overview: index.md
   - Getting Started: getting-started.md
   - Contributing: contributing.md
-  - Tutorials: tutorials.md
+  - Tutorials:
+      - Exporting to URDF: tutorials/export.md
+      - Editing a CAD assembly: tutorials/edit.md
   - API Documentation:
       - Models:
           - Assembly: api/assembly.md
@@ -42,6 +44,13 @@ plugins:
 
 theme:
   name: material
+  highlightjs: true
+  hljs_languages:
+    - python
+    - yaml
+    - bash
+    - json
+    - markdown
   feature:
     tabs: true
   palette:
@@ -70,8 +79,14 @@ extra:
       link: https://pypi.org/project/onshape-api
 
 markdown_extensions:
+  - attr_list
+  - pymdownx.snippets
+  - pymdownx.highlight # For syntax highlighting
+  - pymdownx.superfences
+
   - toc:
       permalink: true
+
   - pymdownx.arithmatex:
       generic: true
   - def_list

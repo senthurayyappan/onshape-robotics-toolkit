@@ -13,7 +13,7 @@ if __name__ == "__main__":
     # gears: https://cad.onshape.com/documents/8df4a8934dea6cc8a51a6f85/w/5473d6310f998d61ffe1045e/e/dcf8d3ded2234a1bea3856ba
 
     document = Document.from_url(
-        "https://cad.onshape.com/documents/8df4a8934dea6cc8a51a6f85/w/5473d6310f998d61ffe1045e/e/dcf8d3ded2234a1bea3856ba"
+        "https://cad.onshape.com/documents/00fdecd70b9459267a70825e/w/5b8859e00b5d129724548da1/e/8bb8553f756c40770e11d5b4"
     )
     assembly, _ = client.get_assembly(
         did=document.did,

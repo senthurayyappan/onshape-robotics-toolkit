@@ -47,8 +47,21 @@ def save_graph(graph: Union[nx.Graph, nx.DiGraph], file_name: str) -> None:
         >>> graph = nx.Graph()
         >>> save_graph(graph, "graph.png")
     """
-    nx.draw_circular(graph, with_labels=True)
-    plt.savefig(file_name)
+
+    colors = [f"#{i:06x}" for i in range(0, 16777215, 16777215 // len(graph.nodes))]
+    plt.figure(figsize=(8, 8))
+    pos = nx.circular_layout(graph)
+    nx.draw(
+        graph,
+        pos,
+        with_labels=True,
+        arrows=True,
+        node_color=colors,
+        edge_color="white",
+        font_color="white",
+    )
+    plt.savefig(file_name, transparent=True)
+    plt.close()
 
 
 def get_root_node(graph: nx.DiGraph) -> str:

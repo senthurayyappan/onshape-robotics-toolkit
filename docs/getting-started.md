@@ -47,12 +47,12 @@ https://cad.onshape.com/api/documents/e60c4803eaf2ac8be492c18e/w/d2558da71276451
 
 Access to the Onshape API requires authentication using API keys. Follow these steps to set up authentication for your project:
 
-### 1. Obtain API Keys
+### Obtain API Keys
 
 1. Log in to your Onshape account and navigate to the **Developer Portal**.
 2. Generate your **Access Key** and **Secret Key**.
 
-### 2. Configure the Library
+### Configure the Library
 
 Create a `.env` file in the root directory of your project to securely store your API keys:
 
@@ -79,22 +79,32 @@ pip install onshape-api
 
 Here's an example of making a simple GET request to list documents using the `onshape-api` library:
 
-```py
-from onshape_client.client import Client
+```python
+import onshape_api as osa
 
 # Initialize the client
-client = Client()
+client = osa.Client(
+    env="./.env"
+)
 
-# Make a request to list documents
-response = client.get('/documents')
+# Create a Document object from a URL
+doc = osa.Document.from_url(
+    url="https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812"
+)
 
-# Print the results
-print(response.json())
+# Retrieve the assembly and its JSON representation
+assembly, assembly_json = client.get_assembly(
+    did=doc.did,
+    wtype=doc.wtype,
+    wid=doc.wid,
+    eid=doc.eid
+)
+
+# Print the assembly details
+print(assembly)
 ```
-
----
 
 ## What's Next?
 
-- Check out more [examples and tutorials](tutorials.md) in the `onshape-api` GitHub repository.
+- Check out more [examples and tutorials](tutorials/edit.md) in the `onshape-api` GitHub repository.
 - Explore the [Onshape API Documentation](https://onshape-public.github.io/docs/) for detailed API reference.
