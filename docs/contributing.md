@@ -44,25 +44,19 @@ If you are proposing a new feature:
 
 Ready to contribute? Here's how to set up `onshape-api` for local development. Please note this documentation assumes you already have `poetry` and `Git` installed and ready to go.
 
-1. Fork the `onshape-api` repo on GitHub.
+Fork the `onshape-api` repo on GitHub.
 
-2. Clone your fork locally:
+Clone your fork locally:
 
 ```sh
 cd <directory_in_which_repo_should_be_created>
 git clone git@github.com:YOUR_NAME/onshape-api.git
 ```
 
-3. Now we need to install the environment. Navigate into the directory
+Now we need to install the environment. Navigate into the directory
 
 ```sh
 cd onshape-api
-```
-
-If you are using `pyenv`, select a version to use locally. (See installed versions with `pyenv versions`)
-
-```sh
-pyenv local <x.y.z>
 ```
 
 Then, install and activate the environment with:
@@ -72,13 +66,15 @@ poetry install
 poetry shell
 ```
 
-4. Install pre-commit to run linters/formatters at commit time:
+Please ensure that poetry is installed on your system. If not, you can install it by following the instructions [here](https://python-poetry.org/docs/).
+
+Install pre-commit to run linters/formatters at commit time:
 
 ```sh
 poetry run pre-commit install
 ```
 
-5. Create a branch for local development:
+Create a branch for local development:
 
 ```sh
 git checkout -b name-of-your-bugfix-or-feature
@@ -86,9 +82,9 @@ git checkout -b name-of-your-bugfix-or-feature
 
 Now you can make your changes locally.
 
-6. Don't forget to add test cases for your added functionality to the [tests](http://_vscodecontentref_/0) directory.
+Don't forget to add test cases for your added functionality to the [tests](http://_vscodecontentref_/0) directory.
 
-7. When you're done making changes, check that your changes pass the formatting tests.
+When you're done making changes, check that your changes pass the formatting tests.
 
 ```sh
 make check
@@ -100,7 +96,7 @@ Now, validate that all unit tests are passing:
 make test
 ```
 
-9. Before raising a pull request you should also run tox. This will run the tests across different versions of Python:
+Before raising a pull request you should also run tox. This will run the tests across different versions of Python:
 
 ```sh
 tox
@@ -108,7 +104,7 @@ tox
 
 This requires you to have multiple versions of python installed. This step is also triggered in the CI/CD pipeline, so you could also choose to skip this step locally.
 
-10. Commit your changes and push your branch to GitHub:
+Commit your changes and push your branch to GitHub:
 
 ```sh
 git add .
@@ -116,7 +112,7 @@ git commit -m "Your detailed description of your changes."
 git push origin name-of-your-bugfix-or-feature
 ```
 
-11. Submit a pull request through the GitHub website.
+Submit a pull request through the GitHub website.
 
 ---
 

@@ -1,36 +1,100 @@
-Welcome to the `onshape-api` library! This guide will help you get started with using the library to interact with Onshape's REST API.
+# Getting Started with the `onshape-api` Python Library
 
-Onshape uses REST APIs to communicate with clients and third-party systems. The API calls return information in JSON format.
+Welcome to the `onshape-api` library! This guide will help you set up and start using the library to interact with Onshape's powerful REST API.
 
-- **GET**: Retrieve (read) information from the server.
-- **POST**: Update (write) the server with new information.
-- **DELETE**: Delete information from the server.
+The Onshape API allows developers to access, manipulate, and extend Onshape's CAD platform programmatically. The API communicates via HTTP requests, returning data in JSON format.
 
-## REST API
+---
 
-A typical REST API call in Onshape includes five major components:
+## How Onshape API Works
 
-1. **Method**: GET, POST, or DELETE.
-2. **URL**: Specifies the API endpoint and part of the document that the API is calling.
-3. **Query Parameters**: Optional parameters for the API call.
-4. **Headers**: Defines the associated metadata, usually containing Content-Type and Accept.
-5. **Payload Body**: Only applicable for POST requests.
+The Onshape API supports the following HTTP methods:
 
-### Example Onshape URL
+- **GET**: Retrieve information (e.g., document details, element properties).
+- **POST**: Create or update resources (e.g., add features, update parts).
+- **DELETE**: Remove resources (e.g., delete configurations).
 
-Example URL: `https://cad.onshape.com/api/documents/e60c4803eaf2ac8be492c18e/w/d2558da712764516cc9fec62/e/6bed6b43463f6a46a37b4a22`
+Each API request typically consists of:
 
-- **Base URL**: `https://cad.onshape.com/api`
-- **Document ID**: `e60c4803eaf2ac8be492c18e`
-- **Workspace ID**: `d2558da712764516cc9fec62`
-- **Element ID**: `6bed6b43463f6a46a37b4a22`
+1. **Method**: Defines the action (e.g., GET, POST, DELETE).
+2. **URL**: Specifies the endpoint and target resource.
+3. **Query Parameters**: Optional key-value pairs to refine the request.
+4. **Headers**: Metadata such as content type and authorization tokens.
+5. **Payload Body**: Data sent with POST requests.
 
-## Authentication
+---
 
-To use the Onshape API, you need to authenticate your requests using your Onshape API keys. You can obtain these keys from the Onshape Developer Portal.
-Once you have your keys, please create a .env file in the root directory of your project and add the following lines:
+## Understanding API URLs
+
+An Onshape API URL is structured to identify specific documents, workspaces, and elements:
+
+**Example URL:**
+
+```
+https://cad.onshape.com/api/documents/e60c4803eaf2ac8be492c18e/w/d2558da712764516cc9fec62/e/6bed6b43463f6a46a37b4a22
+```
+
+**Breakdown:**
+
+- **Base URL**: `https://cad.onshape.com/api` – The entry point for API requests.
+- **Document ID**: `e60c4803eaf2ac8be492c18e` – The unique identifier for the document.
+- **Workspace ID**: `d2558da712764516cc9fec62` – The active workspace within the document.
+- **Element ID**: `6bed6b43463f6a46a37b4a22` – A specific element in the workspace (e.g., a part studio or assembly).
+
+---
+
+## Authentication: Secure Your API Calls
+
+Access to the Onshape API requires authentication using API keys. Follow these steps to set up authentication for your project:
+
+### 1. Obtain API Keys
+
+1. Log in to your Onshape account and navigate to the **Developer Portal**.
+2. Generate your **Access Key** and **Secret Key**.
+
+### 2. Configure the Library
+
+Create a `.env` file in the root directory of your project to securely store your API keys:
 
 ```plaintext
 ACCESS_KEY = <your_access_key>
 SECRET_KEY = <your_secret_key>
 ```
+
+The `onshape-api` library will automatically read these keys to authenticate your requests.
+
+---
+
+## Install the Library
+
+Install the `onshape-api` library via pip:
+
+```sh
+pip install onshape-api
+```
+
+---
+
+## First API Call: Example Usage
+
+Here's an example of making a simple GET request to list documents using the `onshape-api` library:
+
+```py
+from onshape_client.client import Client
+
+# Initialize the client
+client = Client()
+
+# Make a request to list documents
+response = client.get('/documents')
+
+# Print the results
+print(response.json())
+```
+
+---
+
+## What's Next?
+
+- Check out more [examples and tutorials](tutorials.md) in the `onshape-api` GitHub repository.
+- Explore the [Onshape API Documentation](https://onshape-public.github.io/docs/) for detailed API reference.
