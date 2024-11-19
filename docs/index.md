@@ -37,7 +37,7 @@ poetry install
 
 ## Contributing
 
-If you're interested in contributing to the project, please read the [contributing guidelines](#) to get started. All contributions are welcome!
+If you're interested in contributing to the project, please read the [contributing guidelines](contributing.md) to get started. All contributions are welcome!
 
 ## License
 
