@@ -1,4 +1,4 @@
-# Getting Started with the `onshape-api` Python Library
+# Getting Started with `onshape-api`
 
 Welcome to the `onshape-api` library! This guide will help you set up and start using the library to interact with Onshape's powerful REST API.
 
