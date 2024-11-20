@@ -287,6 +287,52 @@ class PartMetadata(BaseModel):
     pass
 
 
+class PartMateConnector(BaseModel):
+    """
+    Represents a mate connector within a part.
+
+    JSON:
+        ```json
+            {
+            "mateConnectorCS" : {
+                "xAxis" : [ 1.0, 0.0, 0.0 ],
+                "yAxis" : [ 0.0, 1.0, 0.0 ],
+                "zAxis" : [ 0.0, 0.0, 1.0 ],
+                "origin" : [ 0.0, 0.0, 0.024999999999999984 ]
+            },
+            "featureId" : "FuB5m1oLMD3WyJ1_1"
+            }
+        ```
+
+    Attributes:
+        mateConnectorCS (MatedCS): The coordinate system used for the mate connector.
+        featureId (str): The unique identifier of the mate connector feature.
+
+    Examples:
+        >>> PartMateConnector(
+        ...     mateConnectorCS=MatedCS(
+        ...         xAxis=[1.0, 0.0, 0.0],
+        ...         yAxis=[0.0, 1.0, 0.0],
+        ...         zAxis=[0.0, 0.0, 1.0],
+        ...         origin=[0.0, 0.0, 0.024999999999999984],
+        ...     ),
+        ...     featureId="FuB5m1oLMD3WyJ1_1",
+        ... )
+        PartMateConnector(
+            mateConnectorCS=MatedCS(
+                xAxis=[1.0, 0.0, 0.0],
+                yAxis=[0.0, 1.0, 0.0],
+                zAxis=[0.0, 0.0, 1.0],
+                origin=[0.0, 0.0, 0.024999999999999984]
+            ),
+            featureId="FuB5m1oLMD3WyJ1_1"
+        )
+    """
+
+    mateConnectorCS: "MatedCS" = Field(..., description="The coordinate system used for the mate connector.")
+    featureId: str = Field(..., description="The unique identifier of the mate connector feature.")
+
+
 class Part(IDBase):
     """
     Represents a part within an assembly, including its properties and configuration.
@@ -331,6 +377,7 @@ class Part(IDBase):
     isStandardContent: bool = Field(..., description="Indicates if the part is standard content.")
     partId: str = Field(..., description="The unique identifier of the part.")
     bodyType: str = Field(..., description="The type of the body (e.g., solid, surface).")
+    mateConnectors: list[PartMateConnector] = Field(None, description="The mate connectors that belong to the part.")
     documentVersion: str = Field(None, description="The version of the document.")
     MassProperty: Union[MassProperties, None] = Field(
         None, description="The mass properties of the part, this is a retrieved via a separate API call."

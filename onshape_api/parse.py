@@ -37,6 +37,8 @@ PARENT = 1
 RELATION_CHILD = 1
 RELATION_PARENT = 0
 
+# TODO: get_mate_connectors method to parse part mate connectors that maybe useful to someone
+
 
 def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, str]]:
     """
