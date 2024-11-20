@@ -4,7 +4,7 @@ This module contains functions to create and manipulate graphs from Onshape asse
 """
 
 import random
-from typing import Union
+from typing import Optional, Union
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -21,48 +21,44 @@ from onshape_api.models.assembly import (
 from onshape_api.parse import MATE_JOINER
 
 
-def show_graph(graph: nx.Graph) -> None:
+def plot_graph(graph: Union[nx.Graph, nx.DiGraph], file_name: Optional[str] = None) -> None:
     """
-    Display the graph using networkx and matplotlib.
+    Display the graph using networkx and matplotlib, or save it as an image file.
 
     Args:
-        graph: The graph to display.
+        graph: The graph to display or save.
+        file_name: The name of the image file to save. If None, the graph will be displayed.
 
     Examples:
         >>> graph = nx.Graph()
-        >>> show_graph(graph)
+        >>> plot_graph(graph)
+        >>> plot_graph(graph, "graph.png")
     """
-    nx.draw_circular(graph, with_labels=True)
-    plt.show()
-
-
-def save_graph(graph: Union[nx.Graph, nx.DiGraph], file_name: str) -> None:
-    """
-    Save the graph as an image file.
-
-    Args:
-        graph: The graph to save.
-        file_name: The name of the image file.
-
-    Examples:
-        >>> graph = nx.Graph()
-        >>> save_graph(graph, "graph.png")
-    """
-
     colors = [f"#{random.randint(0, 0xFFFFFF):06x}" for _ in range(len(graph.nodes))]  # noqa: S311
     plt.figure(figsize=(8, 8))
-    pos = nx.circular_layout(graph)
-    nx.draw(
-        graph,
-        pos,
-        with_labels=True,
-        arrows=True,
-        node_color=colors,
-        edge_color="white",
-        font_color="white",
-    )
-    plt.savefig(file_name, transparent=True)
-    plt.close()
+    pos = nx.spring_layout(graph)
+
+    if file_name:
+        nx.draw(
+            graph,
+            pos,
+            with_labels=True,
+            arrows=True,
+            node_color=colors,
+            edge_color="white",
+            font_color="white",
+        )
+        plt.savefig(file_name, transparent=True)
+        plt.close()
+    else:
+        nx.draw(
+            graph,
+            pos,
+            with_labels=True,
+            arrows=True,
+            node_color=colors,
+        )
+        plt.show()
 
 
 def get_root_node(graph: nx.DiGraph) -> str:

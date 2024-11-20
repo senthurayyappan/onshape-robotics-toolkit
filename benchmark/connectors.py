@@ -39,7 +39,7 @@ if __name__ == "__main__":
         directed=True,
         use_user_defined_root=True,
     )
-    opa.save_graph(graph, f"{assembly_robot_name}.png")
+    opa.plot_graph(graph, f"{assembly_robot_name}.png")
 
     links, joints = opa.get_urdf_components(
         assembly=assembly,

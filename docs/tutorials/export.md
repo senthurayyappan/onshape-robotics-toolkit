@@ -86,7 +86,7 @@ graph, root_node = osa.create_graph(
     parts=parts,
     mates=mates,
 )
-osa.save_graph(graph, f"{assembly.document.name + '-' + assembly.name}.png")
+osa.plot_graph(graph, f"{assembly.document.name + '-' + assembly.name}.png")
 ```
 
 This will save a PNG file of the assembly graph in your current working directory.

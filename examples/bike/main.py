@@ -1,5 +1,5 @@
 import onshape_api as osa
-from onshape_api.graph import create_graph, save_graph
+from onshape_api.graph import create_graph, plot_graph
 from onshape_api.models.robot import Robot
 from onshape_api.parse import (
     get_instances,
@@ -33,7 +33,7 @@ parts = get_parts(assembly, client, instances)
 mates, relations = get_mates_and_relations(assembly, subassembly_map=subassemblies, id_to_name_map=id_to_name_map)
 
 graph, root_node = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates)
-save_graph(graph, "bike.png")
+plot_graph(graph, "bike.png")
 
 links, joints = get_urdf_components(assembly, graph, root_node, parts, mates, relations, client)
 robot = Robot(name="bike", links=links, joints=joints)

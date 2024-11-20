@@ -97,11 +97,11 @@ mates, relations = get_mates_and_relations(assembly, subassembly_map=subassembli
 Generate a graph visualization of the assembly structure:
 
 ```python
-from onshape_api.graph import create_graph, save_graph
+from onshape_api.graph import create_graph, plot_graph
 
 # Create and save the assembly graph
 graph, root_node = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates)
-save_graph(graph, "bike.png")
+plot_graph(graph, "bike.png")
 ```
 
 <img src="bike-graph.png" alt="Bike Graph" style="width: 100%;">

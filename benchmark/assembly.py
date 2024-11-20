@@ -6,7 +6,7 @@ import pstats
 import pandas as pd
 
 from onshape_api.connect import Client
-from onshape_api.graph import create_graph, save_graph
+from onshape_api.graph import create_graph, plot_graph
 from onshape_api.models.robot import Robot
 from onshape_api.parse import (
     get_instances,
@@ -54,7 +54,7 @@ def get_random_urdf(data_path: str, client: Client):
         mates, relations = get_mates_and_relations(assembly, subassemblies, id_to_name_map)
 
         graph, root_node = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates)
-        save_graph(graph, f"{assembly_robot_name}.png")
+        plot_graph(graph, f"{assembly_robot_name}.png")
 
         links, joints = get_urdf_components(
             assembly=assembly,

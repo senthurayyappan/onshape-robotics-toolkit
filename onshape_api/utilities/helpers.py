@@ -11,11 +11,37 @@ Functions:
 """
 
 import hashlib
+import json
 import os
 import random
 from xml.sax.saxutils import escape
 
+from pydantic import BaseModel
+
 from onshape_api.log import LOGGER
+
+
+def save_model_as_json(model: BaseModel, file_path: str) -> None:
+    """
+    Save a Pydantic model as a JSON file
+
+    Args:
+        model (BaseModel): Pydantic model to save
+        file_path (str): File path to save JSON file
+
+    Returns:
+        None
+
+    Examples:
+        >>> class TestModel(BaseModel):
+        ...     a: int
+        ...     b: str
+        ...
+        >>> save_model_as_json(TestModel(a=1, b="hello"), "test.json")
+    """
+
+    with open(file_path, "w") as file:
+        json.dump(model.model_dump(), file, indent=4)
 
 
 def xml_escape(unescaped: str) -> str:

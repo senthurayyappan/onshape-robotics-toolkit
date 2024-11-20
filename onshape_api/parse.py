@@ -182,14 +182,17 @@ def get_subassemblies(
             "subassembly2": SubAssembly(...),
         }
     """
-    subassembly_map = {}
+    subassembly_map: dict[str, SubAssembly] = {}
+    subassembly_instance_map: dict[str, list[str]] = {}
 
-    subassembly_instance_map = {
-        instance.uid: key for key, instance in instance_map.items() if instance.type == InstanceType.ASSEMBLY
-    }
+    for key, instance in instance_map.items():
+        if instance.type == InstanceType.ASSEMBLY:
+            subassembly_instance_map.setdefault(instance.uid, []).append(key)
+
     for subassembly in assembly.subAssemblies:
         if subassembly.uid in subassembly_instance_map:
-            subassembly_map[subassembly_instance_map[subassembly.uid]] = subassembly
+            for key in subassembly_instance_map[subassembly.uid]:
+                subassembly_map[key] = subassembly
 
     return subassembly_map
 
@@ -275,7 +278,7 @@ def join_mate_occurences(parent: list[str], child: list[str], prefix: Optional[s
         return f"{parent_occurence}{MATE_JOINER}{child_occurence}"
 
 
-def get_mates_and_relations(
+def get_mates_and_relations(  # noqa: C901
     assembly: Assembly,
     subassembly_map: dict[str, SubAssembly],
     id_to_name_map: dict[str, str],
@@ -324,15 +327,18 @@ def get_mates_and_relations(
                     LOGGER.warning(f"Invalid mate feature: {feature}")
                     continue
 
-                child_occurences = [
-                    id_to_name_map[path] for path in feature.featureData.matedEntities[CHILD].matedOccurrence
-                ]
-                parent_occurences = [
-                    id_to_name_map[path] for path in feature.featureData.matedEntities[PARENT].matedOccurrence
-                ]
-
-                feature.featureData.matedEntities[CHILD].matedOccurrence = child_occurences
-                feature.featureData.matedEntities[PARENT].matedOccurrence = parent_occurences
+                try:
+                    child_occurences = [
+                        id_to_name_map[path] for path in feature.featureData.matedEntities[CHILD].matedOccurrence
+                    ]
+                    parent_occurences = [
+                        id_to_name_map[path] for path in feature.featureData.matedEntities[PARENT].matedOccurrence
+                    ]
+                except KeyError as e:
+                    LOGGER.warning(e)
+                    LOGGER.warning(f"Key not found in {id_to_name_map.keys()}")
+                    LOGGER.warning(f"Occurrence path not found for mate feature: {feature}")
+                    continue
 
                 _mates_map[
                     join_mate_occurences(
@@ -344,17 +350,14 @@ def get_mates_and_relations(
 
             elif feature.featureType == AssemblyFeatureType.MATERELATION:
                 if feature.featureData.relationType == RelationType.SCREW:
-                    # Screw relations only have one reference entity
                     child_joint_id = feature.featureData.mates[0].featureId
                 else:
-                    # TODO: Verify mate relation convention
                     child_joint_id = feature.featureData.mates[RELATION_CHILD].featureId
 
                 _relations_map[child_joint_id] = feature.featureData
 
             elif feature.featureType == AssemblyFeatureType.MATECONNECTOR:
-                # Mate connectors' MatedCS data is already included in the MateFeatureData
-                # TODO: This might not be true for all cases?
+                # TODO: Mate connectors' MatedCS data is already included in the MateFeatureData
                 pass
 
         return _mates_map, _relations_map

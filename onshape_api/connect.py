@@ -507,6 +507,7 @@ class Client:
             >>> raw_mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
             >>> raw_mesh.save("mesh.stl")
         """
+        # TODO: version id seems to always work, should this default behavior be changed?
 
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
         _request_path = (
@@ -591,17 +592,17 @@ class Client:
                 principalAxes=[...]
             )
         """
+        # TODO: version id seems to always work, should this default behavior be changed?
         _request_path = (
             f"/api/parts/d/{did}/{wtype}/"
             f"{wid if wtype == WorkspaceType.W else vid}/e/{eid}/partid/{partID}/massproperties"
         )
-        res = self.request(HTTP.GET, _request_path, {"useMassPropertiesOverrides": True})
+        res = self.request(HTTP.GET, _request_path, {"useMassPropertiesOverrides": True}, log_response=False)
 
         if res.status_code == 404:
             # TODO: There doesn't seem to be a way to assign material to a part currently
             # It is possible that the workspace got deleted
             if vid and wtype == WorkspaceType.W:
-                print("Trying to get mass properties from a version workspace")
                 return self.get_mass_property(did, wid, eid, partID, vid, WorkspaceType.V.value)
 
             raise ValueError(f"Part: {
