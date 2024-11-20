@@ -98,6 +98,7 @@ def convert_to_digraph(graph: nx.Graph, user_defined_root: Union[str, None] = No
         >>> convert_to_digraph(graph)
         (digraph, root_node)
     """
+
     centrality = nx.closeness_centrality(graph)
     root_node = user_defined_root if user_defined_root else max(centrality, key=centrality.get)
 
@@ -166,13 +167,50 @@ def create_graph(
         >>> create_graph(occurences, instances, parts, mates, directed=True)
     """
 
-    graph: nx.Graph = nx.Graph()
-    root_node = None
+    graph = nx.Graph()
+    user_defined_root = add_nodes_to_graph(graph, occurences, instances, parts, use_user_defined_root)
+    add_edges_to_graph(graph, mates)
+
+    cur_graph = remove_unconnected_subgraphs(graph)
+
+    if directed:
+        output_graph, root_node = convert_to_digraph(cur_graph, user_defined_root)
+    else:
+        output_graph = cur_graph
+        root_node = None
+
+    LOGGER.info(
+        f"Graph created with {len(output_graph.nodes)} nodes and "
+        f"{len(output_graph.edges)} edges with root node: {root_node}"
+    )
+
+    return output_graph, root_node
+
+
+def add_nodes_to_graph(
+    graph: nx.Graph,
+    occurences: dict[str, Occurrence],
+    instances: dict[str, Union[PartInstance, AssemblyInstance]],
+    parts: dict[str, Part],
+    use_user_defined_root: bool,
+) -> str:
+    """
+    Add nodes to the graph.
+
+    Args:
+        graph: The graph to add nodes to.
+        occurences: Dictionary of occurrences in the assembly.
+        instances: Dictionary of instances in the assembly.
+        parts: Dictionary of parts in the assembly.
+        use_user_defined_root: Whether to use the user defined root node.
+
+    Returns:
+        The user defined root node if it exists.
+
+    Examples:
+        >>> add_nodes_to_graph(graph, occurences, instances, parts, use_user_defined_root=True)
+    """
     user_defined_root = None
-
-    if len(mates) == 0:
-        raise ValueError("No mates found in assembly")
-
     for occurence in occurences:
         if use_user_defined_root and occurences[occurence].fixed:
             user_defined_root = occurence
@@ -185,7 +223,20 @@ def create_graph(
                 graph.add_node(occurence, **parts[occurence].model_dump())
             except KeyError:
                 LOGGER.warning(f"Part {occurence} not found")
+    return user_defined_root
 
+
+def add_edges_to_graph(graph: nx.Graph, mates: dict[str, MateFeatureData]) -> None:
+    """
+    Add edges to the graph.
+
+    Args:
+        graph: The graph to add edges to.
+        mates: Dictionary of mates in the assembly.
+
+    Examples:
+        >>> add_edges_to_graph(graph, mates)
+    """
     for mate in mates:
         try:
             child, parent = mate.split(MATE_JOINER)
@@ -193,9 +244,20 @@ def create_graph(
         except KeyError:
             LOGGER.warning(f"Mate {mate} not found")
 
-    if directed:
-        graph, root_node = convert_to_digraph(graph, user_defined_root)
 
-    LOGGER.info(f"Graph created with {len(graph.nodes)} nodes and {len(graph.edges)} edges with root node: {root_node}")
+def remove_unconnected_subgraphs(graph: nx.Graph) -> nx.Graph:
+    """
+    Remove unconnected subgraphs from the graph.
 
-    return graph, root_node
+    Args:
+        graph: The graph to remove unconnected subgraphs from.
+
+    Returns:
+        The main connected subgraph of the graph, which is the largest connected subgraph.
+    """
+    if not nx.is_connected(graph):
+        sub_graphs = list(nx.connected_components(graph))
+        main_graph_nodes = max(sub_graphs, key=len)
+        main_graph = graph.subgraph(main_graph_nodes).copy()
+        return main_graph
+    return graph

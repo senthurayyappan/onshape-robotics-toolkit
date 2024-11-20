@@ -29,7 +29,7 @@ from dotenv import load_dotenv
 
 from onshape_api.log import LOG_LEVEL, LOGGER
 from onshape_api.models.assembly import Assembly
-from onshape_api.models.document import Document, DocumentMetaData
+from onshape_api.models.document import Document, DocumentMetaData, WorkspaceType, generate_url
 from onshape_api.models.element import Element
 from onshape_api.models.mass import MassProperties
 from onshape_api.models.variable import Variable
@@ -467,7 +467,16 @@ class Client:
 
         return _assembly, _assembly_json
 
-    def download_stl(self, did: str, wid: str, eid: str, partID: str, buffer: BinaryIO) -> BinaryIO:
+    def download_stl(
+        self,
+        did: str,
+        wid: str,
+        eid: str,
+        partID: str,
+        buffer: BinaryIO,
+        wtype: str = WorkspaceType.W.value,
+        vid: Optional[str] = None,
+    ) -> BinaryIO:
         """
         Download an STL file from a part studio. The file is written to the buffer.
 
@@ -477,6 +486,8 @@ class Client:
             eid: The unique identifier of the element.
             partID: The unique identifier of the part.
             buffer: BinaryIO object to write the STL file to.
+            wtype: The type of workspace.
+            vid: The unique identifier of the version workspace.
 
         Returns:
             BinaryIO: BinaryIO object containing the STL file
@@ -488,7 +499,9 @@ class Client:
             ...         "0d17b8ebb2a4c76be9fff3c7",
             ...         "a86aaf34d2f4353288df8812",
             ...         "0b0c209535554345432581fe",
-            ...         buffer
+            ...         buffer,
+            ...         "w",
+            ...         "0d17b8ebb2a4c76be9fff3c7"
             ...     )
             >>> buffer.seek(0)
             >>> raw_mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
@@ -496,7 +509,9 @@ class Client:
         """
 
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
-        _request_path = f"/api/parts/d/{did}/w/{wid}/e/{eid}/partid/{partID}/stl"
+        _request_path = (
+            f"/api/parts/d/{did}/{wtype}/" f"{wid if wtype == WorkspaceType.W else vid}/e/{eid}/partid/{partID}/stl"
+        )
         _query = {
             "mode": "binary",
             "grouping": True,
@@ -511,12 +526,38 @@ class Client:
         )
         if response.status_code == 200:
             buffer.write(response.content)
+        elif response.status_code == 404 or response.status_code == 400:
+            if vid and wtype == WorkspaceType.W:
+                return self.download_stl(did, wid, eid, partID, buffer, WorkspaceType.V.value, vid)
+            else:
+                LOGGER.info(f"{
+                    generate_url(
+                        did=did,
+                        wtype="w",
+                        wid=wid,
+                        eid=eid,
+                    )
+                }")
+                LOGGER.info(
+                    f"No version ID provided, failed to download STL file: {response.status_code} - {response.text}"
+                )
+
         else:
+            LOGGER.info(f"{
+                generate_url(
+                    did=did,
+                    wtype="w",
+                    wid=wid,
+                    eid=eid,
+                )
+            }")
             LOGGER.info(f"Failed to download STL file: {response.status_code} - {response.text}")
 
         return buffer
 
-    def get_mass_property(self, did: str, wid: str, eid: str, partID: str) -> MassProperties:
+    def get_mass_property(
+        self, did: str, wid: str, eid: str, partID: str, vid: Optional[str], wtype: str = WorkspaceType.W.value
+    ) -> MassProperties:
         """
         Get mass properties of a part in a part studio.
 
@@ -525,6 +566,8 @@ class Client:
             wid: The unique identifier of the workspace.
             eid: The unique identifier of the element.
             partID: The identifier of the part.
+            vid: The unique identifier of the document version.
+            wtype: The type of workspace.
 
         Returns:
             MassProperties object containing the mass properties of the part.
@@ -535,6 +578,8 @@ class Client:
             ...     wid="0d17b8ebb2a4c76be9fff3c7",
             ...     eid="a86aaf34d2f4353288df8812",
             ...     partID="0b0c209535554345432581fe"
+            ...     vid="0d17bae7b2a4c76be9fff3c7",
+            ...     wtype="w"
             ... )
             >>> print(mass_properties)
             MassProperties(
@@ -546,12 +591,27 @@ class Client:
                 principalAxes=[...]
             )
         """
-        _request_path = "/api/parts/d/" + did + "/w/" + wid + "/e/" + eid + "/partid/" + partID + "/massproperties"
+        _request_path = (
+            f"/api/parts/d/{did}/{wtype}/"
+            f"{wid if wtype == WorkspaceType.W else vid}/e/{eid}/partid/{partID}/massproperties"
+        )
         res = self.request(HTTP.GET, _request_path, {"useMassPropertiesOverrides": True})
 
         if res.status_code == 404:
             # TODO: There doesn't seem to be a way to assign material to a part currently
-            raise ValueError(f"Part: {partID} does not have a material assigned")
+            # It is possible that the workspace got deleted
+            if vid and wtype == WorkspaceType.W:
+                print("Trying to get mass properties from a version workspace")
+                return self.get_mass_property(did, wid, eid, partID, vid, WorkspaceType.V.value)
+
+            raise ValueError(f"Part: {
+                generate_url(
+                    did=did,
+                    wtype="w",
+                    wid=wid,
+                    eid=eid,
+                )
+            } does not have a material assigned or the part is not found")
 
         _resonse_json = res.json()
 

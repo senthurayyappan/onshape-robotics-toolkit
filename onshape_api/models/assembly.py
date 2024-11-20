@@ -331,6 +331,7 @@ class Part(IDBase):
     isStandardContent: bool = Field(..., description="Indicates if the part is standard content.")
     partId: str = Field(..., description="The unique identifier of the part.")
     bodyType: str = Field(..., description="The type of the body (e.g., solid, surface).")
+    documentVersion: str = Field(None, description="The version of the document.")
     MassProperty: Union[MassProperties, None] = Field(
         None, description="The mass properties of the part, this is a retrieved via a separate API call."
     )
@@ -403,6 +404,7 @@ class PartInstance(IDBase):
 
     isStandardContent: bool = Field(..., description="Indicates if the part is standard content.")
     type: InstanceType = Field(..., description="The type of the instance, must be 'Part'.")
+    documentVersion: str = Field(None, description="The version of the document.")
     id: str = Field(..., description="The unique identifier for the part instance.")
     name: str = Field(..., description="The name of the part instance.")
     suppressed: bool = Field(..., description="Indicates if the part instance is suppressed.")

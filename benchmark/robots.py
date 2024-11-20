@@ -7,12 +7,10 @@ SCRIPT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 
 if __name__ == "__main__":
     client = opa.Client()
+    # robot = https://cad.onshape.com/documents/a8f62e825e766a6512320ceb/w/b9099bcbdc92e6d6c810f0b7/e/f5b0475edd5ad0193d280fc4
 
-    # connectors witch cycle: https://cad.onshape.com/documents/8df4a8934dea6cc8a51a6f85/w/5473d6310f998d61ffe1045e/e/dcf8d3ded2234a1bea3856ba
-    # simple connectors: https://cad.onshape.com/documents/2e35965a561baafef08b14bc/w/967b9a19ea54f3cb2703ba2d/e/ebe351dafa0a477efb87912e
-    # T joint: https://cad.onshape.com/documents/7481cfb61a62765f39b1f8b6/w/7c3a25b7fe7637d71f04f632/e/fbf64c254c6cde3d16c91250
     document = Document.from_url(
-        "https://cad.onshape.com/documents/7481cfb61a62765f39b1f8b6/w/7c3a25b7fe7637d71f04f632/e/fbf64c254c6cde3d16c91250"
+        "https://cad.onshape.com/documents/cf6b852d2c88d661ac2e17e8/w/c842455c29cc878dc48bdc68/e/b5e293d409dd0b88596181ef"
     )
     assembly, _ = client.get_assembly(
         did=document.did,
@@ -36,8 +34,7 @@ if __name__ == "__main__":
         instances=instances,
         parts=parts,
         mates=mates,
-        directed=True,
-        use_user_defined_root=True,
+        use_user_defined_root=False,
     )
     opa.save_graph(graph, f"{assembly_robot_name}.png")
 

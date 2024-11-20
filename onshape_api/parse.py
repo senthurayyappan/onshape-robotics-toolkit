@@ -231,7 +231,11 @@ def get_parts(
         if part.uid in part_instance_map:
             for key in part_instance_map[part.uid]:
                 part.MassProperty = client.get_mass_property(
-                    part.documentId, assembly.document.wid, part.elementId, part.partId
+                    did=part.documentId,
+                    wid=assembly.document.wid,
+                    eid=part.elementId,
+                    partID=part.partId,
+                    vid=part.documentVersion,
                 )
                 part_map[key] = part
 
@@ -344,14 +348,11 @@ def get_mates_and_relations(
                     # TODO: Verify mate relation convention
                     child_joint_id = feature.featureData.mates[RELATION_CHILD].featureId
 
-                # if feature.featureData.relationType == RelationType.GEAR:
-                #     parent_joint_id = feature.featureData.mates[RELATION_PARENT].featureId
-                #     _relations_map[parent_joint_id] = feature.featureData
-                #     _relations_map[parent_joint_id].relationRatio = 1 / feature.featureData.relationRatio
-
                 _relations_map[child_joint_id] = feature.featureData
 
             elif feature.featureType == AssemblyFeatureType.MATECONNECTOR:
+                # Mate connectors' MatedCS data is already included in the MateFeatureData
+                # TODO: This might not be true for all cases?
                 pass
 
         return _mates_map, _relations_map

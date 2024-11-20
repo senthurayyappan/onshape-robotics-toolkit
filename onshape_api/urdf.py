@@ -52,7 +52,7 @@ CURRENT_DIR = os.getcwd()
 
 
 def download_stl_mesh(
-    did: str, wid: str, eid: str, partID: str, client: Client, transform: np.ndarray, file_name: str
+    did: str, wid: str, eid: str, partID: str, vid: str, client: Client, transform: np.ndarray, file_name: str
 ) -> str:
     """
     Download an STL mesh from an Onshape part studio, transform it, and save it to a file.
@@ -62,6 +62,7 @@ def download_stl_mesh(
         wid: The unique identifier of the workspace.
         eid: The unique identifier of the element.
         partID: The unique identifier of the part.
+        vid: The unique identifier of the version of the document.
         client: The Onshape client object to use for sending API requests.
         transform: The transformation matrix to apply to the mesh.
         file_name: The name of the file to save the mesh to.
@@ -73,15 +74,23 @@ def download_stl_mesh(
         Exception: If an error occurs while downloading the mesh.
 
     Examples:
-        >>> download_stl_mesh("0b0c209535554345432581fe", "0b0c209535554345432581fe", "0b0c209535554345432581fe",
-        ...                   "0b0c209535554345432581fe", client, np.eye(4), "part.stl")
+        >>> download_stl_mesh(
+        ...     did="document_id",
+        ...     wid="workspace_id",
+        ...     eid="element_id",
+        ...     partID="part_id",
+        ...     vid="version_id",
+        ...     client=client,
+        ...     transform=np.eye(4),
+        ...     file_name="part.stl"
+        ... )
         "meshes/part.stl"
     """
 
     try:
         with io.BytesIO() as buffer:
             LOGGER.info(f"Downloading mesh for {file_name}...")
-            client.download_stl(did, wid, eid, partID, buffer)
+            client.download_stl(did=did, wid=wid, eid=eid, partID=partID, buffer=buffer, vid=vid)
             buffer.seek(0)
 
             raw_mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
@@ -154,13 +163,14 @@ def get_robot_link(
     LOGGER.info(f"Creating robot link for {name}")
 
     _mesh_path = download_stl_mesh(
-        part.documentId,
-        wid,
-        part.elementId,
-        part.partId,
-        client,
-        _stl_to_link_tf,
-        f"{name}.stl",
+        did=part.documentId,
+        wid=wid,
+        eid=part.elementId,
+        partID=part.partId,
+        vid=part.documentVersion,
+        client=client,
+        transform=_stl_to_link_tf,
+        file_name=f"{name}.stl",
     )
 
     _link = Link(
@@ -374,7 +384,9 @@ def get_urdf_components(
 
     LOGGER.info(f"Processing root node: {root_node}")
 
-    root_link, stl_to_root_tf = get_robot_link(root_node, parts[root_node], assembly.document.wid, client, None)
+    root_link, stl_to_root_tf = get_robot_link(
+        name=root_node, part=parts[root_node], wid=assembly.document.wid, client=client, mate=None
+    )
 
     links.append(root_link)
     stl_to_link_tf_map[root_node] = stl_to_root_tf
@@ -387,7 +399,12 @@ def get_urdf_components(
         mate_key = f"{parent}{MATE_JOINER}{child}"
         LOGGER.info(f"Processing edge: {parent} -> {child}")
 
-        parent_tf = stl_to_link_tf_map[parent]
+        try:
+            parent_tf = stl_to_link_tf_map[parent]
+        except KeyError:
+            LOGGER.warning(f"Parent {parent} not found in stl_to_link_tf_map")
+            LOGGER.info(f"stl_to_link_tf_map keys: {stl_to_link_tf_map.keys()}")
+            exit(1)
 
         if parent and child not in parts:
             LOGGER.warning(f"Part {parent} or {child} not found in parts")
