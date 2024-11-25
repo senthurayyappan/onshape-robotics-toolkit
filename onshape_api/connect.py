@@ -9,8 +9,6 @@ Class:
 Enum:
     - **HTTP**: Enumerates the possible HTTP methods (GET, POST, DELETE).
 
-Constant:
-    - **BASE_URL**: Base URL for the Onshape API.
 """
 
 import base64
@@ -29,17 +27,15 @@ from dotenv import load_dotenv
 
 from onshape_api.log import LOG_LEVEL, LOGGER
 from onshape_api.models.assembly import Assembly
-from onshape_api.models.document import Document, DocumentMetaData, WorkspaceType, generate_url
+from onshape_api.models.document import BASE_URL, Document, DocumentMetaData, WorkspaceType, generate_url
 from onshape_api.models.element import Element
 from onshape_api.models.mass import MassProperties
 from onshape_api.models.variable import Variable
 from onshape_api.utilities.helpers import get_sanitized_name
 
-__all__ = ["Client", "BASE_URL", "HTTP"]
+__all__ = ["Client", "HTTP"]
 
 # TODO: Add asyncio support for async requests
-
-BASE_URL = "https://cad.onshape.com"
 
 
 class HTTP(str, Enum):
@@ -144,7 +140,9 @@ class Client:
         >>> document_meta_data = client.get_document_metadata("document_id")
     """
 
-    def __init__(self, env: str = "./.env", log_file: str = "./onshape_api", log_level: int = 1):
+    def __init__(
+        self, env: str = "./.env", base_url: str = BASE_URL, log_file: str = "./onshape_api", log_level: int = 1
+    ):
         """
         Initialize the Onshape API client.
 
@@ -161,7 +159,7 @@ class Client:
             ... )
         """
 
-        self._url = BASE_URL
+        self._url = base_url
         self._access_key, self._secret_key = load_env_variables(env)
         LOGGER.set_file_name(log_file)
         LOGGER.set_stream_level(LOG_LEVEL[log_level])

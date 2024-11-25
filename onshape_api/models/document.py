@@ -33,6 +33,8 @@ from typing import Union, cast
 import regex as re
 from pydantic import BaseModel, Field, field_validator
 
+BASE_URL = "https://cad.onshape.com"
+
 __all__ = ["WorkspaceType", "Document", "parse_url"]
 
 
@@ -86,10 +88,10 @@ class MetaWorkspaceType(str, Enum):
 
 
 # Pattern for matching Onshape document URLs
-DOCUMENT_PATTERN = r"https://cad.onshape.com/documents/([\w\d]+)/(w|v|m)/([\w\d]+)/e/([\w\d]+)"
+DOCUMENT_PATTERN = r"(https://[\w\d\.]+)/documents/([\w\d]+)/(w|v|m)/([\w\d]+)/e/([\w\d]+)"
 
 
-def generate_url(did: str, wtype: str, wid: str, eid: str) -> str:
+def generate_url(base_url: str, did: str, wtype: str, wid: str, eid: str) -> str:
     """
     Generate Onshape URL from document ID, workspace type, workspace ID, and element ID
 
@@ -106,7 +108,7 @@ def generate_url(did: str, wtype: str, wid: str, eid: str) -> str:
         >>> generate_url("a1c1addf75444f54b504f25c", "w", "0d17b8ebb2a4c76be9fff3c7", "a86aaf34d2f4353288df8812")
         "https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812"
     """
-    return f"https://cad.onshape.com/documents/{did}/{wtype}/{wid}/e/{eid}"
+    return f"{base_url}/documents/{did}/{wtype}/{wid}/e/{eid}"
 
 
 def parse_url(url: str) -> str:
@@ -137,12 +139,13 @@ def parse_url(url: str) -> str:
     if not pattern:
         raise ValueError("Invalid Onshape URL")
 
-    did = pattern.group(1)
-    wtype = cast(WorkspaceType, pattern.group(2))
-    wid = pattern.group(3)
-    eid = pattern.group(4)
+    base_url = pattern.group(1)
+    did = pattern.group(2)
+    wtype = cast(WorkspaceType, pattern.group(3))
+    wid = pattern.group(4)
+    eid = pattern.group(5)
 
-    return did, wtype, wid, eid
+    return base_url, did, wtype, wid, eid
 
 
 class Document(BaseModel):
@@ -178,6 +181,7 @@ class Document(BaseModel):
     """
 
     url: Union[str, None] = Field(None, description="URL to the document element")
+    base_url: str = Field(BASE_URL, description="Base URL of the document")
     did: str = Field(..., description="The unique identifier of the document")
     wtype: str = Field(..., description="The type of workspace (w, v, m)")
     wid: str = Field(..., description="The unique identifier of the workspace")
@@ -187,7 +191,7 @@ class Document(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
         if self.url is None:
-            self.url = generate_url(self.did, self.wtype, self.wid, self.eid)
+            self.url = generate_url(self.base_url, self.did, self.wtype, self.wid, self.eid)
 
     @field_validator("did", "wid", "eid")
     def check_ids(cls, value: str) -> str:
@@ -253,14 +257,15 @@ class Document(BaseModel):
             ... )
             Document(
                 url="https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812",
+                base_url="https://cad.onshape.com",
                 did="a1c1addf75444f54b504f25c",
                 wtype="w",
                 wid="0d17b8ebb2a4c76be9fff3c7",
                 eid="a86aaf34d2f4353288df8812"
             )
         """
-        did, wtype, wid, eid = parse_url(url)
-        return cls(url=url, did=did, wtype=wtype, wid=wid, eid=eid)
+        base_url, did, wtype, wid, eid = parse_url(url)
+        return cls(url=url, base_url=base_url, did=did, wtype=wtype, wid=wid, eid=eid)
 
 
 class DefaultWorkspace(BaseModel):
