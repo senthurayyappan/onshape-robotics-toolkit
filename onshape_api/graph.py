@@ -14,6 +14,7 @@ from onshape_api.models.assembly import (
     AssemblyInstance,
     InstanceType,
     MateFeatureData,
+    MateGroupFeatureData,
     Occurrence,
     Part,
     PartInstance,
@@ -101,14 +102,15 @@ def convert_to_digraph(graph: nx.Graph, user_defined_root: Union[str, None] = No
     bfs_graph = nx.bfs_tree(graph, root_node)
     di_graph = nx.DiGraph(bfs_graph)
 
-    for u, v in graph.edges:
+    for u, v, data in graph.edges(data=True):
         if not di_graph.has_edge(u, v) and not di_graph.has_edge(v, u):
             # decide which edge to keep
             if centrality[u] > centrality[v]:
-                di_graph.add_edge(u, v)
+                di_graph.add_edge(u, v, **data)
             else:
-                di_graph.add_edge(v, u)
+                di_graph.add_edge(v, u, **data)
 
+    # TODO: Edges and nodes lose their data during this conversion, fix this
     return di_graph, root_node
 
 
@@ -136,10 +138,10 @@ def get_topological_order(graph: nx.DiGraph) -> tuple[str]:
 
 
 def create_graph(
-    occurences: dict[str, Occurrence],
+    occurrences: dict[str, Occurrence],
     instances: dict[str, Union[PartInstance, AssemblyInstance]],
     parts: dict[str, Part],
-    mates: dict[str, MateFeatureData],
+    mates: dict[str, Union[MateFeatureData, MateGroupFeatureData]],
     directed: bool = True,
     use_user_defined_root: bool = True,
 ) -> tuple[nx.DiGraph, str]:
@@ -147,7 +149,7 @@ def create_graph(
     Create a graph from onshape assembly data.
 
     Args:
-        occurences: Dictionary of occurrences in the assembly.
+        occurrences: Dictionary of occurrences in the assembly.
         instances: Dictionary of instances in the assembly.
         parts: Dictionary of parts in the assembly.
         mates: Dictionary of mates in the assembly.
@@ -156,15 +158,15 @@ def create_graph(
         The graph created from the assembly data.
 
     Examples:
-        >>> occurences = get_occurences(assembly)
+        >>> occurrences = get_occurrences(assembly)
         >>> instances = get_instances(assembly)
         >>> parts = get_parts(assembly, client)
         >>> mates = get_mates(assembly)
-        >>> create_graph(occurences, instances, parts, mates, directed=True)
+        >>> create_graph(occurrences, instances, parts, mates, directed=True)
     """
 
     graph = nx.Graph()
-    user_defined_root = add_nodes_to_graph(graph, occurences, instances, parts, use_user_defined_root)
+    user_defined_root = add_nodes_to_graph(graph, occurrences, instances, parts, use_user_defined_root)
     add_edges_to_graph(graph, mates)
 
     cur_graph = remove_unconnected_subgraphs(graph)
@@ -185,7 +187,7 @@ def create_graph(
 
 def add_nodes_to_graph(
     graph: nx.Graph,
-    occurences: dict[str, Occurrence],
+    occurrences: dict[str, Occurrence],
     instances: dict[str, Union[PartInstance, AssemblyInstance]],
     parts: dict[str, Part],
     use_user_defined_root: bool,
@@ -195,7 +197,7 @@ def add_nodes_to_graph(
 
     Args:
         graph: The graph to add nodes to.
-        occurences: Dictionary of occurrences in the assembly.
+        occurrences: Dictionary of occurrences in the assembly.
         instances: Dictionary of instances in the assembly.
         parts: Dictionary of parts in the assembly.
         use_user_defined_root: Whether to use the user defined root node.
@@ -204,25 +206,25 @@ def add_nodes_to_graph(
         The user defined root node if it exists.
 
     Examples:
-        >>> add_nodes_to_graph(graph, occurences, instances, parts, use_user_defined_root=True)
+        >>> add_nodes_to_graph(graph, occurrences, instances, parts, use_user_defined_root=True)
     """
     user_defined_root = None
-    for occurence in occurences:
-        if use_user_defined_root and occurences[occurence].fixed:
-            user_defined_root = occurence
+    for occurrence in occurrences:
+        if use_user_defined_root and occurrences[occurrence].fixed:
+            user_defined_root = occurrence
 
-        if instances[occurence].type == InstanceType.PART:
+        if instances[occurrence].type == InstanceType.PART:
             try:
-                if occurences[occurence].hidden:
+                if occurrences[occurrence].hidden:
                     continue
 
-                graph.add_node(occurence, **parts[occurence].model_dump())
+                graph.add_node(occurrence, **parts[occurrence].model_dump())
             except KeyError:
-                LOGGER.warning(f"Part {occurence} not found")
+                LOGGER.warning(f"Part {occurrence} not found")
     return user_defined_root
 
 
-def add_edges_to_graph(graph: nx.Graph, mates: dict[str, MateFeatureData]) -> None:
+def add_edges_to_graph(graph: nx.Graph, mates: dict[str, Union[MateFeatureData, MateGroupFeatureData]]) -> None:
     """
     Add edges to the graph.
 
@@ -236,7 +238,11 @@ def add_edges_to_graph(graph: nx.Graph, mates: dict[str, MateFeatureData]) -> No
     for mate in mates:
         try:
             child, parent = mate.split(MATE_JOINER)
-            graph.add_edge(parent, child, **mates[mate].model_dump())
+            graph.add_edge(
+                parent,
+                child,
+                is_group_mate=bool(isinstance(mates[mate], MateGroupFeatureData)),
+            )
         except KeyError:
             LOGGER.warning(f"Mate {mate} not found")
 

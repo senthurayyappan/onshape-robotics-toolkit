@@ -14,7 +14,7 @@ if __name__ == "__main__":
     # test-nested-subassemblies = https://cad.onshape.com/documents/8c7a1c45e27a40a5b6e44d92/w/9c50078d1ac7106985359fe8/e/8c0e0762c95eb6e8b2f4b1f1
 
     document = Document.from_url(
-        "https://cad.onshape.com/documents/e09ccb43715625e4349a46a2/v/bfe050c459b0fa60b59f9597/e/4c8a42ac813ce6ebf317eb53"
+        "https://cad.onshape.com/documents/8c7a1c45e27a40a5b6e44d92/w/9c50078d1ac7106985359fe8/e/8c0e0762c95eb6e8b2f4b1f1"
     )
     assembly, _ = client.get_assembly(
         did=document.did,
@@ -29,14 +29,14 @@ if __name__ == "__main__":
     # opa.save_model_as_json(assembly, f"{assembly_robot_name}.json")
 
     instances, id_to_name_map = opa.get_instances(assembly)
-    occurences = opa.get_occurences(assembly, id_to_name_map)
+    occurrences = opa.get_occurrences(assembly, id_to_name_map)
 
     parts = opa.get_parts(assembly, client, instances)
     subassemblies = opa.get_subassemblies(assembly, instances)
 
     mates, relations = opa.get_mates_and_relations(assembly, subassemblies, id_to_name_map)
     graph, root_node = opa.create_graph(
-        occurences=occurences,
+        occurrences=occurrences,
         instances=instances,
         parts=parts,
         mates=mates,

@@ -18,6 +18,7 @@ from onshape_api.mesh import transform_mesh
 from onshape_api.models.assembly import (
     Assembly,
     MateFeatureData,
+    MateGroupFeatureData,
     MateRelationFeatureData,
     MateType,
     Part,
@@ -147,9 +148,12 @@ def get_robot_link(
         )
 
     """
+    _link_to_stl_tf = np.eye(4)
     if mate is None:
-        _link_to_stl_tf = np.eye(4)
         _link_to_stl_tf[:3, 3] = np.array(part.MassProperty.center_of_mass).reshape(3)
+
+    elif isinstance(mate, MateGroupFeatureData):
+        pass
     else:
         _link_to_stl_tf = mate.matedEntities[0].matedCS.part_to_mate_tf
 
@@ -207,7 +211,7 @@ def get_robot_link(
 def get_robot_joint(
     parent: str,
     child: str,
-    mate: MateFeatureData,
+    mate: Union[MateFeatureData, MateGroupFeatureData],
     stl_to_parent_tf: np.matrix,
     mimic: Optional[JointMimic] = None,
 ) -> BaseJoint:
@@ -236,54 +240,60 @@ def get_robot_joint(
         )
 
     """
+    if isinstance(mate, MateFeatureData):
+        parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
+    else:
+        parent_to_mate_tf = np.eye(4)
 
-    parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
     stl_to_mate_tf = stl_to_parent_tf @ parent_to_mate_tf
-
     origin = Origin.from_matrix(stl_to_mate_tf)
 
     LOGGER.info(f"Creating robot joint from {parent} to {child}")
 
-    if mate.mateType == MateType.REVOLUTE:
-        return RevoluteJoint(
-            name=f"{parent}{MATE_JOINER}{child}",
-            parent=parent,
-            child=child,
-            origin=origin,
-            limits=JointLimits(
-                effort=1.0,
-                velocity=1.0,
-                lower=-np.pi,
-                upper=np.pi,
-            ),
-            axis=Axis((0.0, 0.0, -1.0)),
-            dynamics=JointDynamics(damping=0.1, friction=0.1),
-            mimic=mimic,
-        )
-
-    elif mate.mateType == MateType.FASTENED:
+    if isinstance(mate, MateGroupFeatureData):
         return FixedJoint(name=f"{parent}{MATE_JOINER}{child}", parent=parent, child=child, origin=origin)
 
-    elif mate.mateType == MateType.SLIDER or mate.mateType == MateType.CYLINDRICAL:
-        return PrismaticJoint(
-            name=f"{parent}{MATE_JOINER}{child}",
-            parent=parent,
-            child=child,
-            origin=origin,
-            limits=JointLimits(
-                effort=1.0,
-                velocity=1.0,
-                lower=-0.1,
-                upper=0.1,
-            ),
-            axis=Axis((0.0, 0.0, -1.0)),
-            dynamics=JointDynamics(damping=0.1, friction=0.1),
-            mimic=mimic,
-        )
-
     else:
-        LOGGER.warning(f"Unsupported joint type: {mate.mateType}")
-        return DummyJoint(name=f"{parent}{MATE_JOINER}{child}", parent=parent, child=child, origin=origin)
+        if mate.mateType == MateType.REVOLUTE:
+            return RevoluteJoint(
+                name=f"{parent}{MATE_JOINER}{child}",
+                parent=parent,
+                child=child,
+                origin=origin,
+                limits=JointLimits(
+                    effort=1.0,
+                    velocity=1.0,
+                    lower=-np.pi,
+                    upper=np.pi,
+                ),
+                axis=Axis((0.0, 0.0, -1.0)),
+                dynamics=JointDynamics(damping=0.1, friction=0.1),
+                mimic=mimic,
+            )
+
+        elif mate.mateType == MateType.FASTENED:
+            return FixedJoint(name=f"{parent}{MATE_JOINER}{child}", parent=parent, child=child, origin=origin)
+
+        elif mate.mateType == MateType.SLIDER or mate.mateType == MateType.CYLINDRICAL:
+            return PrismaticJoint(
+                name=f"{parent}{MATE_JOINER}{child}",
+                parent=parent,
+                child=child,
+                origin=origin,
+                limits=JointLimits(
+                    effort=1.0,
+                    velocity=1.0,
+                    lower=-0.1,
+                    upper=0.1,
+                ),
+                axis=Axis((0.0, 0.0, -1.0)),
+                dynamics=JointDynamics(damping=0.1, friction=0.1),
+                mimic=mimic,
+            )
+
+        else:
+            LOGGER.warning(f"Unsupported joint type: {mate.mateType}")
+            return DummyJoint(name=f"{parent}{MATE_JOINER}{child}", parent=parent, child=child, origin=origin)
 
 
 def get_topological_mates(
@@ -325,7 +335,9 @@ def get_topological_mates(
             # LOGGER.info(f"Rogue mate found: {edge}")
             rogue_key = f"{child}{MATE_JOINER}{parent}"
             topological_mates[key] = mates[rogue_key]
-            topological_mates[key].matedEntities = topological_mates[key].matedEntities[::-1]
+
+            if isinstance(topological_mates[key], MateFeatureData):
+                topological_mates[key].matedEntities = topological_mates[key].matedEntities[::-1]
 
             if relations and rogue_key in topological_relations:
                 LOGGER.info(f"Rogue relation found: {rogue_key}")

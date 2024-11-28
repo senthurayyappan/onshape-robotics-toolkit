@@ -67,7 +67,7 @@ Extract instances, occurrences, parts, subassemblies, and relational data:
 
 ```python
 instances, id_to_name_map = osa.get_instances(assembly)
-occurences = osa.get_occurences(assembly, id_to_name_map)
+occurrences = osa.get_occurrences(assembly, id_to_name_map)
 parts = osa.get_parts(assembly, client, instances)
 subassemblies = osa.get_subassemblies(assembly, instances)
 mates, relations = osa.get_mates_and_relations(assembly, subassemblies, id_to_name_map)
@@ -81,7 +81,7 @@ Create and save a graph representation of the assembly’s structure:
 
 ```python
 graph, root_node = osa.create_graph(
-    occurences=occurences,
+    occurrences=occurrences,
     instances=instances,
     parts=parts,
     mates=mates,

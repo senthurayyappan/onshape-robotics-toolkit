@@ -26,13 +26,13 @@ if __name__ == "__main__":
     assembly_robot_name = f"{assembly.document.name + '-' + assembly.name}"
 
     instances, id_to_name_map = opa.get_instances(assembly)
-    occurences = opa.get_occurences(assembly, id_to_name_map)
+    occurrences = opa.get_occurrences(assembly, id_to_name_map)
     parts = opa.get_parts(assembly, client, instances)
     subassemblies = opa.get_subassemblies(assembly, instances)
     mates, relations = opa.get_mates_and_relations(assembly, subassemblies, id_to_name_map)
 
     graph, root_node = opa.create_graph(
-        occurences=occurences,
+        occurrences=occurrences,
         instances=instances,
         parts=parts,
         mates=mates,

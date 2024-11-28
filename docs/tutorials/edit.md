@@ -74,7 +74,7 @@ Fetch the assembly data and parse its components:
 from onshape_api.parse import (
     get_instances,
     get_mates_and_relations,
-    get_occurences,
+    get_occurrences,
     get_parts,
     get_subassemblies,
 )
@@ -84,7 +84,7 @@ assembly, _ = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembl
 
 # Extract components
 instances, id_to_name_map = get_instances(assembly)
-occurences = get_occurences(assembly, id_to_name_map)
+occurrences = get_occurrences(assembly, id_to_name_map)
 subassemblies = get_subassemblies(assembly, instances)
 parts = get_parts(assembly, client, instances)
 mates, relations = get_mates_and_relations(assembly, subassembly_map=subassemblies, id_to_name_map=id_to_name_map)
@@ -100,7 +100,7 @@ Generate a graph visualization of the assembly structure:
 from onshape_api.graph import create_graph, plot_graph
 
 # Create and save the assembly graph
-graph, root_node = create_graph(occurences=occurences, instances=instances, parts=parts, mates=mates)
+graph, root_node = create_graph(occurrences=occurrences, instances=instances, parts=parts, mates=mates)
 plot_graph(graph, "bike.png")
 ```
 

@@ -109,6 +109,7 @@ def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, Ass
 
         for instance in root.instances:
             sanitized_name = get_sanitized_name(instance.name)
+            LOGGER.info(f"Parsing instance: {sanitized_name}")
             instance_id = f"{prefix}{SUBASSEMBLY_JOINER}{sanitized_name}" if prefix else sanitized_name
             id_to_name_map[instance.id] = sanitized_name
             instance_map[instance_id] = instance
@@ -125,7 +126,7 @@ def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, Ass
     return traverse_instances(assembly.rootAssembly)
 
 
-def get_occurences(assembly: Assembly, id_to_name_map: dict[str, str]) -> dict[str, Occurrence]:
+def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str]) -> dict[str, Occurrence]:
     """
     Get occurrences of the assembly.
 
@@ -139,7 +140,7 @@ def get_occurences(assembly: Assembly, id_to_name_map: dict[str, str]) -> dict[s
 
     Examples:
         >>> assembly = Assembly(...)
-        >>> get_occurences(assembly)
+        >>> get_occurrences(assembly)
         {
             "part1": Occurrence(...),
             "subassembly1": Occurrence(...),
@@ -147,17 +148,18 @@ def get_occurences(assembly: Assembly, id_to_name_map: dict[str, str]) -> dict[s
             "subassembly1-SUB-subassembly2": Occurrence(...),
         }
     """
-    occurence_map = {}
+    occurrence_map = {}
 
-    for occurence in assembly.rootAssembly.occurrences:
+    for occurrence in assembly.rootAssembly.occurrences:
         try:
-            occurence_path = [id_to_name_map[path] for path in occurence.path]
-            occurence_map[SUBASSEMBLY_JOINER.join(occurence_path)] = occurence
+            occurrence_path = [id_to_name_map[path] for path in occurrence.path]
+            LOGGER.info(f"Parsing occurrence: {occurrence_path}")
+            occurrence_map[SUBASSEMBLY_JOINER.join(occurrence_path)] = occurrence
 
         except KeyError:
-            LOGGER.warning(f"Occurrence path {occurence.path} not found")
+            LOGGER.warning(f"Occurrence path {occurrence.path} not found")
 
-    return occurence_map
+    return occurrence_map
 
 
 def get_subassemblies(
@@ -190,6 +192,7 @@ def get_subassemblies(
             subassembly_instance_map.setdefault(instance.uid, []).append(key)
 
     for subassembly in assembly.subAssemblies:
+        LOGGER.info(f"Parsing subassembly: {subassembly.uid}")
         if subassembly.uid in subassembly_instance_map:
             for key in subassembly_instance_map[subassembly.uid]:
                 subassembly_map[key] = subassembly
@@ -233,6 +236,7 @@ def get_parts(
             part_instance_map.setdefault(instance.uid, []).append(key)
 
     for part in assembly.parts:
+        LOGGER.info(f"Parsing part: {part.uid}")
         if part.uid in part_instance_map:
             for key in part_instance_map[part.uid]:
                 part.MassProperty = client.get_mass_property(
@@ -247,7 +251,7 @@ def get_parts(
     return part_map
 
 
-def join_mate_occurences(parent: list[str], child: list[str], prefix: Optional[str] = None) -> str:
+def join_mate_occurrences(parent: list[str], child: list[str], prefix: Optional[str] = None) -> str:
     """
     Join two occurrence paths with a mate joiner.
 
@@ -260,27 +264,28 @@ def join_mate_occurences(parent: list[str], child: list[str], prefix: Optional[s
         The joined occurrence path.
 
     Examples:
-        >>> join_mate_occurences(["subassembly1", "part1"], ["subassembly2"])
+        >>> join_mate_occurrences(["subassembly1", "part1"], ["subassembly2"])
         "subassembly1-SUB-part1-MATE-subassembly2"
 
-        >>> join_mate_occurences(["part1"], ["part2"])
+        >>> join_mate_occurrences(["part1"], ["part2"])
         "part1-MATE-part2"
     """
-    parent_occurence = SUBASSEMBLY_JOINER.join(parent)
-    child_occurence = SUBASSEMBLY_JOINER.join(child)
+    parent_occurrence = SUBASSEMBLY_JOINER.join(parent)
+    child_occurrence = SUBASSEMBLY_JOINER.join(child)
 
     if prefix is not None:
         return (
-            f"{prefix}{SUBASSEMBLY_JOINER}{parent_occurence}{MATE_JOINER}"
-            f"{prefix}{SUBASSEMBLY_JOINER}{child_occurence}"
+            f"{prefix}{SUBASSEMBLY_JOINER}{parent_occurrence}{MATE_JOINER}"
+            f"{prefix}{SUBASSEMBLY_JOINER}{child_occurrence}"
         )
     else:
-        return f"{parent_occurence}{MATE_JOINER}{child_occurence}"
+        return f"{parent_occurrence}{MATE_JOINER}{child_occurrence}"
 
 
 def get_mates_and_relations(  # noqa: C901
     assembly: Assembly,
     subassembly_map: dict[str, SubAssembly],
+    # parts_map: dict[str, Part],
     id_to_name_map: dict[str, str],
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
@@ -309,7 +314,7 @@ def get_mates_and_relations(  # noqa: C901
         })
     """
 
-    def traverse_assembly(
+    def traverse_assembly(  # noqa: C901
         root: Union[RootAssembly, SubAssembly], subassembly_prefix: Optional[str] = None
     ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
         _mates_map: dict[str, MateFeatureData] = {}
@@ -328,10 +333,10 @@ def get_mates_and_relations(  # noqa: C901
                     continue
 
                 try:
-                    child_occurences = [
+                    child_occurrences = [
                         id_to_name_map[path] for path in feature.featureData.matedEntities[CHILD].matedOccurrence
                     ]
-                    parent_occurences = [
+                    parent_occurrences = [
                         id_to_name_map[path] for path in feature.featureData.matedEntities[PARENT].matedOccurrence
                     ]
                 except KeyError as e:
@@ -341,9 +346,9 @@ def get_mates_and_relations(  # noqa: C901
                     continue
 
                 _mates_map[
-                    join_mate_occurences(
-                        parent=parent_occurences,
-                        child=child_occurences,
+                    join_mate_occurrences(
+                        parent=parent_occurrences,
+                        child=child_occurrences,
                         prefix=subassembly_prefix,
                     )
                 ] = feature.featureData
@@ -359,6 +364,29 @@ def get_mates_and_relations(  # noqa: C901
             elif feature.featureType == AssemblyFeatureType.MATECONNECTOR:
                 # TODO: Mate connectors' MatedCS data is already included in the MateFeatureData
                 pass
+            elif feature.featureType == AssemblyFeatureType.MATEGROUP:
+                # LOGGER.info(f"Skipping MATEGROUP feature: {feature.featureData.occurrences}")
+                try:
+                    for i in range(1, len(feature.featureData.occurrences)):
+                        parent_occurrences = [
+                            id_to_name_map[occurrence]
+                            for occurrence in feature.featureData.occurrences[i - 1].occurrence
+                        ]
+                        child_occurrences = [
+                            id_to_name_map[occurrence] for occurrence in feature.featureData.occurrences[i].occurrence
+                        ]
+                        _mates_map[
+                            join_mate_occurrences(
+                                parent=parent_occurrences,
+                                child=child_occurrences,
+                                prefix=subassembly_prefix,
+                            )
+                        ] = feature.featureData
+                except KeyError as e:
+                    LOGGER.warning(e)
+                    LOGGER.warning(f"Key not found in {id_to_name_map.keys()}")
+                    LOGGER.warning(f"Occurrence path not found for mate group feature: {feature}")
+                    continue
 
         return _mates_map, _relations_map
 
