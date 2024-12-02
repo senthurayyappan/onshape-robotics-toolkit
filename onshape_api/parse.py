@@ -7,6 +7,8 @@ subassemblies, instances, and mates, and generate a hierarchical representation 
 import os
 from typing import Optional, Union
 
+import numpy as np
+
 from onshape_api.connect import Client
 from onshape_api.log import LOGGER
 from onshape_api.models.assembly import (
@@ -14,8 +16,11 @@ from onshape_api.models.assembly import (
     AssemblyFeatureType,
     AssemblyInstance,
     InstanceType,
+    MatedCS,
+    MatedEntity,
     MateFeatureData,
     MateRelationFeatureData,
+    MateType,
     Occurrence,
     Part,
     PartInstance,
@@ -37,9 +42,8 @@ PARENT = 1
 RELATION_CHILD = 1
 RELATION_PARENT = 0
 
+
 # TODO: get_mate_connectors method to parse part mate connectors that maybe useful to someone
-
-
 def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, str]]:
     """
     Get instances and their sanitized names from an Onshape assembly.
@@ -236,7 +240,7 @@ def get_parts(
             part_instance_map.setdefault(instance.uid, []).append(key)
 
     for part in assembly.parts:
-        LOGGER.info(f"Parsing part: {part.uid}")
+        LOGGER.info(f"Parsing part: {part.partId}")
         if part.uid in part_instance_map:
             for key in part_instance_map[part.uid]:
                 part.MassProperty = client.get_mass_property(
@@ -249,6 +253,28 @@ def get_parts(
                 part_map[key] = part
 
     return part_map
+
+
+def get_occurrence_name(occurrences: list[str], subassembly_prefix: Optional[str] = None) -> str:
+    """
+    Get the mapping name for an occurrence path.
+
+    Args:
+        occurrences: Occurrence path.
+        subassembly_prefix: Prefix for the subassembly.
+
+    Returns:
+        The mapping name.
+
+    Examples:
+        >>> get_occurrence_name(["subassembly1", "part1"], "subassembly1")
+        "subassembly1-SUB-part1"
+
+        >>> get_occurrence_name(["part1"], "subassembly1")
+        "subassembly1-SUB-part1"
+    """
+    prefix = f"{subassembly_prefix}{SUBASSEMBLY_JOINER}" if subassembly_prefix else ""
+    return f"{prefix}{SUBASSEMBLY_JOINER.join(occurrences)}"
 
 
 def join_mate_occurrences(parent: list[str], child: list[str], prefix: Optional[str] = None) -> str:
@@ -270,22 +296,16 @@ def join_mate_occurrences(parent: list[str], child: list[str], prefix: Optional[
         >>> join_mate_occurrences(["part1"], ["part2"])
         "part1-MATE-part2"
     """
-    parent_occurrence = SUBASSEMBLY_JOINER.join(parent)
-    child_occurrence = SUBASSEMBLY_JOINER.join(child)
-
-    if prefix is not None:
-        return (
-            f"{prefix}{SUBASSEMBLY_JOINER}{parent_occurrence}{MATE_JOINER}"
-            f"{prefix}{SUBASSEMBLY_JOINER}{child_occurrence}"
-        )
-    else:
-        return f"{parent_occurrence}{MATE_JOINER}{child_occurrence}"
+    parent_occurrence = get_occurrence_name(parent, prefix)
+    child_occurrence = get_occurrence_name(child, prefix)
+    return f"{parent_occurrence}{MATE_JOINER}{child_occurrence}"
 
 
 def get_mates_and_relations(  # noqa: C901
     assembly: Assembly,
     subassembly_map: dict[str, SubAssembly],
     id_to_name_map: dict[str, str],
+    occurences_map: dict[str, Occurrence],
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
     Get mates and relations of an Onshape assembly.
@@ -341,14 +361,6 @@ def get_mates_and_relations(  # noqa: C901
                 except KeyError as e:
                     LOGGER.warning(e)
                     LOGGER.warning(f"Key not found in {id_to_name_map.keys()}")
-                    LOGGER.warning(f"Occurrence path not found for mate feature: {feature}")
-                    continue
-
-                if (
-                    SUBASSEMBLY_JOINER.join(parent_occurrences) not in id_to_name_map.values()
-                    or SUBASSEMBLY_JOINER.join(child_occurrences) not in id_to_name_map.values()
-                ):
-                    LOGGER.warning(f"Skipping mate feature: {feature}")
                     continue
 
                 _mates_map[
@@ -372,41 +384,78 @@ def get_mates_and_relations(  # noqa: C901
                 pass
             elif feature.featureType == AssemblyFeatureType.MATEGROUP:
                 # LOGGER.info(f"Skipping MATEGROUP feature: {feature.featureData.occurrences}")
-                try:
-                    for i in range(1, len(feature.featureData.occurrences)):
-                        parent_occurrences = [
-                            id_to_name_map[occurrence]
-                            for occurrence in feature.featureData.occurrences[i - 1].occurrence
-                        ]
-                        child_occurrences = [
-                            id_to_name_map[occurrence] for occurrence in feature.featureData.occurrences[i].occurrence
-                        ]
 
-                        if parent_occurrences[0] in subassembly_map:
+                for i in range(1, len(feature.featureData.occurrences)):
+                    parent_occurrences = [
+                        id_to_name_map[occurrence] for occurrence in feature.featureData.occurrences[i - 1].occurrence
+                    ]
+                    child_occurrences = [
+                        id_to_name_map[occurrence] for occurrence in feature.featureData.occurrences[i].occurrence
+                    ]
+
+                    if parent_occurrences[0] in subassembly_map:
+                        if subassembly_prefix is None:
                             parent_occurrences = [
                                 parent_occurrences[0],
                                 id_to_name_map[subassembly_map[parent_occurrences[0]].instances[0].id],
                             ]
+                        else:
+                            parent_occurrences = [
+                                id_to_name_map[subassembly_map[parent_occurrences[0]].instances[0].id],
+                            ]
 
-                        elif child_occurrences[0] in subassembly_map:
+                    if child_occurrences[0] in subassembly_map:
+                        if subassembly_prefix is None:
                             child_occurrences = [
                                 child_occurrences[0],
                                 id_to_name_map[subassembly_map[child_occurrences[0]].instances[0].id],
                             ]
+                        else:
+                            child_occurrences = [
+                                id_to_name_map[subassembly_map[child_occurrences[0]].instances[0].id],
+                            ]
 
-                        _mates_map[
-                            join_mate_occurrences(
-                                parent=parent_occurrences,
-                                child=child_occurrences,
-                                prefix=subassembly_prefix,
-                            )
-                        ] = feature.featureData
+                    parent_name = get_occurrence_name(parent_occurrences, subassembly_prefix)
+                    child_name = get_occurrence_name(child_occurrences, subassembly_prefix)
 
-                except KeyError as e:
-                    LOGGER.warning(e)
-                    LOGGER.warning(f"Key not found in {id_to_name_map.keys()}")
-                    LOGGER.warning(f"Occurrence path not found for mate group feature: {feature}")
-                    exit(1)
+                    try:
+                        parent_tf = np.matrix(occurences_map[parent_name].transform).reshape(4, 4)
+
+                        child_tf = np.matrix(occurences_map[child_name].transform).reshape(4, 4)
+
+                    except KeyError as e:
+                        LOGGER.warning(e)
+                        LOGGER.warning(f"Mate feature: {parent_occurrences[0] in subassembly_map}")
+                        # LOGGER.warning(f"Parent occurrences: {parent_occurrences}")
+                        # LOGGER.warning(f"Child occurrences: {child_occurrences}")
+                        # LOGGER.warning(f"Subassembly prefix: {subassembly_prefix}")
+                        exit(1)
+
+                    mated_entities = [
+                        MatedEntity(
+                            matedOccurrence=[SUBASSEMBLY_JOINER.join(parent_occurrences)],
+                            matedCS=MatedCS.from_tf(parent_tf),
+                        ),
+                        MatedEntity(
+                            matedOccurrence=[SUBASSEMBLY_JOINER.join(child_occurrences)],
+                            matedCS=MatedCS.from_tf(child_tf),
+                        ),
+                    ]
+
+                    mate_feature_data = MateFeatureData(
+                        id=feature.id,
+                        matedEntities=mated_entities,
+                        mateType=MateType.FASTENED,
+                        name=feature.featureData.name,
+                    )
+
+                    _mates_map[
+                        join_mate_occurrences(
+                            parent=parent_occurrences,
+                            child=child_occurrences,
+                            prefix=subassembly_prefix,
+                        )
+                    ] = mate_feature_data
 
         return _mates_map, _relations_map
 

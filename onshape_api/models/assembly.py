@@ -587,10 +587,17 @@ class MatedCS(BaseModel):
         )
     """
 
+    class Config:
+        arbitrary_types_allowed = True
+
     xAxis: list[float] = Field(..., description="The x-axis vector of the coordinate system.")
     yAxis: list[float] = Field(..., description="The y-axis vector of the coordinate system.")
     zAxis: list[float] = Field(..., description="The z-axis vector of the coordinate system.")
     origin: list[float] = Field(..., description="The origin point of the coordinate system.")
+
+    part_tf: np.matrix = Field(
+        None, description="The 4x4 transformation matrix from the part coordinate system to the mate coordinate system."
+    )
 
     @field_validator("xAxis", "yAxis", "zAxis", "origin")
     def check_vectors(cls, v: list[float]) -> list[float]:
@@ -619,12 +626,34 @@ class MatedCS(BaseModel):
         Returns:
             np.matrix: The 4x4 transformation matrix.
         """
+        if self.part_tf is not None:
+            return self.part_tf
+
         rotation_matrix = np.array([self.xAxis, self.yAxis, self.zAxis]).T
         translation_vector = np.array(self.origin)
         part_to_mate_tf = np.eye(4)
         part_to_mate_tf[:3, :3] = rotation_matrix
         part_to_mate_tf[:3, 3] = translation_vector
         return np.matrix(part_to_mate_tf)
+
+    @classmethod
+    def from_tf(cls, tf: np.matrix) -> "MatedCS":
+        """
+        Creates a MatedCS object from a 4x4 transformation matrix.
+
+        Args:
+            tf (np.matrix): The 4x4 transformation matrix.
+
+        Returns:
+            MatedCS: The MatedCS object created from the transformation matrix.
+        """
+        return MatedCS(
+            xAxis=tf[:3, 0].flatten().tolist()[0],
+            yAxis=tf[:3, 1].flatten().tolist()[0],
+            zAxis=tf[:3, 2].flatten().tolist()[0],
+            origin=tf[:3, 3].flatten().tolist()[0],
+            part_tf=tf,
+        )
 
 
 class MatedEntity(BaseModel):

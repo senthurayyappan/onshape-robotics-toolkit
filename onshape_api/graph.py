@@ -14,7 +14,6 @@ from onshape_api.models.assembly import (
     AssemblyInstance,
     InstanceType,
     MateFeatureData,
-    MateGroupFeatureData,
     Occurrence,
     Part,
     PartInstance,
@@ -141,7 +140,7 @@ def create_graph(
     occurrences: dict[str, Occurrence],
     instances: dict[str, Union[PartInstance, AssemblyInstance]],
     parts: dict[str, Part],
-    mates: dict[str, Union[MateFeatureData, MateGroupFeatureData]],
+    mates: dict[str, Union[MateFeatureData]],
     directed: bool = True,
     use_user_defined_root: bool = True,
 ) -> tuple[nx.DiGraph, str]:
@@ -224,7 +223,7 @@ def add_nodes_to_graph(
     return user_defined_root
 
 
-def add_edges_to_graph(graph: nx.Graph, mates: dict[str, Union[MateFeatureData, MateGroupFeatureData]]) -> None:
+def add_edges_to_graph(graph: nx.Graph, mates: dict[str, Union[MateFeatureData]]) -> None:
     """
     Add edges to the graph.
 
@@ -241,7 +240,6 @@ def add_edges_to_graph(graph: nx.Graph, mates: dict[str, Union[MateFeatureData, 
             graph.add_edge(
                 parent,
                 child,
-                is_group_mate=bool(isinstance(mates[mate], MateGroupFeatureData)),
             )
         except KeyError:
             LOGGER.warning(f"Mate {mate} not found")

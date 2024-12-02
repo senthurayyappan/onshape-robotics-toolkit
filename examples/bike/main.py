@@ -30,7 +30,9 @@ instances, id_to_name_map = get_instances(assembly)
 occurrences = get_occurrences(assembly, id_to_name_map)
 subassemblies = get_subassemblies(assembly, instances)
 parts = get_parts(assembly, client, instances)
-mates, relations = get_mates_and_relations(assembly, subassembly_map=subassemblies, id_to_name_map=id_to_name_map)
+mates, relations = get_mates_and_relations(
+    assembly, subassembly_map=subassemblies, id_to_name_map=id_to_name_map, occurences_map=occurrences
+)
 
 graph, root_node = create_graph(occurrences=occurrences, instances=instances, parts=parts, mates=mates)
 plot_graph(graph, "bike.png")
