@@ -285,7 +285,6 @@ def join_mate_occurrences(parent: list[str], child: list[str], prefix: Optional[
 def get_mates_and_relations(  # noqa: C901
     assembly: Assembly,
     subassembly_map: dict[str, SubAssembly],
-    # parts_map: dict[str, Part],
     id_to_name_map: dict[str, str],
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
@@ -345,6 +344,13 @@ def get_mates_and_relations(  # noqa: C901
                     LOGGER.warning(f"Occurrence path not found for mate feature: {feature}")
                     continue
 
+                if (
+                    SUBASSEMBLY_JOINER.join(parent_occurrences) not in id_to_name_map.values()
+                    or SUBASSEMBLY_JOINER.join(child_occurrences) not in id_to_name_map.values()
+                ):
+                    LOGGER.warning(f"Skipping mate feature: {feature}")
+                    continue
+
                 _mates_map[
                     join_mate_occurrences(
                         parent=parent_occurrences,
@@ -375,6 +381,19 @@ def get_mates_and_relations(  # noqa: C901
                         child_occurrences = [
                             id_to_name_map[occurrence] for occurrence in feature.featureData.occurrences[i].occurrence
                         ]
+
+                        if parent_occurrences[0] in subassembly_map:
+                            parent_occurrences = [
+                                parent_occurrences[0],
+                                id_to_name_map[subassembly_map[parent_occurrences[0]].instances[0].id],
+                            ]
+
+                        elif child_occurrences[0] in subassembly_map:
+                            child_occurrences = [
+                                child_occurrences[0],
+                                id_to_name_map[subassembly_map[child_occurrences[0]].instances[0].id],
+                            ]
+
                         _mates_map[
                             join_mate_occurrences(
                                 parent=parent_occurrences,
@@ -382,11 +401,12 @@ def get_mates_and_relations(  # noqa: C901
                                 prefix=subassembly_prefix,
                             )
                         ] = feature.featureData
+
                 except KeyError as e:
                     LOGGER.warning(e)
                     LOGGER.warning(f"Key not found in {id_to_name_map.keys()}")
                     LOGGER.warning(f"Occurrence path not found for mate group feature: {feature}")
-                    continue
+                    exit(1)
 
         return _mates_map, _relations_map
 
