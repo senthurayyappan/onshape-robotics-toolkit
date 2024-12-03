@@ -256,8 +256,11 @@ def remove_unconnected_subgraphs(graph: nx.Graph) -> nx.Graph:
         The main connected subgraph of the graph, which is the largest connected subgraph.
     """
     if not nx.is_connected(graph):
+        LOGGER.warning("Graph has one or more unconnected subgraphs")
         sub_graphs = list(nx.connected_components(graph))
         main_graph_nodes = max(sub_graphs, key=len)
         main_graph = graph.subgraph(main_graph_nodes).copy()
+        LOGGER.warning(f"Reduced graph nodes from {len(graph.nodes)} to {len(main_graph.nodes)}")
+        LOGGER.warning(f"Reduced graph edges from {len(graph.edges)} to {len(main_graph.edges)}")
         return main_graph
     return graph

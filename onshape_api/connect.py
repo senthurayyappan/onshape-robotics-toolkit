@@ -442,7 +442,7 @@ class Client:
             )
         """
         _request_path = "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
-        _assembly_json = self.request(
+        _res = self.request(
             HTTP.GET,
             _request_path,
             query={
@@ -452,7 +452,13 @@ class Client:
                 "configuration": configuration,
             },
             log_response=log_response,
-        ).json()
+        )
+
+        if _res.status_code == 401:
+            LOGGER.warning(f"Unauthorized access to document: {did}")
+            exit(1)
+
+        _assembly_json = _res.json()
 
         _assembly = Assembly.model_validate(_assembly_json)
         _document = Document(did=did, wtype=wtype, wid=wid, eid=eid)
@@ -531,6 +537,7 @@ class Client:
             else:
                 LOGGER.info(f"{
                     generate_url(
+                        base_url=self._url,
                         did=did,
                         wtype="w",
                         wid=wid,
@@ -544,6 +551,7 @@ class Client:
         else:
             LOGGER.info(f"{
                 generate_url(
+                    base_url=self._url,
                     did=did,
                     wtype="w",
                     wid=wid,
@@ -605,6 +613,7 @@ class Client:
 
             raise ValueError(f"Part: {
                 generate_url(
+                    base_url=self._url,
                     did=did,
                     wtype="w",
                     wid=wid,

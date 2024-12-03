@@ -1299,3 +1299,17 @@ class Assembly(BaseModel):
 
     document: Union[Document, None] = Field(None, description="The document associated with the assembly.")
     name: Union[str, None] = Field(None, description="The name of the assembly.")
+
+
+if __name__ == "__main__":
+    # mated_cs = MatedCS(
+    #     xAxis=[1.0, 2.0, 3.0],
+    #     yAxis=[4.0, 5.0, 6.0],
+    #     zAxis=[7.0, 8.0, 9.0],
+    #     origin=[10.0, 11.0, 12.0],
+    # )
+
+    transform = [1.0, 0.0, 0.0, 0.1, 0.0, 1.0, 0.0, -0.15, 0.0, 0.0, 1.0, -0.01, 0.0, 0.0, 0.0, 1.0]
+
+    mated_cs = MatedCS.from_tf(np.matrix(transform).reshape(4, 4))
+    print(mated_cs.xAxis, mated_cs.yAxis, mated_cs.zAxis, mated_cs.origin)

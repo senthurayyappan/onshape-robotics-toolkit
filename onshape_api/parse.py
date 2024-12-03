@@ -306,6 +306,7 @@ def get_mates_and_relations(  # noqa: C901
     subassembly_map: dict[str, SubAssembly],
     id_to_name_map: dict[str, str],
     occurences_map: dict[str, Occurrence],
+    parts: dict[str, Part],
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
     Get mates and relations of an Onshape assembly.
@@ -420,8 +421,15 @@ def get_mates_and_relations(  # noqa: C901
 
                     try:
                         parent_tf = np.matrix(occurences_map[parent_name].transform).reshape(4, 4)
-
                         child_tf = np.matrix(occurences_map[child_name].transform).reshape(4, 4)
+
+                        if subassembly_prefix is not None:
+                            # this is a subassembly and we gotta apply the occurrence transform of the assembly
+                            assembly_tf = np.matrix(occurences_map[subassembly_prefix].transform).reshape(4, 4)
+                            parent_tf = assembly_tf @ parent_tf
+                            child_tf = assembly_tf @ child_tf
+                            # print(f"Parent TF: {parent_tf}")
+                            # print(f"Child TF: {child_tf}")
 
                     except KeyError as e:
                         LOGGER.warning(e)
