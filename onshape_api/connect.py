@@ -538,7 +538,7 @@ class Client:
 
             fid = status_info.get("resultExternalDataIds")[0]
             data_path = f"/api/documents/d/{did}/externaldata/{fid}"
-            print(data_path)
+
             download_response = self.request(
                 HTTP.GET,
                 path=data_path,

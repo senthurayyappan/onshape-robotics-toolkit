@@ -4,6 +4,7 @@ subassemblies, instances, and mates, and generate a hierarchical representation 
 
 """
 
+import copy
 import os
 from typing import Optional, Union
 
@@ -23,7 +24,7 @@ from onshape_api.models.assembly import (
     RootAssembly,
     SubAssembly,
 )
-from onshape_api.utilities.helpers import get_sanitized_name, print_dict
+from onshape_api.utilities.helpers import get_sanitized_name
 
 os.environ["TCL_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6"
 os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"
@@ -209,8 +210,6 @@ def get_subassemblies(
                 else:
                     subassembly_map[key] = subassembly
 
-    print_dict(rigid_subassembly_map)
-
     return subassembly_map, rigid_subassembly_map
 
 
@@ -344,23 +343,22 @@ def get_mates_and_relations(  # noqa: C901
             "MuwOg31fsdH/5O2nX": MateRelationFeatureData(...),
         })
     """
+    for key, rigid_subassembly in rigid_subassembly_map.items():
+        rigid_subassembly_parts = [part_name for part_name in parts if part_name.startswith(key)]
+        for part_key in rigid_subassembly_parts:
+            parts[part_key] = copy.deepcopy(parts[part_key])
+            parts[part_key].isRigidAssembly = True
+            parts[part_key].documentId = rigid_subassembly.documentId
+            parts[part_key].elementId = rigid_subassembly.elementId
+            parts[part_key].documentMicroversion = rigid_subassembly.documentMicroversion
+            parts[part_key].documentVersion = None
+            parts[part_key].MassProperty = rigid_subassembly.MassProperty
 
-    def traverse_assembly(  # noqa: C901
+    def traverse_assembly(
         root: Union[RootAssembly, SubAssembly], subassembly_prefix: Optional[str] = None
     ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
         _mates_map: dict[str, MateFeatureData] = {}
         _relations_map: dict[str, MateRelationFeatureData] = {}
-
-        # let's process the rigid subassemblies first and add them to the parts dictionary
-        for key, rigid_subassembly in rigid_subassembly_map.items():
-            rigid_subassembly_parts = [part_name for part_name in parts if part_name.startswith(key)]
-            for name in rigid_subassembly_parts:
-                parts[name].isRigidAssembly = True
-                parts[name].documentId = rigid_subassembly.documentId
-                parts[name].elementId = rigid_subassembly.elementId
-                parts[name].documentMicroversion = rigid_subassembly.documentMicroversion
-                parts[name].documentVersion = None
-                parts[name].MassProperty = rigid_subassembly.MassProperty
 
         for feature in root.features:
             feature.featureData.id = feature.id
@@ -405,6 +403,7 @@ def get_mates_and_relations(  # noqa: C901
             elif feature.featureType == AssemblyFeatureType.MATECONNECTOR:
                 # TODO: Mate connectors' MatedCS data is already included in the MateFeatureData
                 pass
+
             elif feature.featureType == AssemblyFeatureType.MATEGROUP:
                 LOGGER.info(f"Assembly has a MATEGROUP feature: {feature}")
                 LOGGER.info(

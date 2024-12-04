@@ -258,6 +258,7 @@ def get_robot_joint(
 
     """
     if isinstance(mate, MateFeatureData):
+        # TODO: part to mate tf must be transformed to rigid assembly frame
         parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
     else:
         parent_to_mate_tf = np.eye(4)
