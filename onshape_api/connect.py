@@ -733,29 +733,27 @@ class Client:
             if vid and wtype == WorkspaceType.W:
                 return self.download_part_stl(did, wid, eid, partID, buffer, WorkspaceType.V.value, vid)
             else:
-                LOGGER.info(f"{
-                    generate_url(
-                        base_url=self._url,
-                        did=did,
-                        wtype="w",
-                        wid=wid,
-                        eid=eid,
-                    )
-                }")
-                LOGGER.info(
-                    f"No version ID provided, failed to download STL file: {response.status_code} - {response.text}"
-                )
-
-        else:
-            LOGGER.info(f"{
-                generate_url(
+                url = generate_url(
                     base_url=self._url,
                     did=did,
                     wtype="w",
                     wid=wid,
                     eid=eid,
                 )
-            }")
+                LOGGER.info(f"{url}")
+                LOGGER.info(
+                    f"No version ID provided, failed to download STL file: {response.status_code} - {response.text}"
+                )
+
+        else:
+            url = generate_url(
+                base_url=self._url,
+                did=did,
+                wtype="w",
+                wid=wid,
+                eid=eid,
+            )
+            LOGGER.info(f"{url}")
             LOGGER.info(f"Failed to download STL file: {response.status_code} - {response.text}")
 
         return buffer
@@ -863,15 +861,14 @@ class Client:
             if vid and wtype == WorkspaceType.W:
                 return self.get_mass_property(did, wid, eid, partID, vid, WorkspaceType.V.value)
 
-            raise ValueError(f"Part: {
-                generate_url(
-                    base_url=self._url,
-                    did=did,
-                    wtype="w",
-                    wid=wid,
-                    eid=eid,
-                )
-            } does not have a material assigned or the part is not found")
+            url = generate_url(
+                base_url=self._url,
+                did=did,
+                wtype="w",
+                wid=wid,
+                eid=eid,
+            )
+            raise ValueError(f"Part: {url} does not have a material assigned or the part is not found")
 
         _resonse_json = res.json()
 

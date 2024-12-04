@@ -32,9 +32,11 @@ if __name__ == "__main__":
     occurrences = opa.get_occurrences(assembly, id_to_name_map)
 
     parts = opa.get_parts(assembly, client, instances)
-    subassemblies = opa.get_subassemblies(assembly, instances)
+    subassemblies, rigid_subassemblies = opa.get_subassemblies(assembly, client, instances)
 
-    mates, relations = opa.get_mates_and_relations(assembly, subassemblies, id_to_name_map)
+    mates, relations = opa.get_mates_and_relations(
+        assembly, subassemblies, rigid_subassemblies, id_to_name_map, occurrences, parts
+    )
     graph, root_node = opa.create_graph(
         occurrences=occurrences,
         instances=instances,

@@ -102,11 +102,10 @@ def download_link_stl(
 
     try:
         with io.BytesIO() as buffer:
-            LOGGER.info(f"Downloading {"Rigid Assembly" if is_rigid_assembly else "Part"} STL: {file_name}")
+            LOGGER.info(f"Downloading {'Rigid Assembly' if is_rigid_assembly else 'Part'} STL: {file_name}")
 
             if not is_rigid_assembly:
                 client.download_part_stl(did=did, wid=wid, eid=eid, partID=partID, buffer=buffer, vid=vid)
-
             else:
                 client.download_assembly_stl(did=did, wid=wid, eid=eid, vid=vid, buffer=buffer)
 
