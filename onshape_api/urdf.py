@@ -51,46 +51,65 @@ SCRIPT_DIR = os.path.dirname(__file__)
 CURRENT_DIR = os.getcwd()
 
 
-def download_stl_mesh(
-    did: str, wid: str, eid: str, partID: str, vid: str, client: Client, transform: np.ndarray, file_name: str
+def download_link_stl(
+    did: str,
+    wid: str,
+    eid: str,
+    vid: str,
+    client: Client,
+    transform: np.ndarray,
+    file_name: str,
+    is_rigid_assembly: bool = False,
+    partID: Optional[str] = None,
 ) -> str:
     """
-    Download an STL mesh from an Onshape part studio, transform it, and save it to a file.
+    Download an STL mesh (part or assembly), transform it, and save it to a file.
 
     Args:
         did: The unique identifier of the document.
         wid: The unique identifier of the workspace.
         eid: The unique identifier of the element.
-        partID: The unique identifier of the part.
         vid: The unique identifier of the version of the document.
         client: The Onshape client object to use for sending API requests.
         transform: The transformation matrix to apply to the mesh.
         file_name: The name of the file to save the mesh to.
+        download_type: Specify whether to download "part" or "assembly".
+        partID: The unique identifier of the part (required if download_type is "part").
 
     Returns:
         str: The relative path to the saved mesh file.
 
     Raises:
+        ValueError: If required arguments are missing or invalid.
         Exception: If an error occurs while downloading the mesh.
 
     Examples:
-        >>> download_stl_mesh(
+        >>> download_stl(
         ...     did="document_id",
         ...     wid="workspace_id",
         ...     eid="element_id",
-        ...     partID="part_id",
         ...     vid="version_id",
         ...     client=client,
         ...     transform=np.eye(4),
-        ...     file_name="part.stl"
+        ...     file_name="output.stl",
+        ...     download_type="part",
+        ...     partID="part_id"
         ... )
-        "meshes/part.stl"
+        "meshes/output.stl"
     """
+    if not is_rigid_assembly and partID is None:
+        raise ValueError("partID is required when download_type is 'part'.")
 
     try:
         with io.BytesIO() as buffer:
-            LOGGER.info(f"Downloading mesh for {file_name}...")
-            client.download_stl(did=did, wid=wid, eid=eid, partID=partID, buffer=buffer, vid=vid)
+            LOGGER.info(f"Downloading {"Rigid Assembly" if is_rigid_assembly else "Part"} STL: {file_name}")
+
+            if not is_rigid_assembly:
+                client.download_part_stl(did=did, wid=wid, eid=eid, partID=partID, buffer=buffer, vid=vid)
+
+            else:
+                client.download_assembly_stl(did=did, wid=wid, eid=eid, vid=vid, buffer=buffer)
+
             buffer.seek(0)
 
             raw_mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
@@ -106,7 +125,7 @@ def download_stl_mesh(
             return os.path.relpath(save_path, CURRENT_DIR)
 
     except Exception as e:
-        LOGGER.warning(f"An error occurred: {e}")
+        LOGGER.warning(f"An error occurred while downloading or transforming the mesh: {e}")
         raise
 
 
@@ -163,7 +182,7 @@ def get_robot_link(
 
     LOGGER.info(f"Creating robot link for {name}")
 
-    _mesh_path = download_stl_mesh(
+    _mesh_path = download_link_stl(
         did=part.documentId,
         wid=wid,
         eid=part.elementId,
@@ -171,6 +190,7 @@ def get_robot_link(
         vid=part.documentVersion,
         client=client,
         transform=_stl_to_link_tf,
+        is_rigid_assembly=part.isRigidAssembly,
         file_name=f"{name}.stl",
     )
 

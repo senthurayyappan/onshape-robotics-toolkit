@@ -7,8 +7,6 @@ subassemblies, instances, and mates, and generate a hierarchical representation 
 import os
 from typing import Optional, Union
 
-import numpy as np
-
 from onshape_api.connect import Client
 from onshape_api.log import LOGGER
 from onshape_api.models.assembly import (
@@ -16,11 +14,8 @@ from onshape_api.models.assembly import (
     AssemblyFeatureType,
     AssemblyInstance,
     InstanceType,
-    MatedCS,
-    MatedEntity,
     MateFeatureData,
     MateRelationFeatureData,
-    MateType,
     Occurrence,
     Part,
     PartInstance,
@@ -28,7 +23,7 @@ from onshape_api.models.assembly import (
     RootAssembly,
     SubAssembly,
 )
-from onshape_api.utilities.helpers import get_sanitized_name
+from onshape_api.utilities.helpers import get_sanitized_name, print_dict
 
 os.environ["TCL_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6"
 os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"
@@ -167,8 +162,8 @@ def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str]) -> dict[
 
 
 def get_subassemblies(
-    assembly: Assembly, instance_map: dict[str, Union[PartInstance, AssemblyInstance]]
-) -> dict[str, SubAssembly]:
+    assembly: Assembly, client: Client, instance_map: dict[str, Union[PartInstance, AssemblyInstance]]
+) -> tuple[dict[str, SubAssembly], dict[str, SubAssembly]]:
     """
     Get subassemblies of an Onshape assembly.
 
@@ -189,6 +184,8 @@ def get_subassemblies(
         }
     """
     subassembly_map: dict[str, SubAssembly] = {}
+    rigid_subassembly_map: dict[str, SubAssembly] = {}
+
     subassembly_instance_map: dict[str, list[str]] = {}
 
     for key, instance in instance_map.items():
@@ -199,9 +196,22 @@ def get_subassemblies(
         LOGGER.info(f"Parsing subassembly: {subassembly.uid}")
         if subassembly.uid in subassembly_instance_map:
             for key in subassembly_instance_map[subassembly.uid]:
-                subassembly_map[key] = subassembly
+                if len(subassembly.features) == 0 or all(
+                    feature.featureType == AssemblyFeatureType.MATEGROUP for feature in subassembly.features
+                ):
+                    subassembly.MassProperty = client.get_assembly_mass_properties(
+                        did=subassembly.documentId,
+                        wid=assembly.document.wid,
+                        eid=subassembly.elementId,
+                    )
+                    rigid_subassembly_map[key] = subassembly
 
-    return subassembly_map
+                else:
+                    subassembly_map[key] = subassembly
+
+    print_dict(rigid_subassembly_map)
+
+    return subassembly_map, rigid_subassembly_map
 
 
 def get_parts(
@@ -304,6 +314,7 @@ def join_mate_occurrences(parent: list[str], child: list[str], prefix: Optional[
 def get_mates_and_relations(  # noqa: C901
     assembly: Assembly,
     subassembly_map: dict[str, SubAssembly],
+    rigid_subassembly_map: dict[str, SubAssembly],
     id_to_name_map: dict[str, str],
     occurences_map: dict[str, Occurrence],
     parts: dict[str, Part],
@@ -339,6 +350,17 @@ def get_mates_and_relations(  # noqa: C901
     ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
         _mates_map: dict[str, MateFeatureData] = {}
         _relations_map: dict[str, MateRelationFeatureData] = {}
+
+        # let's process the rigid subassemblies first and add them to the parts dictionary
+        for key, rigid_subassembly in rigid_subassembly_map.items():
+            rigid_subassembly_parts = [part_name for part_name in parts if part_name.startswith(key)]
+            for name in rigid_subassembly_parts:
+                parts[name].isRigidAssembly = True
+                parts[name].documentId = rigid_subassembly.documentId
+                parts[name].elementId = rigid_subassembly.elementId
+                parts[name].documentMicroversion = rigid_subassembly.documentMicroversion
+                parts[name].documentVersion = None
+                parts[name].MassProperty = rigid_subassembly.MassProperty
 
         for feature in root.features:
             feature.featureData.id = feature.id
@@ -384,86 +406,11 @@ def get_mates_and_relations(  # noqa: C901
                 # TODO: Mate connectors' MatedCS data is already included in the MateFeatureData
                 pass
             elif feature.featureType == AssemblyFeatureType.MATEGROUP:
-                # LOGGER.info(f"Skipping MATEGROUP feature: {feature.featureData.occurrences}")
-
-                for i in range(1, len(feature.featureData.occurrences)):
-                    parent_occurrences = [
-                        id_to_name_map[occurrence] for occurrence in feature.featureData.occurrences[i - 1].occurrence
-                    ]
-                    child_occurrences = [
-                        id_to_name_map[occurrence] for occurrence in feature.featureData.occurrences[i].occurrence
-                    ]
-
-                    if parent_occurrences[0] in subassembly_map:
-                        if subassembly_prefix is None:
-                            parent_occurrences = [
-                                parent_occurrences[0],
-                                id_to_name_map[subassembly_map[parent_occurrences[0]].instances[0].id],
-                            ]
-                        else:
-                            parent_occurrences = [
-                                id_to_name_map[subassembly_map[parent_occurrences[0]].instances[0].id],
-                            ]
-
-                    if child_occurrences[0] in subassembly_map:
-                        if subassembly_prefix is None:
-                            child_occurrences = [
-                                child_occurrences[0],
-                                id_to_name_map[subassembly_map[child_occurrences[0]].instances[0].id],
-                            ]
-                        else:
-                            child_occurrences = [
-                                id_to_name_map[subassembly_map[child_occurrences[0]].instances[0].id],
-                            ]
-
-                    parent_name = get_occurrence_name(parent_occurrences, subassembly_prefix)
-                    child_name = get_occurrence_name(child_occurrences, subassembly_prefix)
-
-                    try:
-                        parent_tf = np.matrix(occurences_map[parent_name].transform).reshape(4, 4)
-                        child_tf = np.matrix(occurences_map[child_name].transform).reshape(4, 4)
-
-                        if subassembly_prefix is not None:
-                            # this is a subassembly and we gotta apply the occurrence transform of the assembly
-                            assembly_tf = np.matrix(occurences_map[subassembly_prefix].transform).reshape(4, 4)
-                            parent_tf = assembly_tf @ parent_tf
-                            child_tf = assembly_tf @ child_tf
-                            # print(f"Parent TF: {parent_tf}")
-                            # print(f"Child TF: {child_tf}")
-
-                    except KeyError as e:
-                        LOGGER.warning(e)
-                        LOGGER.warning(f"Mate feature: {parent_occurrences[0] in subassembly_map}")
-                        # LOGGER.warning(f"Parent occurrences: {parent_occurrences}")
-                        # LOGGER.warning(f"Child occurrences: {child_occurrences}")
-                        # LOGGER.warning(f"Subassembly prefix: {subassembly_prefix}")
-                        exit(1)
-
-                    mated_entities = [
-                        MatedEntity(
-                            matedOccurrence=[SUBASSEMBLY_JOINER.join(parent_occurrences)],
-                            matedCS=MatedCS.from_tf(parent_tf),
-                        ),
-                        MatedEntity(
-                            matedOccurrence=[SUBASSEMBLY_JOINER.join(child_occurrences)],
-                            matedCS=MatedCS.from_tf(child_tf),
-                        ),
-                    ]
-
-                    mate_feature_data = MateFeatureData(
-                        id=feature.id,
-                        matedEntities=mated_entities,
-                        mateType=MateType.FASTENED,
-                        name=feature.featureData.name,
-                    )
-
-                    _mates_map[
-                        join_mate_occurrences(
-                            parent=parent_occurrences,
-                            child=child_occurrences,
-                            prefix=subassembly_prefix,
-                        )
-                    ] = mate_feature_data
+                LOGGER.info(f"Assembly has a MATEGROUP feature: {feature}")
+                LOGGER.info(
+                    "MATEGROUPS are now only supported within subassemblies and are considered as rigid bodies."
+                )
+                LOGGER.info("For more information, please refer to the documentation.")
 
         return _mates_map, _relations_map
 

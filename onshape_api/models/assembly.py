@@ -383,6 +383,10 @@ class Part(IDBase):
         None, description="The mass properties of the part, this is a retrieved via a separate API call."
     )
 
+    isRigidAssembly: bool = Field(
+        False, description="Indicates if the part is a rigid assembly, i.e., a sub-assembly with no degrees of freedom."
+    )
+
     @property
     def uid(self) -> str:
         """
@@ -1150,6 +1154,10 @@ class SubAssembly(IDBase):
     )
     patterns: list[Pattern] = Field(..., description="A list of patterns in the sub-assembly.")
     features: list[AssemblyFeature] = Field(..., description="A list of features in the sub-assembly")
+
+    MassProperty: Union[MassProperties, None] = Field(
+        None, description="The mass properties of the sub-assembly, this is a retrieved via a separate API call."
+    )
 
     @property
     def uid(self) -> str:

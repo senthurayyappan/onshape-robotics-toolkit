@@ -18,6 +18,7 @@ import hmac
 import os
 import secrets
 import string
+import time
 from enum import Enum
 from typing import Any, BinaryIO, Optional
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -127,7 +128,7 @@ class Client:
         get_variables: Get list of variables in a variable studio.
         set_variables: Set variables in a variable studio.
         get_assembly: Get assembly data for a specified document / workspace / assembly.
-        download_stl: Download an STL file from a part studio.
+        download_part_stl: Download an STL file from a part studio.
         get_mass_property: Get mass properties for a part in a part studio.
         request: Issue a request to the Onshape API.
 
@@ -456,6 +457,7 @@ class Client:
 
         if _res.status_code == 401:
             LOGGER.warning(f"Unauthorized access to document: {did}")
+            LOGGER.warning("Please check the API keys in your env file.")
             exit(1)
 
         _assembly_json = _res.json()
@@ -471,7 +473,105 @@ class Client:
 
         return _assembly, _assembly_json
 
-    def download_stl(
+    def download_assembly_stl(
+        self,
+        did: str,
+        wid: str,
+        eid: str,
+        buffer: BinaryIO,
+        wtype: str = WorkspaceType.W.value,
+        vid: Optional[str] = None,
+        configuration: str = "default",
+    ):
+        """
+        Download an STL file from an assembly. The file is written to the buffer.
+
+        Args:
+            did: The unique identifier of the document.
+            wtype: The type of workspace.
+            wid: The unique identifier of the workspace.
+            eid: The unique identifier of the element.
+            vid: The unique identifier of the version workspace.
+            configuration: The configuration of the assembly.
+
+        """
+        req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
+        _request_path = (
+            f"/api/assemblies/d/{did}/{wtype}/" f"{wid if wtype == WorkspaceType.W else vid}/e/{eid}/translations"
+        )
+
+        # Initiate the translation
+        payload = {
+            "formatName": "STL",
+            "storeInDocument": "false",
+        }
+        response = self.request(
+            HTTP.POST,
+            path=_request_path,
+            body=payload,
+        )
+
+        if response.status_code == 200:
+            job_info = response.json()
+            translation_id = job_info.get("id")
+            if not translation_id:
+                LOGGER.error("Translation job ID not found in response.")
+                return None
+
+            status_path = f"/api/translations/{translation_id}"
+            while True:
+                status_response = self.request(HTTP.GET, path=status_path)
+                if status_response.status_code != 200:
+                    LOGGER.error(f"Failed to get translation status: {status_response.text}")
+                    return None
+
+                status_info = status_response.json()
+                request_state = status_info.get("requestState")
+                LOGGER.info(f"Current status: {request_state}")
+                if request_state == "DONE":
+                    LOGGER.info("Translation job completed.")
+                    break
+                elif request_state == "FAILED":
+                    LOGGER.error("Translation job failed.")
+                    return None
+                time.sleep(1)
+
+            fid = status_info.get("resultExternalDataIds")[0]
+            data_path = f"/api/documents/d/{did}/externaldata/{fid}"
+            print(data_path)
+            download_response = self.request(
+                HTTP.GET,
+                path=data_path,
+                headers=req_headers,
+            )
+            if download_response.status_code == 200:
+                buffer.write(download_response.content)
+                LOGGER.info("STL file downloaded successfully.")
+                return buffer
+            else:
+                LOGGER.error(f"Failed to download STL file: {download_response.text}")
+                return None
+
+        elif response.status_code in (404, 400):
+            if vid and wtype == WorkspaceType.W:
+                return self.download_assembly_stl(did, WorkspaceType.V.value, wid, eid, vid)
+            else:
+                LOGGER.info(f"Failed to download assembly: {response.status_code} - {response.text}")
+                LOGGER.info(
+                    generate_url(
+                        base_url=self._url,
+                        did=did,
+                        wtype="w",
+                        wid=wid,
+                        eid=eid,
+                    )
+                )
+        else:
+            LOGGER.error(f"Unexpected error: {response.status_code} - {response.text}")
+
+        return buffer
+
+    def download_part_stl(
         self,
         did: str,
         wid: str,
@@ -498,7 +598,7 @@ class Client:
 
         Examples:
             >>> with io.BytesIO() as buffer:
-            ...     client.download_stl(
+            ...     client.download_part_stl(
             ...         "a1c1addf75444f54b504f25c",
             ...         "0d17b8ebb2a4c76be9fff3c7",
             ...         "a86aaf34d2f4353288df8812",
@@ -533,7 +633,7 @@ class Client:
             buffer.write(response.content)
         elif response.status_code == 404 or response.status_code == 400:
             if vid and wtype == WorkspaceType.W:
-                return self.download_stl(did, wid, eid, partID, buffer, WorkspaceType.V.value, vid)
+                return self.download_part_stl(did, wid, eid, partID, buffer, WorkspaceType.V.value, vid)
             else:
                 LOGGER.info(f"{
                     generate_url(
@@ -561,6 +661,60 @@ class Client:
             LOGGER.info(f"Failed to download STL file: {response.status_code} - {response.text}")
 
         return buffer
+
+    def get_assembly_mass_properties(
+        self, did: str, wid: str, eid: str, vid: Optional[str] = None, wtype: str = WorkspaceType.W.value
+    ) -> MassProperties:
+        """
+        Get mass properties of a rigid assembly in a document.
+
+        Args:
+            did: The unique identifier of the document.
+            wid: The unique identifier of the workspace.
+            eid: The unique identifier of the rigid assembly.
+            vid: The unique identifier of the document version.
+            wtype: The type of workspace.
+
+        Returns:
+            MassProperties object containing the mass properties of the assembly.
+
+        Examples:
+            >>> mass_properties = client.get_assembly_mass_properties(
+            ...     did="a1c1addf75444f54b504f25c",
+            ...     wid="0d17b8ebb2a4c76be9fff3c7",
+            ...     eid="a86aaf34d2f4353288df8812",
+            ...     vid="0d17bae7b2a4c76be9fff3c7",
+            ...     wtype="w"
+            ... )
+            >>> print(mass_properties)
+            MassProperties(
+                volume=[0.003411385108378978, 0.003410724395374695, 0.0034120458213832646],
+                mass=[9.585992154544929, 9.584199206938452, 9.587785102151415],
+                centroid=[...],
+                inertia=[...],
+                principalInertia=[0.09944605933465941, 0.09944605954654827, 0.19238058837442526],
+                principalAxes=[...]
+            )
+        """
+        _request_path = (
+            f"/api/assemblies/d/{did}/{wtype}/" f"{wid if wtype == WorkspaceType.W else vid}/e/{eid}/massproperties"
+        )
+        res = self.request(HTTP.GET, _request_path, log_response=False)
+
+        if res.status_code == 404:
+            if vid and wtype == WorkspaceType.W:
+                return self.get_assembly_mass_properties(did, wid, eid, vid, WorkspaceType.V.value)
+
+            url = generate_url(
+                base_url=self._url,
+                did=did,
+                wtype="w",
+                wid=wid,
+                eid=eid,
+            )
+            raise ValueError(f"Assembly: {url} does not have a mass property")
+
+        return MassProperties.model_validate(res.json())
 
     def get_mass_property(
         self, did: str, wid: str, eid: str, partID: str, vid: Optional[str], wtype: str = WorkspaceType.W.value
