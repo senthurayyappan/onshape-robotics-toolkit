@@ -8,6 +8,8 @@ import copy
 import os
 from typing import Optional, Union
 
+import numpy as np
+
 from onshape_api.connect import Client
 from onshape_api.log import LOGGER
 from onshape_api.models.assembly import (
@@ -15,6 +17,7 @@ from onshape_api.models.assembly import (
     AssemblyFeatureType,
     AssemblyInstance,
     InstanceType,
+    MatedCS,
     MateFeatureData,
     MateRelationFeatureData,
     Occurrence,
@@ -25,7 +28,7 @@ from onshape_api.models.assembly import (
     SubAssembly,
 )
 from onshape_api.models.document import WorkspaceType
-from onshape_api.utilities.helpers import get_sanitized_name, save_model_as_json
+from onshape_api.utilities.helpers import get_sanitized_name
 
 os.environ["TCL_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6"
 os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"
@@ -209,10 +212,6 @@ def get_subassemblies(
                         with_mass_properties=True,
                         log_response=True,
                     )
-                    save_model_as_json(rigid_subassembly_map[key], f"{key}.json")
-
-                    print(rigid_subassembly_map[key].occurrences)
-
                 else:
                     subassembly_map[key] = subassembly
 
@@ -319,9 +318,8 @@ def join_mate_occurrences(parent: list[str], child: list[str], prefix: Optional[
 def get_mates_and_relations(  # noqa: C901
     assembly: Assembly,
     subassembly_map: dict[str, SubAssembly],
-    rigid_subassembly_map: dict[str, SubAssembly],
+    rigid_subassembly_map: dict[str, RootAssembly],
     id_to_name_map: dict[str, str],
-    occurences_map: dict[str, Occurrence],
     parts: dict[str, Part],
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
@@ -350,8 +348,18 @@ def get_mates_and_relations(  # noqa: C901
         })
     """
     for key, rigid_subassembly in rigid_subassembly_map.items():
+        occurrence_map: dict[str, Occurrence] = {}
+        for occurrence in rigid_subassembly.occurrences:
+            try:
+                occurrence_path = [id_to_name_map[path] for path in occurrence.path]
+                occurrence_map[SUBASSEMBLY_JOINER.join(occurrence_path)] = occurrence
+
+            except KeyError:
+                LOGGER.warning(f"Occurrence path {occurrence.path} not found")
+
         rigid_subassembly_parts = [part_name for part_name in parts if part_name.startswith(key)]
         for part_key in rigid_subassembly_parts:
+            part_reference = part_key.split(SUBASSEMBLY_JOINER)[-1]
             parts[part_key] = copy.deepcopy(parts[part_key])
             parts[part_key].isRigidAssembly = True
             parts[part_key].documentId = rigid_subassembly.documentId
@@ -359,6 +367,9 @@ def get_mates_and_relations(  # noqa: C901
             parts[part_key].documentMicroversion = rigid_subassembly.documentMicroversion
             parts[part_key].documentVersion = None
             parts[part_key].MassProperty = rigid_subassembly.MassProperty
+            parts[part_key].rigidAssemblyToPartTF = MatedCS.from_tf(
+                np.matrix(occurrence_map[part_reference].transform).reshape(4, 4)
+            )
 
     def traverse_assembly(
         root: Union[RootAssembly, SubAssembly], subassembly_prefix: Optional[str] = None

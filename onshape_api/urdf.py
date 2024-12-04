@@ -231,6 +231,7 @@ def get_robot_joint(
     stl_to_parent_tf: np.matrix,
     mimic: Optional[JointMimic] = None,
     is_rigid_assembly: bool = False,
+    rigid_assembly_to_part_tf: Optional[np.matrix] = None,
 ) -> BaseJoint:
     """
     Generate a URDF joint from an Onshape mate feature.
@@ -261,10 +262,7 @@ def get_robot_joint(
         if not is_rigid_assembly:
             parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
         else:
-            # TODO: how do we transform part to mate tf to rigid subassembly to mate tf?
-            # we need to get the subassembly to part tf
-            subassembly_to_part_tf = np.eye(4)
-            parent_to_mate_tf = subassembly_to_part_tf @ mate.matedEntities[PARENT].matedCS.part_to_mate_tf
+            parent_to_mate_tf = rigid_assembly_to_part_tf @ mate.matedEntities[PARENT].matedCS.part_to_mate_tf
 
     else:
         parent_to_mate_tf = np.eye(4)
@@ -468,6 +466,7 @@ def get_urdf_components(
             parent_tf,
             joint_mimic,
             is_rigid_assembly=parts[parent].isRigidAssembly,
+            rigid_assembly_to_part_tf=parts[parent].rigidAssemblyToPartTF.part_tf,
         )
         joints.append(joint)
 
