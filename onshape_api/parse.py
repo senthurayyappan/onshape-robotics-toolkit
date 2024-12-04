@@ -24,7 +24,8 @@ from onshape_api.models.assembly import (
     RootAssembly,
     SubAssembly,
 )
-from onshape_api.utilities.helpers import get_sanitized_name
+from onshape_api.models.document import WorkspaceType
+from onshape_api.utilities.helpers import get_sanitized_name, save_model_as_json
 
 os.environ["TCL_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6"
 os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"
@@ -185,7 +186,7 @@ def get_subassemblies(
         }
     """
     subassembly_map: dict[str, SubAssembly] = {}
-    rigid_subassembly_map: dict[str, SubAssembly] = {}
+    rigid_subassembly_map: dict[str, RootAssembly] = {}
 
     subassembly_instance_map: dict[str, list[str]] = {}
 
@@ -200,12 +201,17 @@ def get_subassemblies(
                 if len(subassembly.features) == 0 or all(
                     feature.featureType == AssemblyFeatureType.MATEGROUP for feature in subassembly.features
                 ):
-                    subassembly.MassProperty = client.get_assembly_mass_properties(
+                    rigid_subassembly_map[key] = client.get_root_assembly(
                         did=subassembly.documentId,
+                        wtype=WorkspaceType.W.value,
                         wid=assembly.document.wid,
                         eid=subassembly.elementId,
+                        with_mass_properties=True,
+                        log_response=True,
                     )
-                    rigid_subassembly_map[key] = subassembly
+                    save_model_as_json(rigid_subassembly_map[key], f"{key}.json")
+
+                    print(rigid_subassembly_map[key].occurrences)
 
                 else:
                     subassembly_map[key] = subassembly

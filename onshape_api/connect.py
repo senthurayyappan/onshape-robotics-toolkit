@@ -27,7 +27,7 @@ import requests
 from dotenv import load_dotenv
 
 from onshape_api.log import LOG_LEVEL, LOGGER
-from onshape_api.models.assembly import Assembly
+from onshape_api.models.assembly import Assembly, RootAssembly
 from onshape_api.models.document import BASE_URL, Document, DocumentMetaData, WorkspaceType, generate_url
 from onshape_api.models.element import Element
 from onshape_api.models.mass import MassProperties
@@ -384,6 +384,89 @@ class Client:
 
         return name
 
+    def get_root_assembly(
+        self,
+        did: str,
+        wtype: str,
+        wid: str,
+        eid: str,
+        configuration: str = "default",
+        with_mass_properties: bool = False,
+        log_response: bool = True,
+    ) -> RootAssembly:
+        """
+        Get root assembly data for a specified document / workspace / element.
+
+        Args:
+            did: The unique identifier of the document.
+            wtype: The type of workspace.
+            wid: The unique identifier of the workspace.
+            eid: The unique identifier of the element.
+            configuration: The configuration of the assembly.
+            log_response: Log the response from the API request.
+
+        Returns:
+            RootAssembly: RootAssembly object containing the root assembly data
+
+        Examples:
+            >>> root_assembly = client.get_root_assembly(
+            ...     did="a1c1addf75444f54b504f25c",
+            ...     wtype="w",
+            ...     wid="0d17b8ebb2a4c76be9fff3c7",
+            ...     eid="a86aaf34d2f4353288df8812"
+            ... )
+            >>> print(root_assembly)
+            RootAssembly(
+                instances=[...],
+                patterns=[...],
+                features=[...],
+                occurrences=[...],
+                fullConfiguration="default",
+                configuration="default",
+                documentId="a1c1addf75444f54b504f25c",
+                elementId="0b0c209535554345432581fe",
+                documentMicroversion="349f6413cafefe8fb4ab3b07",
+            )
+        """
+        _request_path = "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
+        _res = self.request(
+            HTTP.GET,
+            _request_path,
+            query={
+                "includeMateFeatures": "true",
+                "includeMateConnectors": "true",
+                "includeNonSolids": "false",
+                "configuration": configuration,
+            },
+            log_response=log_response,
+        )
+
+        if _res.status_code == 401:
+            LOGGER.warning(f"Unauthorized access to document: {did}")
+            LOGGER.warning("Please check the API keys in your env file.")
+            exit(1)
+
+        if _res.status_code == 404:
+            LOGGER.error(f"Assembly not found: {did}")
+            LOGGER.error(
+                generate_url(
+                    base_url=self._url,
+                    did=did,
+                    wtype=wtype,
+                    wid=wid,
+                    eid=eid,
+                )
+            )
+            exit(1)
+
+        _assembly_json = _res.json()
+        _assembly = RootAssembly.model_validate(_assembly_json["rootAssembly"])
+
+        if with_mass_properties:
+            _assembly.MassProperty = self.get_assembly_mass_properties(did, wid, eid)
+
+        return _assembly
+
     def get_assembly(
         self,
         did: str,
@@ -460,6 +543,19 @@ class Client:
             LOGGER.warning("Please check the API keys in your env file.")
             exit(1)
 
+        if _res.status_code == 404:
+            LOGGER.error(f"Assembly not found: {did}")
+            LOGGER.error(
+                generate_url(
+                    base_url=self._url,
+                    did=did,
+                    wtype=wtype,
+                    wid=wid,
+                    eid=eid,
+                )
+            )
+            exit(1)
+
         _assembly_json = _res.json()
 
         _assembly = Assembly.model_validate(_assembly_json)
@@ -509,6 +605,7 @@ class Client:
             HTTP.POST,
             path=_request_path,
             body=payload,
+            log_response=False,
         )
 
         if response.status_code == 200:
@@ -543,6 +640,7 @@ class Client:
                 HTTP.GET,
                 path=data_path,
                 headers=req_headers,
+                log_response=False,
             )
             if download_response.status_code == 200:
                 buffer.write(download_response.content)
