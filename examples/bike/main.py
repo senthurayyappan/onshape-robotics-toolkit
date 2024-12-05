@@ -28,10 +28,14 @@ assembly, _ = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembl
 
 instances, id_to_name_map = get_instances(assembly)
 occurrences = get_occurrences(assembly, id_to_name_map)
-subassemblies = get_subassemblies(assembly, instances)
 parts = get_parts(assembly, client, instances)
+subassemblies, rigid_subassemblies = get_subassemblies(assembly, client, instances)
 mates, relations = get_mates_and_relations(
-    assembly, subassembly_map=subassemblies, id_to_name_map=id_to_name_map, occurences_map=occurrences
+    assembly=assembly,
+    subassembly_map=subassemblies,
+    rigid_subassembly_map=rigid_subassemblies,
+    id_to_name_map=id_to_name_map,
+    parts=parts,
 )
 
 graph, root_node = create_graph(occurrences=occurrences, instances=instances, parts=parts, mates=mates)

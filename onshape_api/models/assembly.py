@@ -386,7 +386,7 @@ class Part(IDBase):
     isRigidAssembly: bool = Field(
         False, description="Indicates if the part is a rigid assembly, i.e., a sub-assembly with no degrees of freedom."
     )
-    rigidAssemblyToPartTF: Union["MatedCS", None] = Field(
+    rigidAssemblyToPartTF: Union[dict[str, "MatedCS"], None] = Field(
         None, description="The transformation matrix from the rigid assembly to the part coordinate system."
     )
 
@@ -1002,11 +1002,18 @@ class MateFeatureData(BaseModel):
 
     """
 
+    class Config:
+        arbitrary_types_allowed = True
+
     matedEntities: list[MatedEntity] = Field(..., description="A list of mated entities.")
     mateType: MateType = Field(..., description="The type of mate.")
     name: str = Field(..., description="The name of the mate feature.")
 
     id: str = Field(None, description="The unique identifier of the feature.")
+
+    customTF: np.matrix = Field(
+        None, description="The 4x4 transformation matrix for the mate feature, used for custom transformations."
+    )
 
 
 class AssemblyFeature(BaseModel):

@@ -231,7 +231,6 @@ def get_robot_joint(
     stl_to_parent_tf: np.matrix,
     mimic: Optional[JointMimic] = None,
     is_rigid_assembly: bool = False,
-    rigid_assembly_to_part_tf: Optional[np.matrix] = None,
 ) -> BaseJoint:
     """
     Generate a URDF joint from an Onshape mate feature.
@@ -261,8 +260,11 @@ def get_robot_joint(
     if isinstance(mate, MateFeatureData):
         if not is_rigid_assembly:
             parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
+        elif mate.customTF is not None:
+            parent_to_mate_tf = mate.customTF @ mate.matedEntities[PARENT].matedCS.part_to_mate_tf
         else:
-            parent_to_mate_tf = rigid_assembly_to_part_tf @ mate.matedEntities[PARENT].matedCS.part_to_mate_tf
+            LOGGER.warning(f"Custom transformation matrix not found for {mate.id}")
+            parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
 
     else:
         parent_to_mate_tf = np.eye(4)
@@ -466,7 +468,6 @@ def get_urdf_components(
             parent_tf,
             joint_mimic,
             is_rigid_assembly=parts[parent].isRigidAssembly,
-            rigid_assembly_to_part_tf=parts[parent].rigidAssemblyToPartTF.part_tf,
         )
         joints.append(joint)
 

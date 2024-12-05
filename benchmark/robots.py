@@ -37,26 +37,25 @@ if __name__ == "__main__":
     subassemblies, rigid_subassemblies = osa.get_subassemblies(assembly, client, instances)
 
     mates, relations = osa.get_mates_and_relations(assembly, subassemblies, rigid_subassemblies, id_to_name_map, parts)
-    osa.print_dict(mates)
 
-    # graph, root_node = opa.create_graph(
-    #     occurrences=occurrences,
-    #     instances=instances,
-    #     parts=parts,
-    #     mates=mates,
-    #     use_user_defined_root=False,
-    # )
-    # opa.plot_graph(graph, file_name=f"{assembly_robot_name}.png")
+    graph, root_node = osa.create_graph(
+        occurrences=occurrences,
+        instances=instances,
+        parts=parts,
+        mates=mates,
+        use_user_defined_root=False,
+    )
+    osa.plot_graph(graph)
 
-    # links, joints = opa.get_urdf_components(
-    #     assembly=assembly,
-    #     graph=graph,
-    #     root_node=root_node,
-    #     parts=parts,
-    #     mates=mates,
-    #     relations=relations,
-    #     client=client,
-    # )
+    links, joints = osa.get_urdf_components(
+        assembly=assembly,
+        graph=graph,
+        root_node=root_node,
+        parts=parts,
+        mates=mates,
+        relations=relations,
+        client=client,
+    )
 
-    # robot = opa.Robot(name=assembly_robot_name, links=links, joints=joints)
-    # robot.save(f"{assembly_robot_name}.urdf")
+    robot = osa.Robot(name=assembly_robot_name, links=links, joints=joints)
+    robot.save(f"{assembly_robot_name}.urdf")
