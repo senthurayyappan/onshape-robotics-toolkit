@@ -17,7 +17,7 @@ if __name__ == "__main__":
     # ballbot = https://cad.onshape.com/documents/1f42f849180e6e5c9abfce52/w/0c00b6520fac5fada24b2104/e/c96b40ef586e60c182f41d29
 
     document = Document.from_url(
-        "https://cad.onshape.com/documents/12124a46ebda8f31ccfe8c8f/w/820e30e034d40fc174232361/e/54c32b7d2abd32b9bf6d9641"
+        "https://cad.onshape.com/documents/1f42f849180e6e5c9abfce52/w/0c00b6520fac5fada24b2104/e/c96b40ef586e60c182f41d29"
     )
     assembly, _ = client.get_assembly(
         did=document.did,

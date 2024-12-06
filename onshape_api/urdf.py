@@ -23,7 +23,7 @@ from onshape_api.models.assembly import (
     Part,
     RelationType,
 )
-from onshape_api.models.document import WorkspaceType, generate_url
+from onshape_api.models.document import WorkspaceType
 from onshape_api.models.geometry import MeshGeometry
 from onshape_api.models.joint import (
     BaseJoint,
@@ -47,6 +47,7 @@ from onshape_api.models.link import (
     VisualLink,
 )
 from onshape_api.parse import MATE_JOINER, PARENT, RELATION_PARENT
+from onshape_api.utilities.helpers import get_sanitized_name
 
 SCRIPT_DIR = os.path.dirname(__file__)
 CURRENT_DIR = os.getcwd()
@@ -98,15 +99,6 @@ def download_link_stl(
         ... )
         "meshes/output.stl"
     """
-    print(
-        generate_url(
-            base_url=client._url,
-            did=did,
-            wtype=wtype,
-            wid=wid,
-            eid=eid,
-        )
-    )
     if not is_rigid_assembly and partID is None:
         raise ValueError("partID is required when download_type is 'part'.")
 
@@ -248,7 +240,7 @@ def get_robot_link(
 def get_robot_joint(
     parent: str,
     child: str,
-    mate: Union[MateFeatureData],
+    mate: MateFeatureData,
     stl_to_parent_tf: np.matrix,
     mimic: Optional[JointMimic] = None,
     is_rigid_assembly: bool = False,
@@ -290,13 +282,14 @@ def get_robot_joint(
 
     stl_to_mate_tf = stl_to_parent_tf @ parent_to_mate_tf
     origin = Origin.from_matrix(stl_to_mate_tf)
+    sanitized_name = get_sanitized_name(mate.name)
 
     LOGGER.info(f"Creating robot joint from {parent} to {child}")
 
     if mate.mateType == MateType.REVOLUTE:
         return [
             RevoluteJoint(
-                name=f"{parent}{MATE_JOINER}{child}",
+                name=sanitized_name,
                 parent=parent,
                 child=child,
                 origin=origin,
@@ -313,12 +306,12 @@ def get_robot_joint(
         ], links
 
     elif mate.mateType == MateType.FASTENED:
-        return [FixedJoint(name=f"{parent}{MATE_JOINER}{child}", parent=parent, child=child, origin=origin)], links
+        return [FixedJoint(name=sanitized_name, parent=parent, child=child, origin=origin)], links
 
     elif mate.mateType == MateType.SLIDER or mate.mateType == MateType.CYLINDRICAL:
         return [
             PrismaticJoint(
-                name=f"{parent}{MATE_JOINER}{child}",
+                name=sanitized_name,
                 parent=parent,
                 child=child,
                 origin=origin,
@@ -349,7 +342,7 @@ def get_robot_joint(
 
         return [
             RevoluteJoint(
-                name=f"{parent}{MATE_JOINER}{child}_x",
+                name=sanitized_name,
                 parent=parent,
                 child=dummy_x.name,
                 origin=origin,
@@ -364,7 +357,7 @@ def get_robot_joint(
                 mimic=mimic,
             ),
             RevoluteJoint(
-                name=f"{parent}{MATE_JOINER}{child}_y",
+                name=sanitized_name,
                 parent=dummy_x.name,
                 child=dummy_y.name,
                 origin=Origin.zero_origin(),
@@ -379,7 +372,7 @@ def get_robot_joint(
                 mimic=mimic,
             ),
             RevoluteJoint(
-                name=f"{parent}{MATE_JOINER}{child}_z",
+                name=sanitized_name,
                 parent=dummy_y.name,
                 child=child,
                 origin=Origin.zero_origin(),
@@ -397,7 +390,7 @@ def get_robot_joint(
 
     else:
         LOGGER.warning(f"Unsupported joint type: {mate.mateType}")
-        return DummyJoint(name=f"{parent}{MATE_JOINER}{child}", parent=parent, child=child, origin=origin)
+        return DummyJoint(name=sanitized_name, parent=parent, child=child, origin=origin)
 
 
 def get_topological_mates(
