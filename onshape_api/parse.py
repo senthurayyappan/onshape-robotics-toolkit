@@ -4,7 +4,6 @@ subassemblies, instances, and mates, and generate a hierarchical representation 
 
 """
 
-import copy
 import os
 from typing import Optional, Union
 
@@ -206,8 +205,8 @@ def get_subassemblies(
                 ):
                     rigid_subassembly_map[key] = client.get_root_assembly(
                         did=subassembly.documentId,
-                        wtype=WorkspaceType.W.value,
-                        wid=assembly.document.wid,
+                        wtype=WorkspaceType.M.value,
+                        wid=subassembly.documentMicroversion,
                         eid=subassembly.elementId,
                         with_mass_properties=True,
                         log_response=True,
@@ -220,6 +219,7 @@ def get_subassemblies(
 
 def get_parts(
     assembly: Assembly,
+    rigid_subassembly_map: dict[str, RootAssembly],
     client: Client,
     instance_map: dict[str, Union[PartInstance, AssemblyInstance]],
 ) -> dict[str, Part]:
@@ -254,16 +254,18 @@ def get_parts(
             part_instance_map.setdefault(instance.uid, []).append(key)
 
     for part in assembly.parts:
-        LOGGER.info(f"Parsing part: {part.partId}")
+        LOGGER.info(f"Parsing part: {part.documentVersion, part.partId}")
         if part.uid in part_instance_map:
             for key in part_instance_map[part.uid]:
-                part.MassProperty = client.get_mass_property(
-                    did=part.documentId,
-                    wid=assembly.document.wid,
-                    eid=part.elementId,
-                    partID=part.partId,
-                    vid=part.documentVersion,
-                )
+                if key.split(SUBASSEMBLY_JOINER)[0] not in rigid_subassembly_map:
+                    part.MassProperty = client.get_mass_property(
+                        did=part.documentId,
+                        wtype=WorkspaceType.M.value,
+                        wid=part.documentMicroversion,
+                        eid=part.elementId,
+                        partID=part.partId,
+                    )
+
                 part_map[key] = part
 
     return part_map
@@ -347,6 +349,7 @@ def get_mates_and_relations(  # noqa: C901
             "MuwOg31fsdH/5O2nX": MateRelationFeatureData(...),
         })
     """
+    rigid_subassembly_occurrence_map = {}
     for assembly_key, rigid_subassembly in rigid_subassembly_map.items():
         occurrence_map: dict[str, Occurrence] = {}
         for occurrence in rigid_subassembly.occurrences:
@@ -357,25 +360,26 @@ def get_mates_and_relations(  # noqa: C901
             except KeyError:
                 LOGGER.warning(f"Occurrence path {occurrence.path} not found")
 
-        rigid_subassembly_parts = [part_name for part_name in parts if part_name.startswith(assembly_key)]
-        for part_key in rigid_subassembly_parts:
-            part_reference = part_key.split(SUBASSEMBLY_JOINER)[-1]
-            parts[assembly_key] = copy.deepcopy(parts[part_key])
-            parts[assembly_key].isRigidAssembly = True
-            parts[assembly_key].documentId = rigid_subassembly.documentId
-            parts[assembly_key].elementId = rigid_subassembly.elementId
-            parts[assembly_key].documentMicroversion = rigid_subassembly.documentMicroversion
-            parts[assembly_key].documentVersion = None
-            parts[assembly_key].MassProperty = rigid_subassembly.MassProperty
+        parts[assembly_key] = Part(
+            isStandardContent=False,
+            fullConfiguration=rigid_subassembly.fullConfiguration,
+            configuration=rigid_subassembly.configuration,
+            documentId=rigid_subassembly.documentId,
+            elementId=rigid_subassembly.elementId,
+            documentMicroversion=rigid_subassembly.documentMicroversion,
+            documentVersion="",
+            partId="",
+            bodyType="",
+            MassProperty=rigid_subassembly.MassProperty,
+            isRigidAssembly=True,
+            rigidAssemblyWorkspaceId=rigid_subassembly.documentMetaData.defaultWorkspace.id,
+            rigidAssemblyToPartTF={},
+        )
+        rigid_subassembly_occurrence_map[assembly_key] = occurrence_map
 
-            if parts[assembly_key].rigidAssemblyToPartTF is None:
-                parts[assembly_key].rigidAssemblyToPartTF = {}
-
-            parts[assembly_key].rigidAssemblyToPartTF[part_reference] = MatedCS.from_tf(
-                np.matrix(occurrence_map[part_reference].transform).reshape(4, 4)
-            )
-
-            parts.pop(part_key)
+        # parts[assembly_key].rigidAssemblyToPartTF[part_reference] = MatedCS.from_tf(
+        #     np.matrix(occurrence_map[part_reference].transform).reshape(4, 4)
+        # )
 
     def traverse_assembly(  # noqa: C901
         root: Union[RootAssembly, SubAssembly], subassembly_prefix: Optional[str] = None
@@ -408,28 +412,32 @@ def get_mates_and_relations(  # noqa: C901
                     continue
 
                 if parent_occurrences[0] in rigid_subassembly_map:
-                    # get the custom TF
-                    try:
-                        if parts[parent_occurrences[0]].rigidAssemblyToPartTF is not None:
-                            feature.featureData.customTF = (
-                                parts[parent_occurrences[0]].rigidAssemblyToPartTF[parent_occurrences[1]].part_tf
-                            )
-                    except KeyError:
-                        LOGGER.warning(f"Key {parent_occurrences[1]} not found")
-                        LOGGER.warning(f"in {parts[parent_occurrences[0]].rigidAssemblyToPartTF.keys()}")
+                    _occurrence: Occurrence = rigid_subassembly_occurrence_map[parent_occurrences[0]].get(
+                        parent_occurrences[1]
+                    )
+
+                    if _occurrence is not None:
+                        custom_tf = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
+                        parts[parent_occurrences[0]].rigidAssemblyToPartTF[parent_occurrences[1]] = custom_tf
+                        feature.featureData.customTF = custom_tf.part_tf
+                    else:
+                        LOGGER.warning(f"Occurrence {parent_occurrences[1]} not found within {parent_occurrences[0]}")
+                        continue
 
                     parent_occurrences = [parent_occurrences[0]]
 
                 if child_occurrences[0] in rigid_subassembly_map:
-                    # get the custom TF
-                    if parts[child_occurrences[0]].rigidAssemblyToPartTF is not None:
-                        try:
-                            feature.featureData.customTF = (
-                                parts[child_occurrences[0]].rigidAssemblyToPartTF[child_occurrences[1]].part_tf
-                            )
-                        except KeyError:
-                            LOGGER.warning(f"Key {child_occurrences[1]} not found")
-                            LOGGER.warning(f"in {parts[child_occurrences[0]].rigidAssemblyToPartTF.keys()}")
+                    _occurrence: Occurrence = rigid_subassembly_occurrence_map[child_occurrences[0]].get(
+                        child_occurrences[1]
+                    )
+
+                    if _occurrence is not None:
+                        custom_tf = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
+                        parts[child_occurrences[0]].rigidAssemblyToPartTF[child_occurrences[1]] = custom_tf
+                        feature.featureData.customTF = custom_tf.part_tf
+                    else:
+                        LOGGER.warning(f"Occurrence {child_occurrences[1]} not found within {child_occurrences[0]}")
+                        continue
 
                     child_occurrences = [child_occurrences[0]]
 

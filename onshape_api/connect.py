@@ -28,7 +28,7 @@ from dotenv import load_dotenv
 
 from onshape_api.log import LOG_LEVEL, LOGGER
 from onshape_api.models.assembly import Assembly, RootAssembly
-from onshape_api.models.document import BASE_URL, Document, DocumentMetaData, WorkspaceType, generate_url
+from onshape_api.models.document import BASE_URL, Document, DocumentMetaData, generate_url
 from onshape_api.models.element import Element
 from onshape_api.models.mass import MassProperties
 from onshape_api.models.variable import Variable
@@ -393,6 +393,7 @@ class Client:
         configuration: str = "default",
         with_mass_properties: bool = False,
         log_response: bool = True,
+        with_meta_data: bool = True,
     ) -> RootAssembly:
         """
         Get root assembly data for a specified document / workspace / element.
@@ -463,7 +464,15 @@ class Client:
         _assembly = RootAssembly.model_validate(_assembly_json["rootAssembly"])
 
         if with_mass_properties:
-            _assembly.MassProperty = self.get_assembly_mass_properties(did, wid, eid)
+            _assembly.MassProperty = self.get_assembly_mass_properties(
+                did=did,
+                wid=wid,
+                eid=eid,
+                wtype=wtype,
+            )
+
+        if with_meta_data:
+            _assembly.documentMetaData = self.get_document_metadata(did)
 
         return _assembly
 
@@ -572,11 +581,10 @@ class Client:
     def download_assembly_stl(
         self,
         did: str,
+        wtype: str,
         wid: str,
         eid: str,
         buffer: BinaryIO,
-        wtype: str = WorkspaceType.W.value,
-        vid: Optional[str] = None,
         configuration: str = "default",
     ):
         """
@@ -587,14 +595,11 @@ class Client:
             wtype: The type of workspace.
             wid: The unique identifier of the workspace.
             eid: The unique identifier of the element.
-            vid: The unique identifier of the version workspace.
             configuration: The configuration of the assembly.
 
         """
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
-        _request_path = (
-            f"/api/assemblies/d/{did}/{wtype}/" f"{wid if wtype == WorkspaceType.W else vid}/e/{eid}/translations"
-        )
+        _request_path = f"/api/assemblies/d/{did}/{wtype}/{wid}/e/{eid}/translations"
 
         # Initiate the translation
         payload = {
@@ -650,34 +655,28 @@ class Client:
                 LOGGER.error(f"Failed to download STL file: {download_response.text}")
                 return None
 
-        elif response.status_code in (404, 400):
-            if vid and wtype == WorkspaceType.W:
-                return self.download_assembly_stl(did, WorkspaceType.V.value, wid, eid, vid)
-            else:
-                LOGGER.info(f"Failed to download assembly: {response.status_code} - {response.text}")
-                LOGGER.info(
-                    generate_url(
-                        base_url=self._url,
-                        did=did,
-                        wtype="w",
-                        wid=wid,
-                        eid=eid,
-                    )
-                )
         else:
-            LOGGER.error(f"Unexpected error: {response.status_code} - {response.text}")
+            LOGGER.info(f"Failed to download assembly: {response.status_code} - {response.text}")
+            LOGGER.info(
+                generate_url(
+                    base_url=self._url,
+                    did=did,
+                    wtype=wtype,
+                    wid=wid,
+                    eid=eid,
+                )
+            )
 
         return buffer
 
     def download_part_stl(
         self,
         did: str,
+        wtype: str,
         wid: str,
         eid: str,
         partID: str,
         buffer: BinaryIO,
-        wtype: str = WorkspaceType.W.value,
-        vid: Optional[str] = None,
     ) -> BinaryIO:
         """
         Download an STL file from a part studio. The file is written to the buffer.
@@ -689,7 +688,6 @@ class Client:
             partID: The unique identifier of the part.
             buffer: BinaryIO object to write the STL file to.
             wtype: The type of workspace.
-            vid: The unique identifier of the version workspace.
 
         Returns:
             BinaryIO: BinaryIO object containing the STL file
@@ -712,9 +710,7 @@ class Client:
         # TODO: version id seems to always work, should this default behavior be changed?
 
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
-        _request_path = (
-            f"/api/parts/d/{did}/{wtype}/" f"{wid if wtype == WorkspaceType.W else vid}/e/{eid}/partid/{partID}/stl"
-        )
+        _request_path = f"/api/parts/d/{did}/{wtype}/{wid}/e/{eid}/partid/{partID}/stl"
         _query = {
             "mode": "binary",
             "grouping": True,
@@ -729,27 +725,11 @@ class Client:
         )
         if response.status_code == 200:
             buffer.write(response.content)
-        elif response.status_code == 404 or response.status_code == 400:
-            if vid and wtype == WorkspaceType.W:
-                return self.download_part_stl(did, wid, eid, partID, buffer, WorkspaceType.V.value, vid)
-            else:
-                url = generate_url(
-                    base_url=self._url,
-                    did=did,
-                    wtype="w",
-                    wid=wid,
-                    eid=eid,
-                )
-                LOGGER.info(f"{url}")
-                LOGGER.info(
-                    f"No version ID provided, failed to download STL file: {response.status_code} - {response.text}"
-                )
-
         else:
             url = generate_url(
                 base_url=self._url,
                 did=did,
-                wtype="w",
+                wtype=wtype,
                 wid=wid,
                 eid=eid,
             )
@@ -759,7 +739,11 @@ class Client:
         return buffer
 
     def get_assembly_mass_properties(
-        self, did: str, wid: str, eid: str, vid: Optional[str] = None, wtype: str = WorkspaceType.W.value
+        self,
+        did: str,
+        wtype: str,
+        wid: str,
+        eid: str,
     ) -> MassProperties:
         """
         Get mass properties of a rigid assembly in a document.
@@ -768,7 +752,6 @@ class Client:
             did: The unique identifier of the document.
             wid: The unique identifier of the workspace.
             eid: The unique identifier of the rigid assembly.
-            vid: The unique identifier of the document version.
             wtype: The type of workspace.
 
         Returns:
@@ -779,7 +762,6 @@ class Client:
             ...     did="a1c1addf75444f54b504f25c",
             ...     wid="0d17b8ebb2a4c76be9fff3c7",
             ...     eid="a86aaf34d2f4353288df8812",
-            ...     vid="0d17bae7b2a4c76be9fff3c7",
             ...     wtype="w"
             ... )
             >>> print(mass_properties)
@@ -792,15 +774,10 @@ class Client:
                 principalAxes=[...]
             )
         """
-        _request_path = (
-            f"/api/assemblies/d/{did}/{wtype}/" f"{wid if wtype == WorkspaceType.W else vid}/e/{eid}/massproperties"
-        )
+        _request_path = f"/api/assemblies/d/{did}/{wtype}/{wid}/e/{eid}/massproperties"
         res = self.request(HTTP.GET, _request_path, log_response=False)
 
         if res.status_code == 404:
-            if vid and wtype == WorkspaceType.W:
-                return self.get_assembly_mass_properties(did, wid, eid, vid, WorkspaceType.V.value)
-
             url = generate_url(
                 base_url=self._url,
                 did=did,
@@ -813,7 +790,12 @@ class Client:
         return MassProperties.model_validate(res.json())
 
     def get_mass_property(
-        self, did: str, wid: str, eid: str, partID: str, vid: Optional[str], wtype: str = WorkspaceType.W.value
+        self,
+        did: str,
+        wtype: str,
+        wid: str,
+        eid: str,
+        partID: str,
     ) -> MassProperties:
         """
         Get mass properties of a part in a part studio.
@@ -823,7 +805,6 @@ class Client:
             wid: The unique identifier of the workspace.
             eid: The unique identifier of the element.
             partID: The identifier of the part.
-            vid: The unique identifier of the document version.
             wtype: The type of workspace.
 
         Returns:
@@ -835,7 +816,6 @@ class Client:
             ...     wid="0d17b8ebb2a4c76be9fff3c7",
             ...     eid="a86aaf34d2f4353288df8812",
             ...     partID="0b0c209535554345432581fe"
-            ...     vid="0d17bae7b2a4c76be9fff3c7",
             ...     wtype="w"
             ... )
             >>> print(mass_properties)
@@ -849,22 +829,16 @@ class Client:
             )
         """
         # TODO: version id seems to always work, should this default behavior be changed?
-        _request_path = (
-            f"/api/parts/d/{did}/{wtype}/"
-            f"{wid if wtype == WorkspaceType.W else vid}/e/{eid}/partid/{partID}/massproperties"
-        )
+        _request_path = f"/api/parts/d/{did}/{wtype}/{wid}/e/{eid}/partid/{partID}/massproperties"
         res = self.request(HTTP.GET, _request_path, {"useMassPropertiesOverrides": True}, log_response=False)
 
         if res.status_code == 404:
             # TODO: There doesn't seem to be a way to assign material to a part currently
             # It is possible that the workspace got deleted
-            if vid and wtype == WorkspaceType.W:
-                return self.get_mass_property(did, wid, eid, partID, vid, WorkspaceType.V.value)
-
             url = generate_url(
                 base_url=self._url,
                 did=did,
-                wtype="w",
+                wtype=wtype,
                 wid=wid,
                 eid=eid,
             )
@@ -886,7 +860,7 @@ class Client:
         body: Optional[dict[str, Any]] = None,
         base_url: Optional[str] = None,
         log_response: bool = True,
-        timeout: int = 20,
+        timeout: int = 30,
     ) -> requests.Response:
         """
         Send a request to the Onshape API.

@@ -23,6 +23,7 @@ from onshape_api.models.assembly import (
     Part,
     RelationType,
 )
+from onshape_api.models.document import WorkspaceType, generate_url
 from onshape_api.models.geometry import MeshGeometry
 from onshape_api.models.joint import (
     BaseJoint,
@@ -53,9 +54,9 @@ CURRENT_DIR = os.getcwd()
 
 def download_link_stl(
     did: str,
+    wtype: str,
     wid: str,
     eid: str,
-    vid: str,
     client: Client,
     transform: np.ndarray,
     file_name: str,
@@ -97,6 +98,15 @@ def download_link_stl(
         ... )
         "meshes/output.stl"
     """
+    print(
+        generate_url(
+            base_url=client._url,
+            did=did,
+            wtype=wtype,
+            wid=wid,
+            eid=eid,
+        )
+    )
     if not is_rigid_assembly and partID is None:
         raise ValueError("partID is required when download_type is 'part'.")
 
@@ -105,9 +115,9 @@ def download_link_stl(
             LOGGER.info(f"Downloading {'Rigid Assembly' if is_rigid_assembly else 'Part'} STL: {file_name}")
 
             if not is_rigid_assembly:
-                client.download_part_stl(did=did, wid=wid, eid=eid, partID=partID, buffer=buffer, vid=vid)
+                client.download_part_stl(did=did, wtype=wtype, wid=wid, eid=eid, partID=partID, buffer=buffer)
             else:
-                client.download_assembly_stl(did=did, wid=wid, eid=eid, vid=vid, buffer=buffer)
+                client.download_assembly_stl(did=did, wtype=wtype, wid=wid, eid=eid, buffer=buffer)
 
             buffer.seek(0)
 
@@ -181,12 +191,23 @@ def get_robot_link(
 
     LOGGER.info(f"Creating robot link for {name}")
 
+    if part.documentVersion:
+        wtype = WorkspaceType.V.value
+        mvwid = part.documentVersion
+
+    elif part.isRigidAssembly:
+        wtype = WorkspaceType.W.value
+        mvwid = part.rigidAssemblyWorkspaceId
+    else:
+        wtype = WorkspaceType.W.value
+        mvwid = wid
+
     _mesh_path = download_link_stl(
         did=part.documentId,
-        wid=wid,
+        wtype=wtype,
+        wid=mvwid,
         eid=part.elementId,
         partID=part.partId,
-        vid=part.documentVersion,
         client=client,
         transform=_stl_to_link_tf,
         is_rigid_assembly=part.isRigidAssembly,
@@ -263,8 +284,8 @@ def get_robot_joint(
         elif mate.customTF is not None:
             parent_to_mate_tf = mate.customTF @ mate.matedEntities[PARENT].matedCS.part_to_mate_tf
         else:
-            LOGGER.warning(f"Custom transformation matrix not found for {mate.id}")
-            parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
+            LOGGER.warning(f"Custom transformation matrix not found for {mate}")
+            exit(1)
 
     else:
         parent_to_mate_tf = np.eye(4)

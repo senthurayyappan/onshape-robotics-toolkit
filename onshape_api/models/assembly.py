@@ -52,7 +52,7 @@ from typing import Union
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
 
-from onshape_api.models.document import Document
+from onshape_api.models.document import Document, DocumentMetaData
 from onshape_api.models.mass import MassProperties
 from onshape_api.utilities.helpers import generate_uid
 
@@ -388,6 +388,9 @@ class Part(IDBase):
     )
     rigidAssemblyToPartTF: Union[dict[str, "MatedCS"], None] = Field(
         None, description="The transformation matrix from the rigid assembly to the part coordinate system."
+    )
+    rigidAssemblyWorkspaceId: Union[str, None] = Field(
+        None, description="The workspace ID of the rigid assembly, if it is a sub-assembly."
     )
 
     @property
@@ -1238,6 +1241,10 @@ class RootAssembly(SubAssembly):
     """
 
     occurrences: list[Occurrence] = Field(..., description="A list of occurrences in the root assembly.")
+
+    documentMetaData: Union[DocumentMetaData, None] = Field(
+        None, description="The document associated with the assembly."
+    )
 
 
 class Assembly(BaseModel):

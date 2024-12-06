@@ -16,7 +16,7 @@ if __name__ == "__main__":
     # test-nested-mategroups = https://cad.onshape.com/documents/12124a46ebda8f31ccfe8c8f/w/820e30e034d40fc174232361/e/54c32b7d2abd32b9bf6d9641
 
     document = Document.from_url(
-        "https://cad.onshape.com/documents/12124a46ebda8f31ccfe8c8f/w/820e30e034d40fc174232361/e/54c32b7d2abd32b9bf6d9641"
+        "https://cad.onshape.com/documents/9c982cc66e2d3357ecf31371/w/21b699e5966180f4906fb6d1/e/1a44468a497fb472bc80d884"
     )
     assembly, _ = client.get_assembly(
         did=document.did,
@@ -33,8 +33,8 @@ if __name__ == "__main__":
     instances, id_to_name_map = osa.get_instances(assembly)
     occurrences = osa.get_occurrences(assembly, id_to_name_map)
 
-    parts = osa.get_parts(assembly, client, instances)
     subassemblies, rigid_subassemblies = osa.get_subassemblies(assembly, client, instances)
+    parts = osa.get_parts(assembly, rigid_subassemblies, client, instances)
 
     mates, relations = osa.get_mates_and_relations(assembly, subassemblies, rigid_subassemblies, id_to_name_map, parts)
 
