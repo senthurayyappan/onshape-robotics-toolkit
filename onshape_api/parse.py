@@ -112,7 +112,7 @@ def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, Ass
 
         for instance in root.instances:
             sanitized_name = get_sanitized_name(instance.name)
-            LOGGER.info(f"Parsing instance: {sanitized_name}")
+            LOGGER.debug(f"Parsing instance: {sanitized_name}")
             instance_id = f"{prefix}{SUBASSEMBLY_JOINER}{sanitized_name}" if prefix else sanitized_name
             id_to_name_map[instance.id] = sanitized_name
             instance_map[instance_id] = instance
@@ -156,7 +156,7 @@ def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str]) -> dict[
     for occurrence in assembly.rootAssembly.occurrences:
         try:
             occurrence_path = [id_to_name_map[path] for path in occurrence.path]
-            LOGGER.info(f"Parsing occurrence: {occurrence_path}")
+            LOGGER.debug(f"Parsing occurrence: {occurrence_path}")
             occurrence_map[SUBASSEMBLY_JOINER.join(occurrence_path)] = occurrence
 
         except KeyError:
@@ -417,9 +417,11 @@ def get_mates_and_relations(  # noqa: C901
                     )
 
                     if _occurrence is not None:
-                        custom_tf = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
-                        parts[parent_occurrences[0]].rigidAssemblyToPartTF[parent_occurrences[1]] = custom_tf
-                        feature.featureData.customTF = custom_tf.part_tf
+                        parent_parentCS = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
+                        parts[parent_occurrences[0]].rigidAssemblyToPartTF[parent_occurrences[1]] = (
+                            parent_parentCS.part_tf
+                        )
+                        feature.featureData.matedEntities[PARENT].parentCS = parent_parentCS
                     else:
                         LOGGER.warning(f"Occurrence {parent_occurrences[1]} not found within {parent_occurrences[0]}")
                         continue
@@ -432,9 +434,9 @@ def get_mates_and_relations(  # noqa: C901
                     )
 
                     if _occurrence is not None:
-                        custom_tf = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
-                        parts[child_occurrences[0]].rigidAssemblyToPartTF[child_occurrences[1]] = custom_tf
-                        feature.featureData.customTF = custom_tf.part_tf
+                        child_parentCS = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
+                        parts[child_occurrences[0]].rigidAssemblyToPartTF[child_occurrences[1]] = child_parentCS.part_tf
+                        feature.featureData.matedEntities[CHILD].parentCS = child_parentCS
                     else:
                         LOGGER.warning(f"Occurrence {child_occurrences[1]} not found within {child_occurrences[0]}")
                         continue

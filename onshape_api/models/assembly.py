@@ -711,6 +711,10 @@ class MatedEntity(BaseModel):
     matedOccurrence: list[str] = Field(..., description="A list of identifiers for the occurrences that are mated.")
     matedCS: MatedCS = Field(..., description="The coordinate system used for mating the parts.")
 
+    parentCS: MatedCS = Field(
+        None, description="The 4x4 transformation matrix for the mate feature, used for custom transformations."
+    )
+
 
 class MateRelationMate(BaseModel):
     """
@@ -1013,10 +1017,6 @@ class MateFeatureData(BaseModel):
     name: str = Field(..., description="The name of the mate feature.")
 
     id: str = Field(None, description="The unique identifier of the feature.")
-
-    customTF: np.matrix = Field(
-        None, description="The 4x4 transformation matrix for the mate feature, used for custom transformations."
-    )
 
 
 class AssemblyFeature(BaseModel):

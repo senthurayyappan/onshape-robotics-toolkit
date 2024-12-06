@@ -23,7 +23,6 @@ if __name__ == "__main__":
         wtype=document.wtype,
         wid=document.wid,
         eid=document.eid,
-        with_meta_data=True,
     )
 
     osa.LOGGER.info(assembly.document.url)
@@ -43,7 +42,7 @@ if __name__ == "__main__":
         instances=instances,
         parts=parts,
         mates=mates,
-        use_user_defined_root=False,
+        use_user_defined_root=True,
     )
     osa.plot_graph(graph)
 

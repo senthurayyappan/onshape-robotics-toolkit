@@ -18,7 +18,7 @@ from onshape_api.models.assembly import (
     Part,
     PartInstance,
 )
-from onshape_api.parse import MATE_JOINER
+from onshape_api.parse import MATE_JOINER, SUBASSEMBLY_JOINER
 
 
 def plot_graph(graph: Union[nx.Graph, nx.DiGraph], file_name: Optional[str] = None) -> None:
@@ -166,6 +166,11 @@ def create_graph(
 
     graph = nx.Graph()
     user_defined_root = add_nodes_to_graph(graph, occurrences, instances, parts, use_user_defined_root)
+
+    if user_defined_root and user_defined_root.split(SUBASSEMBLY_JOINER)[0] in parts:
+        # this means that the user defined root is a rigid subassembly
+        user_defined_root = user_defined_root.split(SUBASSEMBLY_JOINER)[0]
+
     add_edges_to_graph(graph, mates)
 
     cur_graph = remove_unconnected_subgraphs(graph)

@@ -484,7 +484,7 @@ class Client:
         eid: str,
         configuration: str = "default",
         log_response: bool = True,
-        with_meta_data: bool = False,
+        with_meta_data: bool = True,
     ) -> tuple[Assembly, dict]:
         """
         Get assembly data for a specified document / workspace / assembly.

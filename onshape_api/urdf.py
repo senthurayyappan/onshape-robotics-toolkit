@@ -281,14 +281,11 @@ def get_robot_joint(
     if isinstance(mate, MateFeatureData):
         if not is_rigid_assembly:
             parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
-        elif mate.customTF is not None:
-            parent_to_mate_tf = mate.customTF @ mate.matedEntities[PARENT].matedCS.part_to_mate_tf
         else:
-            LOGGER.warning(f"Custom transformation matrix not found for {mate}")
-            exit(1)
-
-    else:
-        parent_to_mate_tf = np.eye(4)
+            # for rigid assemblies, get the parentCS and transform it to the mateCS
+            parent_to_mate_tf = (
+                mate.matedEntities[PARENT].parentCS.part_tf @ mate.matedEntities[PARENT].matedCS.part_to_mate_tf
+            )
 
     stl_to_mate_tf = stl_to_parent_tf @ parent_to_mate_tf
     origin = Origin.from_matrix(stl_to_mate_tf)
@@ -442,6 +439,7 @@ def get_urdf_components(
     )
 
     links.append(root_link)
+
     stl_to_link_tf_map[root_node] = stl_to_root_tf
 
     LOGGER.info(f"Processing remaining {len(graph.nodes) - 1} nodes using {len(graph.edges)} edges")
