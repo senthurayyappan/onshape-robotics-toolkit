@@ -252,7 +252,7 @@ def get_robot_joint(
     stl_to_parent_tf: np.matrix,
     mimic: Optional[JointMimic] = None,
     is_rigid_assembly: bool = False,
-) -> BaseJoint:
+) -> tuple[list[BaseJoint], Optional[list[Link]]]:
     """
     Generate a URDF joint from an Onshape mate feature.
 
@@ -278,6 +278,7 @@ def get_robot_joint(
         )
 
     """
+    links = []
     if isinstance(mate, MateFeatureData):
         if not is_rigid_assembly:
             parent_to_mate_tf = mate.matedEntities[PARENT].matedCS.part_to_mate_tf
@@ -293,41 +294,106 @@ def get_robot_joint(
     LOGGER.info(f"Creating robot joint from {parent} to {child}")
 
     if mate.mateType == MateType.REVOLUTE:
-        return RevoluteJoint(
-            name=f"{parent}{MATE_JOINER}{child}",
-            parent=parent,
-            child=child,
-            origin=origin,
-            limits=JointLimits(
-                effort=1.0,
-                velocity=1.0,
-                lower=-np.pi,
-                upper=np.pi,
-            ),
-            axis=Axis((0.0, 0.0, -1.0)),
-            dynamics=JointDynamics(damping=0.1, friction=0.1),
-            mimic=mimic,
-        )
+        return [
+            RevoluteJoint(
+                name=f"{parent}{MATE_JOINER}{child}",
+                parent=parent,
+                child=child,
+                origin=origin,
+                limits=JointLimits(
+                    effort=1.0,
+                    velocity=1.0,
+                    lower=-np.pi,
+                    upper=np.pi,
+                ),
+                axis=Axis((0.0, 0.0, -1.0)),
+                dynamics=JointDynamics(damping=0.1, friction=0.1),
+                mimic=mimic,
+            )
+        ], links
 
     elif mate.mateType == MateType.FASTENED:
-        return FixedJoint(name=f"{parent}{MATE_JOINER}{child}", parent=parent, child=child, origin=origin)
+        return [FixedJoint(name=f"{parent}{MATE_JOINER}{child}", parent=parent, child=child, origin=origin)], links
 
     elif mate.mateType == MateType.SLIDER or mate.mateType == MateType.CYLINDRICAL:
-        return PrismaticJoint(
-            name=f"{parent}{MATE_JOINER}{child}",
-            parent=parent,
-            child=child,
-            origin=origin,
-            limits=JointLimits(
-                effort=1.0,
-                velocity=1.0,
-                lower=-0.1,
-                upper=0.1,
-            ),
-            axis=Axis((0.0, 0.0, -1.0)),
-            dynamics=JointDynamics(damping=0.1, friction=0.1),
-            mimic=mimic,
+        return [
+            PrismaticJoint(
+                name=f"{parent}{MATE_JOINER}{child}",
+                parent=parent,
+                child=child,
+                origin=origin,
+                limits=JointLimits(
+                    effort=1.0,
+                    velocity=1.0,
+                    lower=-0.1,
+                    upper=0.1,
+                ),
+                axis=Axis((0.0, 0.0, -1.0)),
+                dynamics=JointDynamics(damping=0.1, friction=0.1),
+                mimic=mimic,
+            )
+        ], links
+
+    elif mate.mateType == MateType.BALL:
+        # return 3 revolute joints for the ball joint
+        # create a few dummy links
+
+        dummy_x = Link(
+            name=f"{parent}_dummy_x",
         )
+        dummy_y = Link(
+            name=f"{parent}_dummy_y",
+        )
+
+        links = [dummy_x, dummy_y]
+
+        return [
+            RevoluteJoint(
+                name=f"{parent}{MATE_JOINER}{child}_x",
+                parent=parent,
+                child=dummy_x.name,
+                origin=origin,
+                limits=JointLimits(
+                    effort=1.0,
+                    velocity=1.0,
+                    lower=-np.pi,
+                    upper=np.pi,
+                ),
+                axis=Axis((1.0, 0.0, 0.0)),
+                dynamics=JointDynamics(damping=0.1, friction=0.1),
+                mimic=mimic,
+            ),
+            RevoluteJoint(
+                name=f"{parent}{MATE_JOINER}{child}_y",
+                parent=dummy_x.name,
+                child=dummy_y.name,
+                origin=Origin.zero_origin(),
+                limits=JointLimits(
+                    effort=1.0,
+                    velocity=1.0,
+                    lower=-np.pi,
+                    upper=np.pi,
+                ),
+                axis=Axis((0.0, 1.0, 0.0)),
+                dynamics=JointDynamics(damping=0.1, friction=0.1),
+                mimic=mimic,
+            ),
+            RevoluteJoint(
+                name=f"{parent}{MATE_JOINER}{child}_z",
+                parent=dummy_y.name,
+                child=child,
+                origin=Origin.zero_origin(),
+                limits=JointLimits(
+                    effort=1.0,
+                    velocity=1.0,
+                    lower=-np.pi,
+                    upper=np.pi,
+                ),
+                axis=Axis((0.0, 0.0, -1.0)),
+                dynamics=JointDynamics(damping=0.1, friction=0.1),
+                mimic=mimic,
+            ),
+        ], links
 
     else:
         LOGGER.warning(f"Unsupported joint type: {mate.mateType}")
@@ -480,7 +546,7 @@ def get_urdf_components(
         else:
             joint_mimic = None
 
-        joint = get_robot_joint(
+        joint_list, link_list = get_robot_joint(
             parent,
             child,
             topological_mates[mate_key],
@@ -488,7 +554,8 @@ def get_urdf_components(
             joint_mimic,
             is_rigid_assembly=parts[parent].isRigidAssembly,
         )
-        joints.append(joint)
+        links.extend(link_list)
+        joints.extend(joint_list)
 
         link, stl_to_link_tf = get_robot_link(
             child,
