@@ -328,9 +328,6 @@ def get_robot_joint(
         ], links
 
     elif mate.mateType == MateType.BALL:
-        # return 3 revolute joints for the ball joint
-        # create a few dummy links
-
         dummy_x = Link(
             name=f"{parent}_dummy_x",
         )
@@ -342,7 +339,7 @@ def get_robot_joint(
 
         return [
             RevoluteJoint(
-                name=sanitized_name,
+                name=sanitized_name + "-x",
                 parent=parent,
                 child=dummy_x.name,
                 origin=origin,
@@ -357,7 +354,7 @@ def get_robot_joint(
                 mimic=mimic,
             ),
             RevoluteJoint(
-                name=sanitized_name,
+                name=sanitized_name + "-y",
                 parent=dummy_x.name,
                 child=dummy_y.name,
                 origin=Origin.zero_origin(),
@@ -372,7 +369,7 @@ def get_robot_joint(
                 mimic=mimic,
             ),
             RevoluteJoint(
-                name=sanitized_name,
+                name=sanitized_name + "-z",
                 parent=dummy_y.name,
                 child=child,
                 origin=Origin.zero_origin(),

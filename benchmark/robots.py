@@ -43,7 +43,7 @@ if __name__ == "__main__":
         mates=mates,
         use_user_defined_root=True,
     )
-    osa.plot_graph(graph)
+    osa.plot_graph(graph, f"{assembly_robot_name}.png")
 
     links, joints = osa.get_urdf_components(
         assembly=assembly,
