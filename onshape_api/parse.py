@@ -42,13 +42,16 @@ RELATION_CHILD = 1
 RELATION_PARENT = 0
 
 
-# TODO: get_mate_connectors method to parse part mate connectors that maybe useful to someone
-def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, str]]:
+# TODO: get_mate_connectors method to parse part mate connectors that may be useful to someone
+def get_instances(
+    assembly: Assembly, max_depth: int = 5
+) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, Occurrence], dict[str, str]]:
     """
     Get instances and their sanitized names from an Onshape assembly.
 
     Args:
         assembly: The Onshape assembly object to use for extracting instances.
+        max_depth: Maximum depth to traverse in the assembly hierarchy. Default is 5
 
     Returns:
         A tuple containing:
@@ -57,25 +60,21 @@ def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, Ass
 
     Examples:
         >>> assembly = Assembly(...)
-        >>> get_instances(assembly)
+        >>> get_instances(assembly, max_depth=2)
         (
             {
                 "part1": PartInstance(...),
                 "subassembly1": AssemblyInstance(...),
-                "subassembly1-SUB-part1": PartInstance(...),
-                "subassembly1-SUB-subassembly2": AssemblyInstance(...),
             },
             {
                 "part1": "part1",
                 "subassembly1": "subassembly1",
-                "subassembly1-SUB-part1": "part1",
-                "subassembly1-SUB-subassembly2": "subassembly2",
             }
         )
     """
 
     def traverse_instances(
-        root: Union[RootAssembly, SubAssembly], prefix: str = ""
+        root: Union[RootAssembly, SubAssembly], prefix: str = "", current_depth: int = 0
     ) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, str]]:
         """
         Traverse the assembly structure to get instances.
@@ -83,32 +82,20 @@ def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, Ass
         Args:
             root: Root assembly or subassembly object to traverse.
             prefix: Prefix for the instance ID.
+            current_depth: Current depth in the assembly hierarchy.
 
         Returns:
             A tuple containing:
             - A dictionary mapping instance IDs to their corresponding instances.
             - A dictionary mapping instance IDs to their sanitized names.
-
-        Examples:
-            >>> root = RootAssembly(...)
-            >>> traverse_instances(root)
-            (
-                {
-                    "part1": PartInstance(...),
-                    "subassembly1": AssemblyInstance(...),
-                    "subassembly1-SUB-part1": PartInstance(...),
-                    "subassembly1-SUB-subassembly2": AssemblyInstance(...),
-                },
-                {
-                    "part1": "part1",
-                    "subassembly1": "subassembly1",
-                    "subassembly1-SUB-part1": "part1",
-                    "subassembly1-SUB-subassembly2": "subassembly2",
-                }
-            )
         """
         instance_map = {}
         id_to_name_map = {}
+
+        # Stop traversing if the maximum depth is reached
+        if current_depth >= max_depth:
+            LOGGER.debug(f"Max depth {max_depth} reached. Stopping traversal at depth {current_depth}.")
+            return instance_map, id_to_name_map
 
         for instance in root.instances:
             sanitized_name = get_sanitized_name(instance.name)
@@ -117,19 +104,26 @@ def get_instances(assembly: Assembly) -> tuple[dict[str, Union[PartInstance, Ass
             id_to_name_map[instance.id] = sanitized_name
             instance_map[instance_id] = instance
 
+            # Recursively process sub-assemblies if applicable
             if instance.type == InstanceType.ASSEMBLY:
                 for sub_assembly in assembly.subAssemblies:
                     if sub_assembly.uid == instance.uid:
-                        sub_instance_map, sub_id_to_name_map = traverse_instances(sub_assembly, instance_id)
+                        sub_instance_map, sub_id_to_name_map = traverse_instances(
+                            sub_assembly, instance_id, current_depth + 1
+                        )
                         instance_map.update(sub_instance_map)
                         id_to_name_map.update(sub_id_to_name_map)
 
         return instance_map, id_to_name_map
 
-    return traverse_instances(assembly.rootAssembly)
+    instance_map, id_to_name_map = traverse_instances(assembly.rootAssembly)
+    # return occurrences internally as it relies on max_depth
+    occurrence_map = get_occurrences(assembly, id_to_name_map, max_depth)
+
+    return instance_map, occurrence_map, id_to_name_map
 
 
-def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str]) -> dict[str, Occurrence]:
+def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str], max_depth: int = 5) -> dict[str, Occurrence]:
     """
     Get occurrences of the assembly.
 
@@ -155,6 +149,9 @@ def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str]) -> dict[
 
     for occurrence in assembly.rootAssembly.occurrences:
         try:
+            if len(occurrence.path) > max_depth:
+                continue
+
             occurrence_path = [id_to_name_map[path] for path in occurrence.path]
             LOGGER.debug(f"Parsing occurrence: {occurrence_path}")
             occurrence_map[SUBASSEMBLY_JOINER.join(occurrence_path)] = occurrence
@@ -167,49 +164,62 @@ def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str]) -> dict[
 
 def get_subassemblies(
     assembly: Assembly, client: Client, instance_map: dict[str, Union[PartInstance, AssemblyInstance]]
-) -> tuple[dict[str, SubAssembly], dict[str, SubAssembly]]:
+) -> tuple[dict[str, SubAssembly], dict[str, RootAssembly]]:
     """
     Get subassemblies of an Onshape assembly.
 
     Args:
         assembly: The Onshape assembly object to use for extracting subassemblies.
-        instance_map: Mapping of instance IDs to their corresponding instances. This can be obtained
-            by calling the `get_instances` function.
+        client: The client object to make API calls.
+        instance_map: Mapping of instance IDs to their corresponding instances.
+                      This can be obtained by calling the `get_instances` function.
 
     Returns:
-        A dictionary mapping subassembly IDs to their corresponding subassembly objects.
+        A tuple containing:
+        - A dictionary mapping subassembly IDs to their corresponding subassembly objects.
+        - A dictionary mapping subassembly IDs to their corresponding rigid subassembly root assemblies.
 
     Examples:
         >>> assembly = Assembly(...)
-        >>> get_subassemblies(assembly)
-        {
-            "subassembly1": SubAssembly(...),
-            "subassembly2": SubAssembly(...),
-        }
+        >>> get_subassemblies(assembly, client, instance_map)
+        (
+            {
+                "subassembly1": SubAssembly(...),
+                "subassembly2": SubAssembly(...),
+            },
+            {
+                "subassembly1": RootAssembly(...),
+            }
+        )
     """
     subassembly_map: dict[str, SubAssembly] = {}
     rigid_subassembly_map: dict[str, RootAssembly] = {}
 
-    subassembly_instance_map: dict[str, list[str]] = {}
-
+    # Pre-group instances by their UID
+    subassembly_instance_map = {
+        instance.uid: [] for instance in instance_map.values() if instance.type == InstanceType.ASSEMBLY
+    }
     for key, instance in instance_map.items():
         if instance.type == InstanceType.ASSEMBLY:
-            subassembly_instance_map.setdefault(instance.uid, []).append(key)
+            subassembly_instance_map[instance.uid].append(key)
 
+    # Process subassemblies in one loop
     for subassembly in assembly.subAssemblies:
-        LOGGER.info(f"Parsing subassembly: {subassembly.uid}")
-        if subassembly.uid in subassembly_instance_map:
-            for key in subassembly_instance_map[subassembly.uid]:
-                if len(subassembly.features) == 0 or all(
-                    feature.featureType == AssemblyFeatureType.MATEGROUP for feature in subassembly.features
-                ):
+        uid = subassembly.uid
+        if uid in subassembly_instance_map:
+            is_rigid = len(subassembly.features) == 0 or all(
+                feature.featureType == AssemblyFeatureType.MATEGROUP for feature in subassembly.features
+            )
+            for key in subassembly_instance_map[uid]:
+                if is_rigid:
+                    # Fetch rigid subassemblies in parallel
                     rigid_subassembly_map[key] = client.get_root_assembly(
                         did=subassembly.documentId,
                         wtype=WorkspaceType.M.value,
                         wid=subassembly.documentMicroversion,
                         eid=subassembly.elementId,
                         with_mass_properties=True,
-                        log_response=True,
+                        log_response=False,
                     )
                 else:
                     subassembly_map[key] = subassembly
