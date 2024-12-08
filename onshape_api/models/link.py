@@ -388,6 +388,7 @@ class VisualLink:
         <Element 'visual' at 0x7f8b3c0b4c70>
     """
 
+    name: str
     origin: Origin
     geometry: BaseGeometry
     material: Material
@@ -408,6 +409,7 @@ class VisualLink:
             <Element 'visual' at 0x7f8b3c0b4c70>
         """
         visual = ET.Element("visual") if root is None else ET.SubElement(root, "visual")
+        visual.set("name", self.name)
         self.origin.to_xml(visual)
         self.geometry.to_xml(visual)
         self.material.to_xml(visual)
@@ -432,6 +434,7 @@ class CollisionLink:
         <Element 'collision' at 0x7f8b3c0b4c70>
     """
 
+    name: str
     origin: Origin
     geometry: BaseGeometry
 
@@ -451,6 +454,7 @@ class CollisionLink:
             <Element 'collision' at 0x7f8b3c0b4c70>
         """
         collision = ET.Element("collision") if root is None else ET.SubElement(root, "collision")
+        collision.set("name", self.name)
         self.origin.to_xml(collision)
         self.geometry.to_xml(collision)
         return collision

@@ -209,9 +209,10 @@ def get_robot_link(
     _link = Link(
         name=name,
         visual=VisualLink(
+            name=f"{name}-visual",
             origin=_origin,
             geometry=MeshGeometry(_mesh_path),
-            material=Material.from_color(name=f"{name}_material", color=random.SystemRandom().choice(list(Colors))),
+            material=Material.from_color(name=f"{name}-material", color=random.SystemRandom().choice(list(Colors))),
         ),
         inertial=InertialLink(
             origin=Origin(
@@ -229,6 +230,7 @@ def get_robot_link(
             ),
         ),
         collision=CollisionLink(
+            name=f"{name}-collision",
             origin=_origin,
             geometry=MeshGeometry(_mesh_path),
         ),
@@ -329,10 +331,10 @@ def get_robot_joint(
 
     elif mate.mateType == MateType.BALL:
         dummy_x = Link(
-            name=f"{parent}_dummy_x",
+            name=f"{parent}-dummy-x",
         )
         dummy_y = Link(
-            name=f"{parent}_dummy_y",
+            name=f"{parent}-dummy-y",
         )
 
         links = [dummy_x, dummy_y]
