@@ -113,6 +113,8 @@ class Logger(logging.Logger):
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+        else:
+            print(f"Reusing existing Logger instance: {id(cls._instance)}")
         return cls._instance
 
     def __init__(
@@ -175,28 +177,29 @@ class Logger(logging.Logger):
             self._log_path = log_path
 
     def _setup_logging(self) -> None:
-        self.setLevel(level=self._file_level.value)
-        self._std_formatter = logging.Formatter(self._log_format)
+        if not hasattr(self, "_stream_handler"):  # Prevent duplicate handlers
+            self.setLevel(level=self._file_level.value)
+            self._std_formatter = logging.Formatter(self._log_format)
 
-        self._stream_handler = logging.StreamHandler()
-        self._stream_handler.setLevel(level=self._stream_level.value)
-        self._stream_handler.setFormatter(fmt=self._std_formatter)
-        self.addHandler(hdlr=self._stream_handler)
+            self._stream_handler = logging.StreamHandler()
+            self._stream_handler.setLevel(level=self._stream_level.value)
+            self._stream_handler.setFormatter(fmt=self._std_formatter)
+            self.addHandler(hdlr=self._stream_handler)
 
     def _setup_file_handler(self) -> None:
-        if self._file_path == "":
+        if not hasattr(self, "_file_handler"):  # Ensure file handler is added only once
             self._generate_file_paths()
 
-        self._file_handler = RotatingFileHandler(
-            filename=self._file_path,
-            mode="w",
-            maxBytes=self._file_max_bytes,
-            backupCount=self._file_backup_count,
-            encoding="utf-8",
-        )
-        self._file_handler.setLevel(level=self._file_level.value)
-        self._file_handler.setFormatter(fmt=self._std_formatter)
-        self.addHandler(hdlr=self._file_handler)
+            self._file_handler = RotatingFileHandler(
+                filename=self._file_path,
+                mode="w",
+                maxBytes=self._file_max_bytes,
+                backupCount=self._file_backup_count,
+                encoding="utf-8",
+            )
+            self._file_handler.setLevel(level=self._file_level.value)
+            self._file_handler.setFormatter(fmt=self._std_formatter)
+            self.addHandler(hdlr=self._file_handler)
 
     def _ensure_file_handler(self):
         if not hasattr(self, "_file_handler"):
@@ -491,3 +494,11 @@ class Logger(logging.Logger):
 # Initialize a global logger instance to be used throughout the library
 LOGGER = Logger()
 LOG_LEVEL = dict(enumerate(LogLevel.__members__.values()))
+
+if __name__ == "__main__":
+    LOGGER.info("This is an info message")
+
+    LOGGER.set_stream_level(LogLevel.CRITICAL)
+
+    LOGGER.info("This is an info message and won't be displayed")
+    LOGGER.critical("This is a critical message and will be displayed")
