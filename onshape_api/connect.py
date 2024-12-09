@@ -555,7 +555,7 @@ class Client:
             log_response=log_response,
         )
 
-        if _res.status_code == 401:
+        if _res.status_code == 401 or _res.status_code == 403:
             LOGGER.warning(f"Unauthorized access to document: {did}")
             LOGGER.warning("Please check the API keys in your env file.")
             exit(1)

@@ -320,49 +320,23 @@ def join_mate_occurrences(parent: list[str], child: list[str], prefix: Optional[
     return f"{parent_occurrence}{MATE_JOINER}{child_occurrence}"
 
 
-def get_mates_and_relations(  # noqa: C901
-    assembly: Assembly,
-    subassembly_map: dict[str, SubAssembly],
-    rigid_subassembly_map: dict[str, RootAssembly],
-    id_to_name_map: dict[str, str],
-    parts: dict[str, Part],
-) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
+async def build_rigid_subassembly_occurrence_map(
+    rigid_subassembly_map: dict[str, RootAssembly], id_to_name_map: dict[str, str], parts: dict[str, Part]
+) -> dict[str, dict[str, Occurrence]]:
     """
-    Get mates and relations of an Onshape assembly.
-
-    Args:
-        assembly: The Onshape assembly object to use for extracting mates.
-        subassembly_map: Mapping of subassembly IDs to their corresponding subassembly objects.
-        id_to_name_map: Mapping of instance IDs to their corresponding sanitized names. This can be obtained
-            by calling the `get_instances` function.
-
-    Returns:
-        A tuple containing:
-        - A dictionary mapping mate IDs to their corresponding mate feature data.
-        - A dictionary mapping mate relation IDs to their corresponding mate relation feature data.
-
-    Examples:
-        >>> assembly = Assembly(...)
-        >>> get_mates_and_relations(assembly)
-        ({
-            "subassembly1-SUB-part1-MATE-subassembly2-SUB-part2": AssemblyFeature(...),
-            "part1-MATE-part2": MateFeatureData(...),
-        },
-        {
-            "MuwOg31fsdH/5O2nX": MateRelationFeatureData(...),
-        })
+    Asynchronously build a map of rigid subassembly occurrences.
     """
-    rigid_subassembly_occurrence_map = {}
+    occurrence_map: dict[str, dict[str, Occurrence]] = {}
     for assembly_key, rigid_subassembly in rigid_subassembly_map.items():
-        occurrence_map: dict[str, Occurrence] = {}
+        sub_occurrences: dict[str, Occurrence] = {}
         for occurrence in rigid_subassembly.occurrences:
             try:
                 occurrence_path = [id_to_name_map[path] for path in occurrence.path]
-                occurrence_map[SUBASSEMBLY_JOINER.join(occurrence_path)] = occurrence
-
+                sub_occurrences[SUBASSEMBLY_JOINER.join(occurrence_path)] = occurrence
             except KeyError:
                 LOGGER.warning(f"Occurrence path {occurrence.path} not found")
 
+        # Populate parts data
         parts[assembly_key] = Part(
             isStandardContent=False,
             fullConfiguration=rigid_subassembly.fullConfiguration,
@@ -378,108 +352,127 @@ def get_mates_and_relations(  # noqa: C901
             rigidAssemblyWorkspaceId=rigid_subassembly.documentMetaData.defaultWorkspace.id,
             rigidAssemblyToPartTF={},
         )
-        rigid_subassembly_occurrence_map[assembly_key] = occurrence_map
+        occurrence_map[assembly_key] = sub_occurrences
 
-        # parts[assembly_key].rigidAssemblyToPartTF[part_reference] = MatedCS.from_tf(
-        #     np.matrix(occurrence_map[part_reference].transform).reshape(4, 4)
-        # )
+    return occurrence_map
 
-    def traverse_assembly(  # noqa: C901
-        root: Union[RootAssembly, SubAssembly], subassembly_prefix: Optional[str] = None
-    ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
-        _mates_map: dict[str, MateFeatureData] = {}
-        _relations_map: dict[str, MateRelationFeatureData] = {}
 
-        for feature in root.features:
-            feature.featureData.id = feature.id
+async def process_features_async(  # noqa: C901
+    features: list,
+    parts: dict[str, Part],
+    id_to_name_map: dict[str, str],
+    rigid_subassembly_occurrence_map: dict[str, dict[str, Occurrence]],
+    rigid_subassembly_map: dict[str, RootAssembly],
+    subassembly_prefix: Optional[str],
+) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
+    """
+    Process assembly features asynchronously.
+    """
+    mates_map: dict[str, MateFeatureData] = {}
+    relations_map: dict[str, MateRelationFeatureData] = {}
 
-            if feature.suppressed:
+    for feature in features:
+        feature.featureData.id = feature.id
+
+        if feature.suppressed:
+            continue
+
+        if feature.featureType == AssemblyFeatureType.MATE:
+            if len(feature.featureData.matedEntities) < 2:
+                LOGGER.warning(f"Invalid mate feature: {feature}")
                 continue
 
-            if feature.featureType == AssemblyFeatureType.MATE:
-                if len(feature.featureData.matedEntities) < 2:
-                    # TODO: will there be features with just one mated entity?
-                    LOGGER.warning(f"Invalid mate feature: {feature}")
-                    continue
+            try:
+                child_occurrences = [
+                    id_to_name_map[path] for path in feature.featureData.matedEntities[CHILD].matedOccurrence
+                ]
+                parent_occurrences = [
+                    id_to_name_map[path] for path in feature.featureData.matedEntities[PARENT].matedOccurrence
+                ]
+            except KeyError as e:
+                LOGGER.warning(e)
+                LOGGER.warning(f"Key not found in {id_to_name_map.keys()}")
+                continue
 
-                try:
-                    child_occurrences = [
-                        id_to_name_map[path] for path in feature.featureData.matedEntities[CHILD].matedOccurrence
-                    ]
-                    parent_occurrences = [
-                        id_to_name_map[path] for path in feature.featureData.matedEntities[PARENT].matedOccurrence
-                    ]
-                except KeyError as e:
-                    LOGGER.warning(e)
-                    LOGGER.warning(f"Key not found in {id_to_name_map.keys()}")
-                    continue
+            # Handle rigid subassemblies
+            if parent_occurrences[0] in rigid_subassembly_map:
+                _occurrence = rigid_subassembly_occurrence_map[parent_occurrences[0]].get(parent_occurrences[1])
+                if _occurrence:
+                    parent_parentCS = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
+                    parts[parent_occurrences[0]].rigidAssemblyToPartTF[parent_occurrences[1]] = parent_parentCS.part_tf
+                    feature.featureData.matedEntities[PARENT].parentCS = parent_parentCS
+                parent_occurrences = [parent_occurrences[0]]
 
-                if parent_occurrences[0] in rigid_subassembly_map:
-                    _occurrence: Occurrence = rigid_subassembly_occurrence_map[parent_occurrences[0]].get(
-                        parent_occurrences[1]
-                    )
+            if child_occurrences[0] in rigid_subassembly_map:
+                _occurrence = rigid_subassembly_occurrence_map[child_occurrences[0]].get(child_occurrences[1])
+                if _occurrence:
+                    child_parentCS = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
+                    parts[child_occurrences[0]].rigidAssemblyToPartTF[child_occurrences[1]] = child_parentCS.part_tf
+                    feature.featureData.matedEntities[CHILD].parentCS = child_parentCS
+                child_occurrences = [child_occurrences[0]]
 
-                    if _occurrence is not None:
-                        parent_parentCS = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
-                        parts[parent_occurrences[0]].rigidAssemblyToPartTF[parent_occurrences[1]] = (
-                            parent_parentCS.part_tf
-                        )
-                        feature.featureData.matedEntities[PARENT].parentCS = parent_parentCS
-                    else:
-                        LOGGER.warning(f"Occurrence {parent_occurrences[1]} not found within {parent_occurrences[0]}")
-                        continue
-
-                    parent_occurrences = [parent_occurrences[0]]
-
-                if child_occurrences[0] in rigid_subassembly_map:
-                    _occurrence: Occurrence = rigid_subassembly_occurrence_map[child_occurrences[0]].get(
-                        child_occurrences[1]
-                    )
-
-                    if _occurrence is not None:
-                        child_parentCS = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
-                        parts[child_occurrences[0]].rigidAssemblyToPartTF[child_occurrences[1]] = child_parentCS.part_tf
-                        feature.featureData.matedEntities[CHILD].parentCS = child_parentCS
-                    else:
-                        LOGGER.warning(f"Occurrence {child_occurrences[1]} not found within {child_occurrences[0]}")
-                        continue
-
-                    child_occurrences = [child_occurrences[0]]
-
-                _mates_map[
-                    join_mate_occurrences(
-                        parent=parent_occurrences,
-                        child=child_occurrences,
-                        prefix=subassembly_prefix,
-                    )
-                ] = feature.featureData
-
-            elif feature.featureType == AssemblyFeatureType.MATERELATION:
-                if feature.featureData.relationType == RelationType.SCREW:
-                    child_joint_id = feature.featureData.mates[0].featureId
-                else:
-                    child_joint_id = feature.featureData.mates[RELATION_CHILD].featureId
-
-                _relations_map[child_joint_id] = feature.featureData
-
-            elif feature.featureType == AssemblyFeatureType.MATECONNECTOR:
-                # TODO: Mate connectors' MatedCS data is already included in the MateFeatureData
-                pass
-
-            elif feature.featureType == AssemblyFeatureType.MATEGROUP:
-                LOGGER.info(f"Assembly has a MATEGROUP feature: {feature}")
-                LOGGER.info(
-                    "MATEGROUPS are now only supported within subassemblies and are considered as rigid bodies."
+            mates_map[
+                join_mate_occurrences(
+                    parent=parent_occurrences,
+                    child=child_occurrences,
+                    prefix=subassembly_prefix,
                 )
-                LOGGER.info("For more information, please refer to the documentation.")
+            ] = feature.featureData
 
-        return _mates_map, _relations_map
+        elif feature.featureType == AssemblyFeatureType.MATERELATION:
+            if feature.featureData.relationType == RelationType.SCREW:
+                child_joint_id = feature.featureData.mates[0].featureId
+            else:
+                child_joint_id = feature.featureData.mates[RELATION_CHILD].featureId
 
-    mates_map, relations_map = traverse_assembly(assembly.rootAssembly)
-
-    for key, subassembly in subassembly_map.items():
-        sub_mates_map, sub_relations_map = traverse_assembly(subassembly, key)
-        mates_map.update(sub_mates_map)
-        relations_map.update(sub_relations_map)
+            relations_map[child_joint_id] = feature.featureData
 
     return mates_map, relations_map
+
+
+async def get_mates_and_relations_async(
+    assembly: Assembly,
+    subassembly_map: dict[str, SubAssembly],
+    rigid_subassembly_map: dict[str, RootAssembly],
+    id_to_name_map: dict[str, str],
+    parts: dict[str, Part],
+) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
+    """
+    Asynchronously get mates and relations.
+    """
+    rigid_subassembly_occurrence_map = await build_rigid_subassembly_occurrence_map(
+        rigid_subassembly_map, id_to_name_map, parts
+    )
+
+    mates_map, relations_map = await process_features_async(
+        assembly.rootAssembly.features,
+        parts,
+        id_to_name_map,
+        rigid_subassembly_occurrence_map,
+        rigid_subassembly_map,
+        None,
+    )
+
+    for key, subassembly in subassembly_map.items():
+        sub_mates, sub_relations = await process_features_async(
+            subassembly.features, parts, id_to_name_map, rigid_subassembly_occurrence_map, rigid_subassembly_map, key
+        )
+        mates_map.update(sub_mates)
+        relations_map.update(sub_relations)
+
+    return mates_map, relations_map
+
+
+def get_mates_and_relations(
+    assembly: Assembly,
+    subassembly_map: dict[str, SubAssembly],
+    rigid_subassembly_map: dict[str, RootAssembly],
+    id_to_name_map: dict[str, str],
+    parts: dict[str, Part],
+) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
+    """
+    Synchronous wrapper for `get_mates_and_relations_async`.
+    """
+    return asyncio.run(
+        get_mates_and_relations_async(assembly, subassembly_map, rigid_subassembly_map, id_to_name_map, parts)
+    )
