@@ -3,18 +3,15 @@ This module contains functions to generate URDF components from Onshape assembly
 
 """
 
-import io
 import os
 import random
 from typing import Optional, Union
 
 import numpy as np
-import stl
 from networkx import DiGraph
 
-from onshape_api.connect import Client
+from onshape_api.connect import Client, DownloadableLink
 from onshape_api.log import LOGGER
-from onshape_api.mesh import transform_mesh
 from onshape_api.models.assembly import (
     Assembly,
     MateFeatureData,
@@ -50,84 +47,6 @@ from onshape_api.parse import MATE_JOINER, PARENT, RELATION_PARENT
 from onshape_api.utilities.helpers import get_sanitized_name
 
 SCRIPT_DIR = os.path.dirname(__file__)
-CURRENT_DIR = os.getcwd()
-
-
-def download_link_stl(
-    did: str,
-    wtype: str,
-    wid: str,
-    eid: str,
-    client: Client,
-    transform: np.ndarray,
-    file_name: str,
-    is_rigid_assembly: bool = False,
-    partID: Optional[str] = None,
-) -> str:
-    """
-    Download an STL mesh (part or assembly), transform it, and save it to a file.
-
-    Args:
-        did: The unique identifier of the document.
-        wid: The unique identifier of the workspace.
-        eid: The unique identifier of the element.
-        vid: The unique identifier of the version of the document.
-        client: The Onshape client object to use for sending API requests.
-        transform: The transformation matrix to apply to the mesh.
-        file_name: The name of the file to save the mesh to.
-        download_type: Specify whether to download "part" or "assembly".
-        partID: The unique identifier of the part (required if download_type is "part").
-
-    Returns:
-        str: The relative path to the saved mesh file.
-
-    Raises:
-        ValueError: If required arguments are missing or invalid.
-        Exception: If an error occurs while downloading the mesh.
-
-    Examples:
-        >>> download_stl(
-        ...     did="document_id",
-        ...     wid="workspace_id",
-        ...     eid="element_id",
-        ...     vid="version_id",
-        ...     client=client,
-        ...     transform=np.eye(4),
-        ...     file_name="output.stl",
-        ...     download_type="part",
-        ...     partID="part_id"
-        ... )
-        "meshes/output.stl"
-    """
-    if not is_rigid_assembly and partID is None:
-        raise ValueError("partID is required when download_type is 'part'.")
-
-    try:
-        with io.BytesIO() as buffer:
-            LOGGER.info(f"Downloading {'Rigid Assembly' if is_rigid_assembly else 'Part'} STL: {file_name}")
-
-            if not is_rigid_assembly:
-                client.download_part_stl(did=did, wtype=wtype, wid=wid, eid=eid, partID=partID, buffer=buffer)
-            else:
-                client.download_assembly_stl(did=did, wtype=wtype, wid=wid, eid=eid, buffer=buffer)
-
-            buffer.seek(0)
-
-            raw_mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
-            transformed_mesh = transform_mesh(raw_mesh, transform)
-
-            meshes_dir = os.path.join(CURRENT_DIR, "meshes")
-            os.makedirs(meshes_dir, exist_ok=True)
-
-            save_path = os.path.join(meshes_dir, file_name)
-            transformed_mesh.save(save_path)
-            LOGGER.info(f"Saved mesh to {save_path}")
-
-            return os.path.relpath(save_path, CURRENT_DIR)
-
-    except Exception as e:
-        LOGGER.warning(f"An error occurred while downloading or transforming the mesh: {e}")
-        raise
 
 
 def get_joint_name(mate_id: str, mates: dict[str, MateFeatureData]) -> str:
@@ -141,7 +60,7 @@ def get_robot_link(
     wid: str,
     client: Client,
     mate: Optional[Union[MateFeatureData, None]] = None,
-) -> tuple[Link, np.matrix]:
+) -> tuple[Link, np.matrix, DownloadableLink]:
     """
     Generate a URDF link from an Onshape part.
 
@@ -194,7 +113,7 @@ def get_robot_link(
         wtype = WorkspaceType.W.value
         mvwid = wid
 
-    _mesh_path = download_link_stl(
+    _downloadable_link = DownloadableLink(
         did=part.documentId,
         wtype=wtype,
         wid=mvwid,
@@ -205,6 +124,8 @@ def get_robot_link(
         is_rigid_assembly=part.isRigidAssembly,
         file_name=f"{name}.stl",
     )
+
+    _mesh_path = _downloadable_link.relative_path
 
     _link = Link(
         name=name,
@@ -236,7 +157,7 @@ def get_robot_link(
         ),
     )
 
-    return _link, _stl_to_link_tf
+    return _link, _stl_to_link_tf, _downloadable_link
 
 
 def get_robot_joint(
@@ -454,7 +375,7 @@ def get_urdf_components(
     mates: dict[str, MateFeatureData],
     relations: dict[str, MateRelationFeatureData],
     client: Client,
-) -> tuple[list[Link], list[BaseJoint]]:
+) -> tuple[dict[str, Link], dict[str, BaseJoint], dict[str, DownloadableLink]]:
     """
     Generate URDF links and joints from an Onshape assembly.
 
@@ -486,18 +407,23 @@ def get_urdf_components(
     joints = []
     links = []
 
+    links_map = {}
+    joints_map = {}
+    assets_map = {}
+
     topological_mates, topological_relations = get_topological_mates(graph, mates, relations)
 
     stl_to_link_tf_map = {}
 
     LOGGER.info(f"Processing root node: {root_node}")
 
-    root_link, stl_to_root_tf = get_robot_link(
+    root_link, stl_to_root_tf, _downloadable_link = get_robot_link(
         name=root_node, part=parts[root_node], wid=assembly.document.wid, client=client, mate=None
     )
 
     links.append(root_link)
 
+    assets_map[root_node] = _downloadable_link
     stl_to_link_tf_map[root_node] = stl_to_root_tf
 
     LOGGER.info(f"Processing remaining {len(graph.nodes) - 1} nodes using {len(graph.edges)} edges")
@@ -549,7 +475,7 @@ def get_urdf_components(
         links.extend(link_list)
         joints.extend(joint_list)
 
-        link, stl_to_link_tf = get_robot_link(
+        link, stl_to_link_tf, downloadable_link = get_robot_link(
             child,
             parts[child],
             assembly.document.wid,
@@ -557,6 +483,10 @@ def get_urdf_components(
             topological_mates[mate_key],
         )
         stl_to_link_tf_map[child] = stl_to_link_tf
+        assets_map[child] = downloadable_link
         links.append(link)
 
-    return links, joints
+    links_map = {link.name: link for link in links}
+    joints_map = {joint.name: joint for joint in joints}
+
+    return links_map, joints_map, assets_map

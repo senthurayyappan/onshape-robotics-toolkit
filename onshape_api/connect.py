@@ -11,10 +11,12 @@ Enum:
 
 """
 
+import asyncio
 import base64
 import datetime
 import hashlib
 import hmac
+import io
 import os
 import secrets
 import string
@@ -23,10 +25,13 @@ from enum import Enum
 from typing import Any, BinaryIO, Optional
 from urllib.parse import parse_qs, urlencode, urlparse
 
+import numpy as np
 import requests
+import stl
 from dotenv import load_dotenv
 
 from onshape_api.log import LOG_LEVEL, LOGGER
+from onshape_api.mesh import transform_mesh
 from onshape_api.models.assembly import Assembly, RootAssembly
 from onshape_api.models.document import BASE_URL, Document, DocumentMetaData, generate_url
 from onshape_api.models.element import Element
@@ -34,7 +39,10 @@ from onshape_api.models.mass import MassProperties
 from onshape_api.models.variable import Variable
 from onshape_api.utilities.helpers import get_sanitized_name
 
-__all__ = ["Client", "HTTP"]
+CURRENT_DIR = os.getcwd()
+MESHES_DIR = "meshes"
+
+__all__ = ["HTTP", "Client"]
 
 # TODO: Add asyncio support for async requests
 
@@ -708,7 +716,6 @@ class Client:
             >>> raw_mesh.save("mesh.stl")
         """
         # TODO: version id seems to always work, should this default behavior be changed?
-
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
         _request_path = f"/api/parts/d/{did}/{wtype}/{wid}/e/{eid}/partid/{partID}/stl"
         _query = {
@@ -982,3 +989,100 @@ class Client:
             req_headers[h] = headers[h]
 
         return req_headers
+
+
+class DownloadableLink:
+    """
+    Represents a set of parameters required to download a link from Onshape.
+    """
+
+    def __init__(
+        self,
+        did: str,
+        wtype: str,
+        wid: str,
+        eid: str,
+        client: Client,
+        transform: np.ndarray,
+        file_name: str,
+        is_rigid_assembly: bool = False,
+        partID: Optional[str] = None,
+    ) -> None:
+        """
+        Initialize the DownloadableLink object.
+
+        Args:
+            did: The unique identifier of the document.
+            wtype: The type of workspace.
+            wid: The unique identifier of the workspace.
+            eid: The unique identifier of the element.
+            client: Onshape API client object.
+            transform: Transformation matrix to apply to the mesh.
+            file_name: Name of the mesh file.
+            is_rigid_assembly: Whether the element is a rigid assembly.
+            partID: The unique identifier of the part.
+        """
+        self.did = did
+        self.wtype = wtype
+        self.wid = wid
+        self.eid = eid
+        self.client = client
+        self.transform = transform
+        self.file_name = file_name
+        self.is_rigid_assembly = is_rigid_assembly
+        self.partID = partID
+
+    @property
+    def absolute_path(self) -> str:
+        """
+        Returns the file path of the mesh file.
+        """
+        # if meshes directory does not exist, create it
+        if not os.path.exists(os.path.join(CURRENT_DIR, MESHES_DIR)):
+            os.makedirs(os.path.join(CURRENT_DIR, MESHES_DIR))
+
+        return os.path.join(CURRENT_DIR, MESHES_DIR, self.file_name)
+
+    @property
+    def relative_path(self) -> str:
+        """
+        Returns the relative path of the mesh file.
+        """
+        return os.path.relpath(self.absolute_path, CURRENT_DIR)
+
+    async def download(self) -> None:
+        """
+        Asynchronously download the mesh file from Onshape, transform it, and save it to a file.
+        """
+        LOGGER.info(f"Starting download for {self.file_name}")
+        try:
+            with io.BytesIO() as buffer:
+                if not self.is_rigid_assembly:
+                    await asyncio.to_thread(
+                        self.client.download_part_stl,
+                        did=self.did,
+                        wtype=self.wtype,
+                        wid=self.wid,
+                        eid=self.eid,
+                        partID=self.partID,
+                        buffer=buffer,
+                    )
+                else:
+                    await asyncio.to_thread(
+                        self.client.download_assembly_stl,
+                        did=self.did,
+                        wtype=self.wtype,
+                        wid=self.wid,
+                        eid=self.eid,
+                        buffer=buffer,
+                    )
+
+                buffer.seek(0)
+
+                raw_mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
+                transformed_mesh = transform_mesh(raw_mesh, self.transform)
+                transformed_mesh.save(self.absolute_path)
+
+                LOGGER.info(f"Mesh file saved: {self.absolute_path}")
+        except Exception as e:
+            LOGGER.error(f"Failed to download {self.file_name}: {e}")
