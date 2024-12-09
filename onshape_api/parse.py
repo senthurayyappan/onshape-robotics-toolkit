@@ -4,6 +4,7 @@ subassemblies, instances, and mates, and generate a hierarchical representation 
 
 """
 
+import asyncio
 import os
 from typing import Optional, Union
 
@@ -227,6 +228,76 @@ def get_subassemblies(
     return subassembly_map, rigid_subassembly_map
 
 
+async def _fetch_mass_properties_async(
+    part: Part,
+    key: str,
+    client: Client,
+    rigid_subassembly_map: dict[str, RootAssembly],
+    part_map: dict[str, Part],
+):
+    """
+    Asynchronously fetch mass properties for a part.
+
+    Args:
+        part: The part for which to fetch mass properties.
+        key: The instance key associated with the part.
+        client: The Onshape client object.
+        rigid_subassembly_map: Mapping of instance IDs to rigid subassemblies.
+        part_map: The dictionary to store fetched parts.
+    """
+    if key.split(SUBASSEMBLY_JOINER)[0] not in rigid_subassembly_map:
+        try:
+            LOGGER.info(f"Fetching mass properties for part: {part.documentVersion}, {part.partId}")
+            part.MassProperty = await asyncio.to_thread(
+                client.get_mass_property,
+                did=part.documentId,
+                wtype=WorkspaceType.M.value,
+                wid=part.documentMicroversion,
+                eid=part.elementId,
+                partID=part.partId,
+            )
+        except Exception as e:
+            LOGGER.error(f"Failed to fetch mass properties for part {part.partId}: {e}")
+
+    part_map[key] = part
+
+
+async def _get_parts_async(
+    assembly: Assembly,
+    rigid_subassembly_map: dict[str, RootAssembly],
+    client: Client,
+    instance_map: dict[str, Union[PartInstance, AssemblyInstance]],
+) -> dict[str, Part]:
+    """
+    Asynchronously get parts of an Onshape assembly.
+
+    Args:
+        assembly: The Onshape assembly object to use for extracting parts.
+        rigid_subassembly_map: Mapping of instance IDs to rigid subassemblies.
+        client: The Onshape client object.
+        instance_map: Mapping of instance IDs to their corresponding instances.
+
+    Returns:
+        A dictionary mapping part IDs to their corresponding part objects.
+    """
+    part_instance_map: dict[str, list[str]] = {}
+    part_map: dict[str, Part] = {}
+
+    for key, instance in instance_map.items():
+        if instance.type == InstanceType.PART:
+            part_instance_map.setdefault(instance.uid, []).append(key)
+
+    tasks = []
+    for part in assembly.parts:
+        if part.uid in part_instance_map:
+            for key in part_instance_map[part.uid]:
+                tasks.append(_fetch_mass_properties_async(part, key, client, rigid_subassembly_map, part_map))
+
+    await asyncio.gather(*tasks)
+
+    return part_map
+
+
 def get_parts(
     assembly: Assembly,
     rigid_subassembly_map: dict[str, RootAssembly],
@@ -238,47 +309,14 @@ def get_parts(
 
     Args:
         assembly: The Onshape assembly object to use for extracting parts.
+        rigid_subassembly_map: Mapping of instance IDs to rigid subassemblies.
         client: The Onshape client object to use for sending API requests.
-        instance_map: Mapping of instance IDs to their corresponding instances. This can be obtained
-            by calling the `get_instances` function.
+        instance_map: Mapping of instance IDs to their corresponding instances.
 
     Returns:
         A dictionary mapping part IDs to their corresponding part objects.
-
-    Examples:
-        >>> assembly = Assembly(...)
-        >>> client = Client(...)
-        >>> get_parts(assembly, client)
-        {
-            "part1": Part(...),
-            "part2": Part(...),
-        }
     """
-
-    # NOTE: partIDs are not unique hence we use the instance ID as the key
-    part_instance_map: dict[str, list[str]] = {}
-    part_map: dict[str, Part] = {}
-
-    for key, instance in instance_map.items():
-        if instance.type == InstanceType.PART:
-            part_instance_map.setdefault(instance.uid, []).append(key)
-
-    for part in assembly.parts:
-        LOGGER.info(f"Parsing part: {part.documentVersion, part.partId}")
-        if part.uid in part_instance_map:
-            for key in part_instance_map[part.uid]:
-                if key.split(SUBASSEMBLY_JOINER)[0] not in rigid_subassembly_map:
-                    part.MassProperty = client.get_mass_property(
-                        did=part.documentId,
-                        wtype=WorkspaceType.M.value,
-                        wid=part.documentMicroversion,
-                        eid=part.elementId,
-                        partID=part.partId,
-                    )
-
-                part_map[key] = part
-
-    return part_map
+    return asyncio.run(_get_parts_async(assembly, rigid_subassembly_map, client, instance_map))
 
 
 def get_occurrence_name(occurrences: list[str], subassembly_prefix: Optional[str] = None) -> str:
