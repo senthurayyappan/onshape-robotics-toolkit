@@ -263,7 +263,7 @@ def get_subassemblies(
     return asyncio.run(get_subassemblies_async(assembly, client, instance_map))
 
 
-async def fetch_mass_properties_async(
+async def _fetch_mass_properties_async(
     part: Part,
     key: str,
     client: Client,
@@ -297,7 +297,7 @@ async def fetch_mass_properties_async(
     part_map[key] = part
 
 
-async def get_parts_async(
+async def _get_parts_async(
     assembly: Assembly,
     rigid_subassembly_map: dict[str, RootAssembly],
     client: Client,
@@ -326,7 +326,7 @@ async def get_parts_async(
     for part in assembly.parts:
         if part.uid in part_instance_map:
             for key in part_instance_map[part.uid]:
-                tasks.append(fetch_mass_properties_async(part, key, client, rigid_subassembly_map, part_map))
+                tasks.append(_fetch_mass_properties_async(part, key, client, rigid_subassembly_map, part_map))
 
     await asyncio.gather(*tasks)
 
@@ -351,7 +351,7 @@ def get_parts(
     Returns:
         A dictionary mapping part IDs to their corresponding part objects.
     """
-    return asyncio.run(get_parts_async(assembly, rigid_subassembly_map, client, instance_map))
+    return asyncio.run(_get_parts_async(assembly, rigid_subassembly_map, client, instance_map))
 
 
 def get_occurrence_name(occurrences: list[str], subassembly_prefix: Optional[str] = None) -> str:
