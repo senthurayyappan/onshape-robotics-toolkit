@@ -16,6 +16,9 @@ import os
 import random
 from xml.sax.saxutils import escape
 
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
+from PIL import Image
 from pydantic import BaseModel
 
 from onshape_api.log import LOGGER
@@ -259,6 +262,26 @@ def get_sanitized_name(name: str, replace_with: str = "-") -> str:
 
     sanitized_name = "".join(char if char.isalnum() or char in "-_ " else "" for char in name)
     return sanitized_name.replace(" ", replace_with)
+
+
+def show_video(frames, framerate=60):
+    fig, ax = plt.subplots()
+    ax.axis("off")
+
+    im = ax.imshow(frames[0], animated=True)
+
+    def update(frame):
+        im.set_array(frame)
+        return [im]
+
+    animation.FuncAnimation(fig, update, frames=frames, interval=1000 / framerate, blit=True)
+
+    plt.show()
+
+
+def save_gif(frames, filename="sim.gif", framerate=60):
+    images = [Image.fromarray(frame) for frame in frames]
+    images[0].save(filename, save_all=True, append_images=images[1:], duration=1000 / framerate, loop=0)
 
 
 if __name__ == "__main__":
