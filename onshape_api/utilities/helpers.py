@@ -204,6 +204,37 @@ def get_random_names(directory: str, count: int, filename: str = "words.txt") ->
     return random.sample(words, count)
 
 
+def make_unique_keys(keys: list[str]) -> dict[str, int]:
+    """
+    Make a list of keys unique by appending a number to duplicate keys and
+    return a mapping of unique keys to their original indices.
+
+    Args:
+        keys: List of keys.
+
+    Returns:
+        A dictionary mapping unique keys to their original indices.
+
+    Examples:
+        >>> make_unique_keys(["a", "b", "a", "a"])
+        {"a": 0, "b": 1, "a-1": 2, "a-2": 3}
+    """
+    unique_key_map = {}
+    key_count = {}
+
+    for index, key in enumerate(keys):
+        if key in key_count:
+            key_count[key] += 1
+            unique_key = f"{key}-{key_count[key]}"
+        else:
+            key_count[key] = 0
+            unique_key = key
+
+        unique_key_map[unique_key] = index
+
+    return unique_key_map
+
+
 def get_sanitized_name(name: str, replace_with: str = "-") -> str:
     """
     Sanitize a name by removing special characters, preserving "-" and "_", and

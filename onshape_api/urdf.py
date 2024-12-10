@@ -44,7 +44,7 @@ from onshape_api.models.link import (
     VisualLink,
 )
 from onshape_api.parse import MATE_JOINER, PARENT, RELATION_PARENT
-from onshape_api.utilities.helpers import get_sanitized_name
+from onshape_api.utilities.helpers import get_sanitized_name, make_unique_keys
 
 SCRIPT_DIR = os.path.dirname(__file__)
 
@@ -486,7 +486,15 @@ def get_urdf_components(
         assets_map[child] = downloadable_link
         links.append(link)
 
-    links_map = {link.name: link for link in links}
-    joints_map = {joint.name: joint for joint in joints}
+    unique_joint_key_map = make_unique_keys([joint.name for joint in joints])
+    unique_link_key_map = make_unique_keys([link.name for link in links])
+
+    for joint_key in unique_joint_key_map:
+        joints[unique_joint_key_map[joint_key]].name = joint_key
+        joints_map[joint_key] = joints[unique_joint_key_map[joint_key]]
+
+    for link_key in unique_link_key_map:
+        links[unique_link_key_map[link_key]].name = link_key
+        links_map[link_key] = links[unique_link_key_map[link_key]]
 
     return links_map, joints_map, assets_map
