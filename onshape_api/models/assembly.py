@@ -545,6 +545,12 @@ class AssemblyInstance(IDBase):
     name: str = Field(..., description="The name of the assembly instance.")
     suppressed: bool = Field(..., description="Indicates if the assembly instance is suppressed.")
 
+    isRigid: bool = Field(
+        False,
+        description="Indicates if the assembly instance is a rigid assembly, i.e., \
+        a sub-assembly with no degrees of freedom.",
+    )
+
     @field_validator("type")
     def check_type(cls, v: InstanceType) -> InstanceType:
         """

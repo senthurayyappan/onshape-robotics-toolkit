@@ -56,9 +56,12 @@ async def traverse_instances_async(
     """
     Asynchronously traverse the assembly structure to get instances.
     """
+    isRigid = False
     if current_depth >= max_depth:
-        LOGGER.debug(f"Max depth {max_depth} reached. Stopping traversal at depth {current_depth}.")
-        return
+        LOGGER.debug(
+            f"Max depth {max_depth} reached. Assuming all sub-assemblies to be rigid at depth {current_depth}."
+        )
+        isRigid = True
 
     for instance in root.instances:
         sanitized_name = get_sanitized_name(instance.name)
@@ -66,6 +69,9 @@ async def traverse_instances_async(
         instance_id = f"{prefix}{SUBASSEMBLY_JOINER}{sanitized_name}" if prefix else sanitized_name
         id_to_name_map[instance.id] = sanitized_name
         instance_map[instance_id] = instance
+
+        if instance.type == InstanceType.ASSEMBLY:
+            instance_map[instance_id].isRigid = isRigid
 
         # Handle subassemblies concurrently
         if instance.type == InstanceType.ASSEMBLY:
@@ -227,12 +233,15 @@ async def get_subassemblies_async(
     rigid_subassembly_map: dict[str, RootAssembly] = {}
 
     # Group by UID
-    subassembly_instance_map = {
-        instance.uid: [] for instance in instance_map.values() if instance.type == InstanceType.ASSEMBLY
-    }
-    for key, instance in instance_map.items():
+    subassembly_instance_map = {}
+    rigid_subassembly_instance_map = {}
+
+    for instance_key, instance in instance_map.items():
         if instance.type == InstanceType.ASSEMBLY:
-            subassembly_instance_map[instance.uid].append(key)
+            if instance.isRigid:
+                rigid_subassembly_instance_map.setdefault(instance.uid, []).append(instance_key)
+            else:
+                subassembly_instance_map.setdefault(instance_key, []).append(instance_key)
 
     # Process subassemblies concurrently
     tasks = []
@@ -247,6 +256,10 @@ async def get_subassemblies_async(
                     tasks.append(fetch_rigid_subassemblies_async(subassembly, key, client, rigid_subassembly_map))
                 else:
                     subassembly_map[key] = subassembly
+
+        elif uid in rigid_subassembly_instance_map:
+            for key in rigid_subassembly_instance_map[uid]:
+                tasks.append(fetch_rigid_subassemblies_async(subassembly, key, client, rigid_subassembly_map))
 
     await asyncio.gather(*tasks)
     return subassembly_map, rigid_subassembly_map

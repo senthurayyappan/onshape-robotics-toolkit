@@ -310,7 +310,7 @@ def get_robot_joint(
 
     else:
         LOGGER.warning(f"Unsupported joint type: {mate.mateType}")
-        return DummyJoint(name=sanitized_name, parent=parent, child=child, origin=origin)
+        return [DummyJoint(name=sanitized_name, parent=parent, child=child, origin=origin)], links
 
 
 def get_topological_mates(
