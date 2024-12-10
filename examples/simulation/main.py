@@ -5,7 +5,8 @@ from scipy.spatial.transform import Rotation
 from transformations import compute_motor_torques
 
 from onshape_api.log import LOGGER, LogLevel
-from onshape_api.robot import get_robot
+
+# from onshape_api.robot import RobotType, get_robot
 from onshape_api.utilities import save_gif
 
 HEIGHT = 480
@@ -56,12 +57,6 @@ def get_theta(data):
     return theta[0], theta[1], theta[2]
 
 
-def key_callback(keycode):
-    if chr(keycode) == "e":
-        print("Exiting")
-        return False
-
-
 def control(data, roll_sp=0, pitch_sp=0):
     roll, pitch, yaw = get_theta(data)
     roll = roll - np.pi
@@ -81,35 +76,35 @@ def control(data, roll_sp=0, pitch_sp=0):
     data.ctrl[2] = t2
     data.ctrl[1] = t3
 
-    # print(f"Roll {roll}, Pitch: {pitch}")
+    print(f"Roll {roll}, Pitch: {pitch}")
 
 
 if __name__ == "__main__":
     LOGGER.set_file_name("sim.log")
     LOGGER.set_stream_level(LogLevel.INFO)
 
-    ballbot = get_robot(
-        url="https://cad.onshape.com/documents/1f42f849180e6e5c9abfce52/w/0c00b6520fac5fada24b2104/e/c96b40ef586e60c182f41d29",
-        robot_name="ballbot",
-    )
+    # TODO: Add native support for MJCF (XML) exports: #17
+    # ballbot = get_robot(
+    #     url="https://cad.onshape.com/documents/1f42f849180e6e5c9abfce52/w/0c00b6520fac5fada24b2104/e/c96b40ef586e60c182f41d29",
+    #     robot_name="ballbot",
+    #     robot_type=RobotType.MJCF,
+    # )
+    # ballbot.show()
 
-    ballbot.save()
+    model = mujoco.MjModel.from_xml_path(filename="ballbot.xml")
+    data = mujoco.MjData(model)
 
-    # model = mujoco.MjModel.from_xml_path(filename=urdf_path)
-    # mujoco.mj_saveLastXML("ballbot.xml", model)
-    # data = mujoco.MjData(model)
+    # run_simulation(model, data, 20, 60)
 
-    # # run_simulation(model, data, 20, 60)
+    mujoco.mj_resetData(model, data)
 
-    # mujoco.mj_resetData(model, data)
+    with mujoco.viewer.launch_passive(model, data) as viewer:
+        initial_roll, initial_pitch, initial_yaw = get_theta(data)
 
-    # with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as viewer:
-    #     initial_roll, initial_pitch, initial_yaw = get_theta(data)
+        while viewer.is_running():
+            mujoco.mj_step(model, data)
+            mujoco.mj_forward(model, data)
 
-    #     while viewer.is_running():
-    #         mujoco.mj_step(model, data)
-    #         mujoco.mj_forward(model, data)
+            control(data)
 
-    #         control(data)
-
-    #         viewer.sync()
+            viewer.sync()

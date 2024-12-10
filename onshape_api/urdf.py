@@ -10,7 +10,7 @@ from typing import Optional, Union
 import numpy as np
 from networkx import DiGraph
 
-from onshape_api.connect import Client, DownloadableLink
+from onshape_api.connect import Asset, Client
 from onshape_api.log import LOGGER
 from onshape_api.models.assembly import (
     Assembly,
@@ -60,7 +60,7 @@ def get_robot_link(
     wid: str,
     client: Client,
     mate: Optional[Union[MateFeatureData, None]] = None,
-) -> tuple[Link, np.matrix, DownloadableLink]:
+) -> tuple[Link, np.matrix, Asset]:
     """
     Generate a URDF link from an Onshape part.
 
@@ -113,7 +113,7 @@ def get_robot_link(
         wtype = WorkspaceType.W.value
         mvwid = wid
 
-    _downloadable_link = DownloadableLink(
+    _downloadable_link = Asset(
         did=part.documentId,
         wtype=wtype,
         wid=mvwid,
@@ -375,7 +375,7 @@ def get_urdf_components(
     mates: dict[str, MateFeatureData],
     relations: dict[str, MateRelationFeatureData],
     client: Client,
-) -> tuple[dict[str, Link], dict[str, BaseJoint], dict[str, DownloadableLink]]:
+) -> tuple[dict[str, Link], dict[str, BaseJoint], dict[str, Asset]]:
     """
     Generate URDF links and joints from an Onshape assembly.
 

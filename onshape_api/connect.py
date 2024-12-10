@@ -21,6 +21,7 @@ import os
 import secrets
 import string
 import time
+import xml.etree.ElementTree as ET
 from enum import Enum
 from typing import Any, BinaryIO, Optional
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -984,7 +985,7 @@ class Client:
         return req_headers
 
 
-class DownloadableLink:
+class Asset:
     """
     Represents a set of parameters required to download a link from Onshape.
     """
@@ -1002,7 +1003,7 @@ class DownloadableLink:
         partID: Optional[str] = None,
     ) -> None:
         """
-        Initialize the DownloadableLink object.
+        Initialize the Asset object.
 
         Args:
             did: The unique identifier of the document.
@@ -1079,3 +1080,26 @@ class DownloadableLink:
                 LOGGER.info(f"Mesh file saved: {self.absolute_path}")
         except Exception as e:
             LOGGER.error(f"Failed to download {self.file_name}: {e}")
+
+    def to_xml(self, root: ET.Element | None = None) -> str:
+        """
+        Returns the XML representation of the asset, which is a mesh file.
+
+        Examples:
+            >>> asset = Asset(
+            ...     did="a1c1addf75444f54b504f25c",
+            ...     wtype="w",
+            ...     wid="0d17b8ebb2a4c76be9fff3c7",
+            ...     eid="a86aaf34d2f4353288df8812",
+            ...     client=client,
+            ...     transform=np.eye(4),
+            ...     file_name="mesh.stl",
+            ...     is_rigid_assembly=True
+            ... )
+            >>> asset.to_xml()
+            <mesh name="Part-1-1" file="Part-1-1.stl" />
+        """
+        asset = ET.Element("mesh") if root is None else ET.SubElement(root, "mesh")
+        asset.set("mesh", self.file_name)
+        asset.set("file", self.relative_path)
+        return asset

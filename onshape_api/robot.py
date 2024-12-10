@@ -14,7 +14,7 @@ from typing import Optional
 
 from defusedxml import minidom
 
-from onshape_api.connect import Client, DownloadableLink
+from onshape_api.connect import Asset, Client
 from onshape_api.graph import create_graph
 from onshape_api.log import LOGGER
 from onshape_api.models.document import Document
@@ -65,7 +65,7 @@ class Robot:
         name: str,
         links: dict[str, Link],
         joints: dict[str, BaseJoint],
-        assets: Optional[dict[str, DownloadableLink]] = None,
+        assets: Optional[dict[str, Asset]] = None,
         robot_type: RobotType = RobotType.URDF,
     ):
         self.name = name
@@ -89,12 +89,24 @@ class Robot:
             >>> robot.to_xml()
             <Element 'robot' at 0x7f8b3c0b4c70>
         """
-        robot = ET.Element("robot", name=self.name)
-        for link in self.links.values():
-            link.to_xml(robot)
+        if robot_type == RobotType.URDF:
+            robot = ET.Element("robot", name=self.name)
+            for link in self.links.values():
+                link.to_xml(robot)
 
-        for joint in self.joints.values():
-            joint.to_xml(robot)
+            for joint in self.joints.values():
+                joint.to_xml(robot)
+
+        elif robot_type == RobotType.MJCF:
+            robot = ET.Element("mujoco", model=self.name)
+
+            # create an asset element to hold all the assets(meshes)
+            if self.assets:
+                assets_element = ET.SubElement(robot, "asset")
+
+                for asset in self.assets.values():
+                    asset.to_xml(assets_element)
+
         return robot
 
     def save(self) -> None:
@@ -173,6 +185,7 @@ def get_robot(
     max_traversal_depth: int = 5,
     use_user_defined_root: bool = False,
     save_assembly_as_json: bool = False,
+    robot_type: RobotType = RobotType.URDF,
 ) -> Robot:
     """
     Get a robot model from an Onshape assembly. A convenience function that combines the parsing and
@@ -241,10 +254,11 @@ def get_robot(
         client=client,
     )
 
-    return Robot(name=robot_name, links=links, joints=joints, assets=assets)
+    return Robot(name=robot_name, links=links, joints=joints, assets=assets, robot_type=robot_type)
 
 
 if __name__ == "__main__":
+    LOGGER.set_file_name("robot.log")
     robot = Robot(
         name="Test",
         links={
@@ -254,7 +268,31 @@ if __name__ == "__main__":
         joints={
             "joint1": FixedJoint(name="joint1", parent="link1", child="link2", origin=Origin.zero_origin()),
         },
+        assets={
+            "link1": Asset(
+                did="1f42f849180e6e5c9abfce52",
+                wtype="w",
+                wid="0c00b6520fac5fada24b2104",
+                eid="c96b40ef586e60c182f41d29",
+                client=Client(env="E:/onshape-api/tests/.env"),
+                transform=(0, 0, 0, 0, 0, 0),
+                file_name="link1.stl",
+                is_rigid_assembly=False,
+                partID="KHD",
+            ),
+            "link2": Asset(
+                did="1f42f849180e6e5c9abfce52",
+                wtype="w",
+                wid="0c00b6520fac5fada24b2104",
+                eid="c96b40ef586e60c182f41d29",
+                client=Client(env="E:/onshape-api/tests/.env"),
+                transform=(0, 0, 0, 0, 0, 0),
+                file_name="link2.stl",
+                is_rigid_assembly=False,
+                partID="KHD",
+            ),
+        },
         robot_type=RobotType.MJCF,
     )
 
-    robot.save()
+    robot.show()
