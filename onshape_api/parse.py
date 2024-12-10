@@ -102,6 +102,86 @@ def get_instances(
     return instance_map, occurrence_map, id_to_name_map
 
 
+def get_instances_sync(
+    assembly: Assembly, max_depth: int = 5
+) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, Occurrence], dict[str, str]]:
+    """
+    Get instances and their sanitized names from an Onshape assembly.
+
+    Args:
+        assembly: The Onshape assembly object to use for extracting instances.
+        max_depth: Maximum depth to traverse in the assembly hierarchy. Default is 5
+
+    Returns:
+        A tuple containing:
+        - A dictionary mapping instance IDs to their corresponding instances.
+        - A dictionary mapping instance IDs to their sanitized names.
+
+    Examples:
+        >>> assembly = Assembly(...)
+        >>> get_instances(assembly, max_depth=2)
+        (
+            {
+                "part1": PartInstance(...),
+                "subassembly1": AssemblyInstance(...),
+            },
+            {
+                "part1": "part1",
+                "subassembly1": "subassembly1",
+            }
+        )
+    """
+
+    def traverse_instances(
+        root: Union[RootAssembly, SubAssembly], prefix: str = "", current_depth: int = 0
+    ) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, str]]:
+        """
+        Traverse the assembly structure to get instances.
+
+        Args:
+            root: Root assembly or subassembly object to traverse.
+            prefix: Prefix for the instance ID.
+            current_depth: Current depth in the assembly hierarchy.
+
+        Returns:
+            A tuple containing:
+            - A dictionary mapping instance IDs to their corresponding instances.
+            - A dictionary mapping instance IDs to their sanitized names.
+        """
+        instance_map = {}
+        id_to_name_map = {}
+
+        # Stop traversing if the maximum depth is reached
+        if current_depth >= max_depth:
+            LOGGER.debug(f"Max depth {max_depth} reached. Stopping traversal at depth {current_depth}.")
+            return instance_map, id_to_name_map
+
+        for instance in root.instances:
+            sanitized_name = get_sanitized_name(instance.name)
+            LOGGER.debug(f"Parsing instance: {sanitized_name}")
+            instance_id = f"{prefix}{SUBASSEMBLY_JOINER}{sanitized_name}" if prefix else sanitized_name
+            id_to_name_map[instance.id] = sanitized_name
+            instance_map[instance_id] = instance
+
+            # Recursively process sub-assemblies if applicable
+            if instance.type == InstanceType.ASSEMBLY:
+                for sub_assembly in assembly.subAssemblies:
+                    if sub_assembly.uid == instance.uid:
+                        sub_instance_map, sub_id_to_name_map = traverse_instances(
+                            sub_assembly, instance_id, current_depth + 1
+                        )
+                        instance_map.update(sub_instance_map)
+                        id_to_name_map.update(sub_id_to_name_map)
+
+        return instance_map, id_to_name_map
+
+    instance_map, id_to_name_map = traverse_instances(assembly.rootAssembly)
+    # return occurrences internally as it relies on max_depth
+    occurrence_map = get_occurrences(assembly, id_to_name_map, max_depth)
+
+    return instance_map, occurrence_map, id_to_name_map
+
+
 def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str], max_depth: int = 5) -> dict[str, Occurrence]:
     """
     Optimized occurrences fetching using comprehensions.

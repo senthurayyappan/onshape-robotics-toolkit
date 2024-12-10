@@ -165,16 +165,26 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
-poetry.lock
+
 examples/**/*.urdf
 examples/**/*.stl
 examples/**/*.png
+examples/**/*.prof
+examples/**/*.json
+
 onshape_api/data/**/*.json
 onshape_api/data/**/*.parquet
+
 benchmark/**/*.urdf
 benchmark/**/*.stl
 benchmark/**/*.png
 benchmark/**/*.prof
 benchmark/**/*.json
+
+tests/**/*.urdf
+tests/**/*.stl
+tests/**/*.png
+tests/**/*.prof
+tests/**/*.json
 
 playground
