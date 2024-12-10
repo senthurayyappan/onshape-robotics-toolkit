@@ -171,6 +171,7 @@ examples/**/*.stl
 examples/**/*.png
 examples/**/*.prof
 examples/**/*.json
+examples/**/*.xml
 
 onshape_api/data/**/*.json
 onshape_api/data/**/*.parquet
@@ -180,11 +181,13 @@ benchmark/**/*.stl
 benchmark/**/*.png
 benchmark/**/*.prof
 benchmark/**/*.json
+examples/**/*.xml
 
 tests/**/*.urdf
 tests/**/*.stl
 tests/**/*.png
 tests/**/*.prof
 tests/**/*.json
+examples/**/*.xml
 
 playground

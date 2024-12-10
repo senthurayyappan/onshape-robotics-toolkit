@@ -263,6 +263,10 @@ class Logger(logging.Logger):
             >>> LOGGER.file_path
             "./my_log_file.log"
         """
+        # if filename has an extension, remove it
+        if file_name is not None and "." in file_name:
+            file_name = file_name.split(".")[0]
+
         self._user_file_name = file_name
         self._file_path = ""
         self._csv_path = ""

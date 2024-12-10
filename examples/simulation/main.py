@@ -1,20 +1,12 @@
-import os
-from typing import Optional
-
 import mujoco
 import mujoco.viewer
 import numpy as np
 from scipy.spatial.transform import Rotation
 from transformations import compute_motor_torques
-from utilities import save_gif
 
-from onshape_api.connect import Client
-from onshape_api.graph import create_graph
-from onshape_api.log import LOGGER
-from onshape_api.models.document import Document
-from onshape_api.models.robot import Robot
-from onshape_api.parse import get_instances, get_mates_and_relations, get_parts, get_subassemblies
-from onshape_api.urdf import get_urdf_components
+from onshape_api.log import LOGGER, LogLevel
+from onshape_api.robot import get_robot
+from onshape_api.utilities import save_gif
 
 HEIGHT = 480
 WIDTH = 640
@@ -92,75 +84,32 @@ def control(data, roll_sp=0, pitch_sp=0):
     # print(f"Roll {roll}, Pitch: {pitch}")
 
 
-def export_urdf(url, filename: Optional[str] = None) -> str:
-    # if file already exists, return
-    if filename is not None and os.path.exists(f"{filename}.urdf"):
-        return f"{filename}.urdf"
-
-    client = Client()
-    document = Document.from_url(url)
-    assembly, _ = client.get_assembly(
-        did=document.did,
-        wtype=document.wtype,
-        wid=document.wid,
-        eid=document.eid,
-    )
-
-    LOGGER.info(assembly.document.url)
-    assembly_robot_name = f"{assembly.document.name + '-' + assembly.name}"
-
-    instances, occurrences, id_to_name_map = get_instances(assembly)
-    subassemblies, rigid_subassemblies = get_subassemblies(assembly, client, instances)
-
-    parts = get_parts(assembly, rigid_subassemblies, client, instances)
-    mates, relations = get_mates_and_relations(assembly, subassemblies, rigid_subassemblies, id_to_name_map, parts)
-
-    graph, root_node = create_graph(
-        occurrences=occurrences,
-        instances=instances,
-        parts=parts,
-        mates=mates,
-        use_user_defined_root=False,
-    )
-
-    links, joints, assets = get_urdf_components(
-        assembly=assembly,
-        graph=graph,
-        root_node=root_node,
-        parts=parts,
-        mates=mates,
-        relations=relations,
-        client=client,
-    )
-
-    robot = Robot(name=assembly_robot_name, links=links, joints=joints, assets=assets)
-
-    if filename is None:
-        filename = assembly_robot_name
-
-    robot.save(f"{filename}.urdf")
-
-
 if __name__ == "__main__":
-    urdf_path = export_urdf(
+    LOGGER.set_file_name("sim.log")
+    LOGGER.set_stream_level(LogLevel.INFO)
+
+    ballbot = get_robot(
         url="https://cad.onshape.com/documents/1f42f849180e6e5c9abfce52/w/0c00b6520fac5fada24b2104/e/c96b40ef586e60c182f41d29",
-        filename="ballbot",
+        robot_name="ballbot",
     )
 
-    model = mujoco.MjModel.from_xml_path(filename=urdf_path)
-    data = mujoco.MjData(model)
+    ballbot.save()
 
-    # run_simulation(model, data, 20, 60)
+    # model = mujoco.MjModel.from_xml_path(filename=urdf_path)
+    # mujoco.mj_saveLastXML("ballbot.xml", model)
+    # data = mujoco.MjData(model)
 
-    mujoco.mj_resetData(model, data)
+    # # run_simulation(model, data, 20, 60)
 
-    with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as viewer:
-        initial_roll, initial_pitch, initial_yaw = get_theta(data)
+    # mujoco.mj_resetData(model, data)
 
-        while viewer.is_running():
-            mujoco.mj_step(model, data)
-            mujoco.mj_forward(model, data)
+    # with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as viewer:
+    #     initial_roll, initial_pitch, initial_yaw = get_theta(data)
 
-            control(data)
+    #     while viewer.is_running():
+    #         mujoco.mj_step(model, data)
+    #         mujoco.mj_forward(model, data)
 
-            viewer.sync()
+    #         control(data)
+
+    #         viewer.sync()

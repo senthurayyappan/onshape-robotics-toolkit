@@ -30,7 +30,7 @@ import requests
 import stl
 from dotenv import load_dotenv
 
-from onshape_api.log import LOG_LEVEL, LOGGER
+from onshape_api.log import LOGGER
 from onshape_api.mesh import transform_mesh
 from onshape_api.models.assembly import Assembly, RootAssembly
 from onshape_api.models.document import BASE_URL, Document, DocumentMetaData, generate_url
@@ -149,9 +149,7 @@ class Client:
         >>> document_meta_data = client.get_document_metadata("document_id")
     """
 
-    def __init__(
-        self, env: str = "./.env", base_url: str = BASE_URL, log_file: str = "./onshape_api", log_level: int = 1
-    ):
+    def __init__(self, env: str = "./.env", base_url: str = BASE_URL):
         """
         Initialize the Onshape API client.
 
@@ -170,8 +168,6 @@ class Client:
 
         self._url = base_url
         self._access_key, self._secret_key = load_env_variables(env)
-        LOGGER.set_file_name(log_file)
-        LOGGER.set_stream_level(LOG_LEVEL[log_level])
         LOGGER.info(f"Onshape API initialized with env file: {env}")
 
     def get_document_metadata(self, did: str) -> DocumentMetaData:
@@ -221,10 +217,10 @@ class Client:
             """
             raise ValueError(f"Access forbidden for document: {did}")
 
-        _document = DocumentMetaData.model_validate(res.json())
-        _document.name = get_sanitized_name(_document.name)
+        document = DocumentMetaData.model_validate(res.json())
+        document.name = get_sanitized_name(document.name)
 
-        return _document
+        return document
 
     def get_elements(self, did: str, wtype: str, wid: str) -> dict[str, Element]:
         """
@@ -254,10 +250,10 @@ class Client:
         """
 
         # /documents/d/{did}/{wvm}/{wvmid}/elements
-        _request_path = "/api/documents/d/" + did + "/" + wtype + "/" + wid + "/elements"
+        request_path = "/api/documents/d/" + did + "/" + wtype + "/" + wid + "/elements"
         _elements_json = self.request(
             HTTP.GET,
-            _request_path,
+            request_path,
         ).json()
 
         return {element["name"]: Element.model_validate(element) for element in _elements_json}
@@ -291,11 +287,11 @@ class Client:
                 )
             }
         """
-        _request_path = "/api/variables/d/" + did + "/w/" + wid + "/e/" + eid + "/variables"
+        request_path = "/api/variables/d/" + did + "/w/" + wid + "/e/" + eid + "/variables"
 
         _variables_json = self.request(
             HTTP.GET,
-            _request_path,
+            request_path,
         ).json()
 
         return {variable["name"]: Variable.model_validate(variable) for variable in _variables_json[0]["variables"]}
@@ -330,11 +326,11 @@ class Client:
         payload = [variable.model_dump() for variable in variables.values()]
 
         # api/v9/variables/d/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/cba5e3ca026547f34f8d9f0f/variables
-        _request_path = "/api/variables/d/" + did + "/w/" + wid + "/e/" + eid + "/variables"
+        request_path = "/api/variables/d/" + did + "/w/" + wid + "/e/" + eid + "/variables"
 
         return self.request(
             HTTP.POST,
-            _request_path,
+            request_path,
             body=payload,
         )
 
@@ -368,10 +364,10 @@ class Client:
             >>> print(assembly_name)
             "Assembly Name"
         """
-        _request_path = "/api/metadata/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
+        request_path = "/api/metadata/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
         result_json = self.request(
             HTTP.GET,
-            _request_path,
+            request_path,
             query={
                 "inferMetadataOwner": "false",
                 "includeComputedProperties": "false",
@@ -437,10 +433,10 @@ class Client:
                 documentMicroversion="349f6413cafefe8fb4ab3b07",
             )
         """
-        _request_path = "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
-        _res = self.request(
+        request_path = "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
+        res = self.request(
             HTTP.GET,
-            _request_path,
+            request_path,
             query={
                 "includeMateFeatures": "true",
                 "includeMateConnectors": "true",
@@ -450,12 +446,12 @@ class Client:
             log_response=log_response,
         )
 
-        if _res.status_code == 401:
+        if res.status_code == 401:
             LOGGER.warning(f"Unauthorized access to document: {did}")
             LOGGER.warning("Please check the API keys in your env file.")
             exit(1)
 
-        if _res.status_code == 404:
+        if res.status_code == 404:
             LOGGER.error(f"Assembly not found: {did}")
             LOGGER.error(
                 generate_url(
@@ -468,11 +464,11 @@ class Client:
             )
             exit(1)
 
-        _assembly_json = _res.json()
-        _assembly = RootAssembly.model_validate(_assembly_json["rootAssembly"])
+        assembly_json = res.json()
+        assembly = RootAssembly.model_validate(assembly_json["rootAssembly"])
 
         if with_mass_properties:
-            _assembly.MassProperty = self.get_assembly_mass_properties(
+            assembly.MassProperty = self.get_assembly_mass_properties(
                 did=did,
                 wid=wid,
                 eid=eid,
@@ -480,9 +476,9 @@ class Client:
             )
 
         if with_meta_data:
-            _assembly.documentMetaData = self.get_document_metadata(did)
+            assembly.documentMetaData = self.get_document_metadata(did)
 
-        return _assembly
+        return assembly
 
     def get_assembly(
         self,
@@ -493,7 +489,7 @@ class Client:
         configuration: str = "default",
         log_response: bool = True,
         with_meta_data: bool = True,
-    ) -> tuple[Assembly, dict]:
+    ) -> Assembly:
         """
         Get assembly data for a specified document / workspace / assembly.
 
@@ -508,10 +504,9 @@ class Client:
 
         Returns:
             Assembly: Assembly object containing the assembly data
-            dict: Assembly data in JSON format
 
         Examples:
-            >>> assembly, _ = client.get_assembly(
+            >>> assembly = client.get_assembly(
             ...     did="a1c1addf75444f54b504f25c",
             ...     wtype="w",
             ...     wid="0d17b8ebb2a4c76be9fff3c7",
@@ -542,10 +537,10 @@ class Client:
                 )
             )
         """
-        _request_path = "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
-        _res = self.request(
+        request_path = "/api/assemblies/d/" + did + "/" + wtype + "/" + wid + "/e/" + eid
+        res = self.request(
             HTTP.GET,
-            _request_path,
+            request_path,
             query={
                 "includeMateFeatures": "true",
                 "includeMateConnectors": "true",
@@ -555,12 +550,12 @@ class Client:
             log_response=log_response,
         )
 
-        if _res.status_code == 401 or _res.status_code == 403:
+        if res.status_code == 401 or res.status_code == 403:
             LOGGER.warning(f"Unauthorized access to document: {did}")
             LOGGER.warning("Please check the API keys in your env file.")
             exit(1)
 
-        if _res.status_code == 404:
+        if res.status_code == 404:
             LOGGER.error(f"Assembly not found: {did}")
             LOGGER.error(
                 generate_url(
@@ -573,18 +568,16 @@ class Client:
             )
             exit(1)
 
-        _assembly_json = _res.json()
-
-        _assembly = Assembly.model_validate(_assembly_json)
-        _document = Document(did=did, wtype=wtype, wid=wid, eid=eid)
-        _assembly.document = _document
+        assembly = Assembly.model_validate(res.json())
+        document = Document(did=did, wtype=wtype, wid=wid, eid=eid)
+        assembly.document = document
 
         if with_meta_data:
-            _assembly.name = self.get_assembly_name(did, wtype, wid, eid, configuration)
-            _document_meta_data = self.get_document_metadata(did)
-            _assembly.document.name = _document_meta_data.name
+            assembly.name = self.get_assembly_name(did, wtype, wid, eid, configuration)
+            document_meta_data = self.get_document_metadata(did)
+            assembly.document.name = document_meta_data.name
 
-        return _assembly, _assembly_json
+        return assembly
 
     def download_assembly_stl(
         self,
@@ -607,7 +600,7 @@ class Client:
 
         """
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
-        _request_path = f"/api/assemblies/d/{did}/{wtype}/{wid}/e/{eid}/translations"
+        request_path = f"/api/assemblies/d/{did}/{wtype}/{wid}/e/{eid}/translations"
 
         # Initiate the translation
         payload = {
@@ -616,7 +609,7 @@ class Client:
         }
         response = self.request(
             HTTP.POST,
-            path=_request_path,
+            path=request_path,
             body=payload,
             log_response=False,
         )
@@ -717,7 +710,7 @@ class Client:
         """
         # TODO: version id seems to always work, should this default behavior be changed?
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
-        _request_path = f"/api/parts/d/{did}/{wtype}/{wid}/e/{eid}/partid/{partID}/stl"
+        request_path = f"/api/parts/d/{did}/{wtype}/{wid}/e/{eid}/partid/{partID}/stl"
         _query = {
             "mode": "binary",
             "grouping": True,
@@ -725,7 +718,7 @@ class Client:
         }
         response = self.request(
             HTTP.GET,
-            path=_request_path,
+            path=request_path,
             headers=req_headers,
             query=_query,
             log_response=False,
@@ -781,8 +774,8 @@ class Client:
                 principalAxes=[...]
             )
         """
-        _request_path = f"/api/assemblies/d/{did}/{wtype}/{wid}/e/{eid}/massproperties"
-        res = self.request(HTTP.GET, _request_path, log_response=False)
+        request_path = f"/api/assemblies/d/{did}/{wtype}/{wid}/e/{eid}/massproperties"
+        res = self.request(HTTP.GET, request_path, log_response=False)
 
         if res.status_code == 404:
             url = generate_url(
@@ -836,8 +829,8 @@ class Client:
             )
         """
         # TODO: version id seems to always work, should this default behavior be changed?
-        _request_path = f"/api/parts/d/{did}/{wtype}/{wid}/e/{eid}/partid/{partID}/massproperties"
-        res = self.request(HTTP.GET, _request_path, {"useMassPropertiesOverrides": True}, log_response=False)
+        request_path = f"/api/parts/d/{did}/{wtype}/{wid}/e/{eid}/partid/{partID}/massproperties"
+        res = self.request(HTTP.GET, request_path, {"useMassPropertiesOverrides": True}, log_response=False)
 
         if res.status_code == 404:
             # TODO: There doesn't seem to be a way to assign material to a part currently
@@ -851,12 +844,12 @@ class Client:
             )
             raise ValueError(f"Part: {url} does not have a material assigned or the part is not found")
 
-        _resonse_json = res.json()
+        resonse_json = res.json()
 
-        if "bodies" not in _resonse_json:
+        if "bodies" not in resonse_json:
             raise KeyError(f"Bodies not found in response, broken part? {partID}")
 
-        return MassProperties.model_validate(_resonse_json["bodies"][partID])
+        return MassProperties.model_validate(resonse_json["bodies"][partID])
 
     def request(
         self,

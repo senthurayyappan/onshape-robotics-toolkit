@@ -24,8 +24,8 @@ def test_example(document):
 
 
 @pytest.mark.parametrize("document", DOCUMENTS)
-def test_get_instances(document, client):
-    assembly, _ = client.get_assembly(
+def test_get_instances(document: Document, client: Client):
+    assembly = client.get_assembly(
         did=document.did,
         wtype=document.wtype,
         wid=document.wid,

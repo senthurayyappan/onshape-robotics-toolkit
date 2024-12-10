@@ -80,7 +80,7 @@ from onshape_api.parse import (
 )
 
 # Retrieve the assembly
-assembly, _ = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
+assembly = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
 
 # Extract components
 instances, id_to_name_map = get_instances(assembly)
