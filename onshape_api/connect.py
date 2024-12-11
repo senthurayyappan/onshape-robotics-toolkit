@@ -845,6 +845,9 @@ class Client:
             )
             raise ValueError(f"Part: {url} does not have a material assigned or the part is not found")
 
+        elif res.status_code == 429:
+            raise ValueError(f"Too many requests, please retry after {res.headers['Retry-After']} seconds")
+
         resonse_json = res.json()
 
         if "bodies" not in resonse_json:

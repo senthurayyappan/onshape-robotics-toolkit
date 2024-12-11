@@ -43,7 +43,7 @@ from onshape_api.models.link import (
     Origin,
     VisualLink,
 )
-from onshape_api.parse import MATE_JOINER, PARENT, RELATION_PARENT
+from onshape_api.parse import CHILD, MATE_JOINER, PARENT, RELATION_PARENT
 from onshape_api.utilities.helpers import get_sanitized_name, make_unique_keys
 
 SCRIPT_DIR = os.path.dirname(__file__)
@@ -90,8 +90,10 @@ def get_robot_link(
 
     if mate is None:
         _link_to_stl_tf[:3, 3] = np.array(part.MassProperty.center_of_mass).reshape(3)
+    elif mate.matedEntities[CHILD].parentCS:
+        _link_to_stl_tf = mate.matedEntities[CHILD].parentCS.part_tf @ mate.matedEntities[CHILD].matedCS.part_to_mate_tf
     else:
-        _link_to_stl_tf = mate.matedEntities[0].matedCS.part_to_mate_tf
+        _link_to_stl_tf = mate.matedEntities[CHILD].matedCS.part_to_mate_tf
 
     _stl_to_link_tf = np.matrix(np.linalg.inv(_link_to_stl_tf))
     _mass = part.MassProperty.mass[0]
@@ -113,7 +115,7 @@ def get_robot_link(
         wtype = WorkspaceType.W.value
         mvwid = wid
 
-    _downloadable_link = Asset(
+    _asset = Asset(
         did=part.documentId,
         wtype=wtype,
         wid=mvwid,
@@ -125,7 +127,7 @@ def get_robot_link(
         file_name=f"{name}.stl",
     )
 
-    _mesh_path = _downloadable_link.relative_path
+    _mesh_path = _asset.relative_path
 
     _link = Link(
         name=name,
@@ -157,7 +159,7 @@ def get_robot_link(
         ),
     )
 
-    return _link, _stl_to_link_tf, _downloadable_link
+    return _link, _stl_to_link_tf, _asset
 
 
 def get_robot_joint(
@@ -417,13 +419,13 @@ def get_urdf_components(
 
     LOGGER.info(f"Processing root node: {root_node}")
 
-    root_link, stl_to_root_tf, _downloadable_link = get_robot_link(
+    root_link, stl_to_root_tf, _asset = get_robot_link(
         name=root_node, part=parts[root_node], wid=assembly.document.wid, client=client, mate=None
     )
 
     links.append(root_link)
 
-    assets_map[root_node] = _downloadable_link
+    assets_map[root_node] = _asset
     stl_to_link_tf_map[root_node] = stl_to_root_tf
 
     LOGGER.info(f"Processing remaining {len(graph.nodes) - 1} nodes using {len(graph.edges)} edges")
@@ -475,7 +477,7 @@ def get_urdf_components(
         links.extend(link_list)
         joints.extend(joint_list)
 
-        link, stl_to_link_tf, downloadable_link = get_robot_link(
+        link, stl_to_link_tf, asset = get_robot_link(
             child,
             parts[child],
             assembly.document.wid,
@@ -483,7 +485,7 @@ def get_urdf_components(
             topological_mates[mate_key],
         )
         stl_to_link_tf_map[child] = stl_to_link_tf
-        assets_map[child] = downloadable_link
+        assets_map[child] = asset
         links.append(link)
 
     unique_joint_key_map = make_unique_keys([joint.name for joint in joints])

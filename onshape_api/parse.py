@@ -197,7 +197,7 @@ def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str], max_dept
             id_to_name_map[path] for path in occurrence.path if path in id_to_name_map
         ]): occurrence
         for occurrence in assembly.rootAssembly.occurrences
-        if len(occurrence.path) <= max_depth
+        if len(occurrence.path) <= max_depth + 1
     }
 
 
