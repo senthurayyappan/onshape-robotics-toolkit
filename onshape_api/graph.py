@@ -36,7 +36,7 @@ def plot_graph(graph: Union[nx.Graph, nx.DiGraph], file_name: Optional[str] = No
     """
     colors = [f"#{random.randint(0, 0xFFFFFF):06x}" for _ in range(len(graph.nodes))]  # noqa: S311
     plt.figure(figsize=(8, 8))
-    pos = nx.spring_layout(graph)
+    pos = nx.shell_layout(graph)
 
     if file_name:
         nx.draw(

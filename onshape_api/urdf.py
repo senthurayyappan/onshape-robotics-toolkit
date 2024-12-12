@@ -254,10 +254,10 @@ def get_robot_joint(
 
     elif mate.mateType == MateType.BALL:
         dummy_x = Link(
-            name=f"{parent}-dummy-x",
+            name=f"{parent}-{mate.name}-x",
         )
         dummy_y = Link(
-            name=f"{parent}-dummy-y",
+            name=f"{parent}-{mate.name}-y",
         )
 
         links = [dummy_x, dummy_y]
