@@ -17,6 +17,7 @@ from onshape_api.models.assembly import (
     MateFeatureData,
     MateRelationFeatureData,
     MateType,
+    Occurrence,
     Part,
     RelationType,
 )
@@ -57,6 +58,7 @@ def get_joint_name(mate_id: str, mates: dict[str, MateFeatureData]) -> str:
 def get_robot_link(
     name: str,
     part: Part,
+    occurrence: Occurrence,
     wid: str,
     client: Client,
     mate: Optional[Union[MateFeatureData, None]] = None,
@@ -89,6 +91,9 @@ def get_robot_link(
     _link_to_stl_tf = np.eye(4)
 
     if mate is None:
+        # TODO: this is the root link and we want it to respect the assembly orientation
+        _assembly_to_link_tf = np.matrix(occurrence.transform).reshape(4, 4)
+        _link_to_stl_tf[:3, :3] = _assembly_to_link_tf[:3, :3]
         _link_to_stl_tf[:3, 3] = np.array(part.MassProperty.center_of_mass).reshape(3)
     elif mate.matedEntities[CHILD].parentCS:
         _link_to_stl_tf = mate.matedEntities[CHILD].parentCS.part_tf @ mate.matedEntities[CHILD].matedCS.part_to_mate_tf
@@ -373,6 +378,7 @@ def get_urdf_components(
     assembly: Assembly,
     graph: DiGraph,
     root_node: str,
+    occurrences: dict[str, Occurrence],
     parts: dict[str, Part],
     mates: dict[str, MateFeatureData],
     relations: dict[str, MateRelationFeatureData],
@@ -422,7 +428,12 @@ def get_urdf_components(
     LOGGER.info(f"Processing root node: {root_node}")
 
     root_link, stl_to_root_tf, _asset = get_robot_link(
-        name=root_node, part=parts[root_node], wid=assembly.document.wid, client=client, mate=None
+        name=root_node,
+        part=parts[root_node],
+        occurrence=occurrences[root_node],
+        wid=assembly.document.wid,
+        client=client,
+        mate=None,
     )
 
     links.append(root_link)
@@ -476,6 +487,7 @@ def get_urdf_components(
         link, stl_to_link_tf, asset = get_robot_link(
             child,
             parts[child],
+            occurrences[child],
             assembly.document.wid,
             client,
             topological_mates[mate_key],

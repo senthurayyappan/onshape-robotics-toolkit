@@ -270,7 +270,7 @@ def get_sanitized_name(name: str, replace_with: str = "-") -> str:
     """
     Sanitize a name by removing special characters, preserving "-" and "_", and
     replacing spaces with a specified character. Ensures no consecutive replacement
-    characters in the result.
+    characters in the result. Also removes patterns like '<3>' or '<n>' entirely.
 
     Args:
         name: Name to sanitize
@@ -281,7 +281,7 @@ def get_sanitized_name(name: str, replace_with: str = "-") -> str:
 
     Examples:
         >>> get_sanitized_name("wheel1 <3>", '-')
-        "wheel1-3"
+        "wheel1"
         >>> get_sanitized_name("Hello  World!", '_')
         "Hello_World"
         >>> get_sanitized_name("my--robot!!", '-')
@@ -293,6 +293,10 @@ def get_sanitized_name(name: str, replace_with: str = "-") -> str:
     if replace_with not in "-_":
         raise ValueError("replace_with must be either '-' or '_'")
 
+    # Remove patterns like <3> or <n> where n is a number
+    name = re.sub(r" <\d+>", "", name)
+
+    # Remove unwanted characters and sanitize
     sanitized_name = "".join(char if char.isalnum() or char in "-_ " else "" for char in name)
     sanitized_name = sanitized_name.replace(" ", replace_with)
     sanitized_name = re.sub(f"{re.escape(replace_with)}{{2,}}", replace_with, sanitized_name)

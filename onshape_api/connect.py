@@ -712,11 +712,7 @@ class Client:
         # TODO: version id seems to always work, should this default behavior be changed?
         req_headers = {"Accept": "application/vnd.onshape.v1+octet-stream"}
         request_path = f"/api/parts/d/{did}/{wtype}/{wid}/e/{eid}/partid/{partID}/stl"
-        _query = {
-            "mode": "binary",
-            "grouping": True,
-            "units": "meter",
-        }
+        _query = {"mode": "binary", "grouping": True, "units": "meter", "resolution": "coarse"}
         response = self.request(
             HTTP.GET,
             path=request_path,

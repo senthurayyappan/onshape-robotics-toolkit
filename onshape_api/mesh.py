@@ -42,9 +42,7 @@ def transform_mesh(mesh: Mesh, transform: np.ndarray) -> Mesh:
         >>> transform_mesh(mesh, transform)
     """
 
-    _transform_vectors = partial(
-        transform_vectors, rotation=transform[:3, :3], translation=transform[0:3, 3:4].T.tolist()
-    )
+    _transform_vectors = partial(transform_vectors, rotation=transform[:3, :3], translation=transform[:3, 3].T.tolist())
 
     mesh.v0 = _transform_vectors(mesh.v0)
     mesh.v1 = _transform_vectors(mesh.v1)
