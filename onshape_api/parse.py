@@ -86,7 +86,7 @@ async def traverse_instances_async(
 
 
 def get_instances(
-    assembly: Assembly, max_depth: int = 5
+    assembly: Assembly, max_depth: int = 0
 ) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, Occurrence], dict[str, str]]:
     """
     Optimized synchronous wrapper for `get_instances`.
@@ -109,7 +109,7 @@ def get_instances(
 
 
 def get_instances_sync(
-    assembly: Assembly, max_depth: int = 5
+    assembly: Assembly, max_depth: int = 0
 ) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, Occurrence], dict[str, str]]:
     """
     Get instances and their sanitized names from an Onshape assembly.
@@ -188,7 +188,7 @@ def get_instances_sync(
     return instance_map, occurrence_map, id_to_name_map
 
 
-def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str], max_depth: int = 5) -> dict[str, Occurrence]:
+def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str], max_depth: int = 0) -> dict[str, Occurrence]:
     """
     Optimized occurrences fetching using comprehensions.
     """

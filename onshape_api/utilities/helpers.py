@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import random
+import re
 from xml.sax.saxutils import escape
 
 import matplotlib.animation as animation
@@ -238,10 +239,38 @@ def make_unique_keys(keys: list[str]) -> dict[str, int]:
     return unique_key_map
 
 
+def make_unique_name(name: str, existing_names: set[str]) -> str:
+    """
+    Make a name unique by appending a number to the name if it already exists in a set.
+
+    Args:
+        name: Name to make unique.
+        existing_names: Set of existing names.
+
+    Returns:
+        A unique name.
+
+    Examples:
+        >>> make_unique_name("name", {"name"})
+        "name-1"
+        >>> make_unique_name("name", {"name", "name-1"})
+        "name-2"
+    """
+    if name not in existing_names:
+        return name
+
+    count = 1
+    while f"{name}-{count}" in existing_names:
+        count += 1
+
+    return f"{name}-{count}"
+
+
 def get_sanitized_name(name: str, replace_with: str = "-") -> str:
     """
     Sanitize a name by removing special characters, preserving "-" and "_", and
-    replacing spaces with a specified character.
+    replacing spaces with a specified character. Ensures no consecutive replacement
+    characters in the result.
 
     Args:
         name: Name to sanitize
@@ -253,15 +282,22 @@ def get_sanitized_name(name: str, replace_with: str = "-") -> str:
     Examples:
         >>> get_sanitized_name("wheel1 <3>", '-')
         "wheel1-3"
-        >>> get_sanitized_name("Hello World!", '_')
+        >>> get_sanitized_name("Hello  World!", '_')
         "Hello_World"
+        >>> get_sanitized_name("my--robot!!", '-')
+        "my-robot"
+        >>> get_sanitized_name("bad__name__", '_')
+        "bad_name"
     """
 
     if replace_with not in "-_":
         raise ValueError("replace_with must be either '-' or '_'")
 
     sanitized_name = "".join(char if char.isalnum() or char in "-_ " else "" for char in name)
-    return sanitized_name.replace(" ", replace_with)
+    sanitized_name = sanitized_name.replace(" ", replace_with)
+    sanitized_name = re.sub(f"{re.escape(replace_with)}{{2,}}", replace_with, sanitized_name)
+
+    return sanitized_name
 
 
 def show_video(frames, framerate=60):

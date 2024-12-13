@@ -182,7 +182,7 @@ def get_robot(
     robot_name: str,
     url: str,
     env: str = "./.env",
-    max_traversal_depth: int = 5,
+    max_traversal_depth: int = 0,
     use_user_defined_root: bool = False,
     save_assembly_as_json: bool = False,
     robot_type: RobotType = RobotType.URDF,

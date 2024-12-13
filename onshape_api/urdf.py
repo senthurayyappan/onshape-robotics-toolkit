@@ -44,7 +44,7 @@ from onshape_api.models.link import (
     VisualLink,
 )
 from onshape_api.parse import CHILD, MATE_JOINER, PARENT, RELATION_PARENT
-from onshape_api.utilities.helpers import get_sanitized_name, make_unique_keys
+from onshape_api.utilities.helpers import get_sanitized_name, make_unique_keys, make_unique_name
 
 SCRIPT_DIR = os.path.dirname(__file__)
 
@@ -254,10 +254,10 @@ def get_robot_joint(
 
     elif mate.mateType == MateType.BALL:
         dummy_x = Link(
-            name=f"{parent}-{mate.name}-x",
+            name=f"{parent}-{get_sanitized_name(mate.name)}-x",
         )
         dummy_y = Link(
-            name=f"{parent}-{mate.name}-y",
+            name=f"{parent}-{get_sanitized_name(mate.name)}-y",
         )
 
         links = [dummy_x, dummy_y]
@@ -413,6 +413,8 @@ def get_urdf_components(
     joints_map = {}
     assets_map = {}
 
+    parts_traversed_map: dict[str, str] = {}
+
     topological_mates, topological_relations = get_topological_mates(graph, mates, relations)
 
     stl_to_link_tf_map = {}
@@ -424,7 +426,7 @@ def get_urdf_components(
     )
 
     links.append(root_link)
-
+    parts_traversed_map[root_node] = parts[root_node].uid
     assets_map[root_node] = _asset
     stl_to_link_tf_map[root_node] = stl_to_root_tf
 
@@ -435,17 +437,11 @@ def get_urdf_components(
         parent, child = edge
         mate_key = f"{parent}{MATE_JOINER}{child}"
         LOGGER.info(f"Processing edge: {parent} -> {child}")
-
-        try:
-            parent_tf = stl_to_link_tf_map[parent]
-        except KeyError:
-            LOGGER.warning(f"Parent {parent} not found in stl_to_link_tf_map")
-            LOGGER.info(f"stl_to_link_tf_map keys: {stl_to_link_tf_map.keys()}")
-            exit(1)
+        parent_tf = stl_to_link_tf_map[parent]
 
         if parent not in parts or child not in parts:
             LOGGER.warning(f"Part {parent} or {child} not found in parts")
-            # remove the edge from the graph
+            # remove the edge from the graph?
             continue
 
         relation = topological_relations.get(topological_mates[mate_key].id)
@@ -484,9 +480,23 @@ def get_urdf_components(
             client,
             topological_mates[mate_key],
         )
+
         stl_to_link_tf_map[child] = stl_to_link_tf
         assets_map[child] = asset
-        links.append(link)
+
+        if child not in parts_traversed_map:
+            links.append(link)
+            parts_traversed_map[child] = parts[child].uid
+        elif child in parts_traversed_map and parts_traversed_map[child] != parts[child].uid:
+            LOGGER.warning(f"Part shares the same name but different UID: {child}")
+            LOGGER.info("Still adding the link with modified unique name.")
+            unique_name = make_unique_name(link.name, set(parts_traversed_map))
+            parts_traversed_map[unique_name] = parts[child].uid
+            link.name = unique_name
+            links.append(link)
+        else:
+            LOGGER.warning(f"Part {child} already traversed. Skipping.")
+            continue
 
     unique_joint_key_map = make_unique_keys([joint.name for joint in joints])
     unique_link_key_map = make_unique_keys([link.name for link in links])
