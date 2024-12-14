@@ -241,7 +241,7 @@ async def get_subassemblies_async(
             if instance.isRigid:
                 rigid_subassembly_instance_map.setdefault(instance.uid, []).append(instance_key)
             else:
-                subassembly_instance_map.setdefault(instance_key, []).append(instance_key)
+                subassembly_instance_map.setdefault(instance.uid, []).append(instance_key)
 
     # Process subassemblies concurrently
     tasks = []

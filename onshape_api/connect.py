@@ -21,11 +21,11 @@ import os
 import secrets
 import string
 import time
-import xml.etree.ElementTree as ET
 from enum import Enum
 from typing import Any, BinaryIO, Optional
 from urllib.parse import parse_qs, urlencode, urlparse
 
+import lxml.etree as ET
 import numpy as np
 import requests
 import stl
@@ -1084,7 +1084,7 @@ class Asset:
         except Exception as e:
             LOGGER.error(f"Failed to download {self.file_name}: {e}")
 
-    def to_xml(self, root: ET.Element | None = None) -> str:
+    def to_xml(self, root: Optional[ET.Element] = None) -> str:
         """
         Returns the XML representation of the asset, which is a mesh file.
 

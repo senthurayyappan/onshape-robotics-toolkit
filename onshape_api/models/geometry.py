@@ -9,9 +9,11 @@ Class:
     - **MeshGeometry**: Represents a mesh geometry.
 """
 
-import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Optional
+
+import lxml.etree as ET
 
 from onshape_api.utilities import format_number, xml_escape
 
@@ -26,7 +28,7 @@ class BaseGeometry(ABC):
     """
 
     @abstractmethod
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element: ...
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element: ...
 
     @classmethod
     @abstractmethod
@@ -52,7 +54,7 @@ class BoxGeometry(BaseGeometry):
 
     size: tuple[float, float, float]
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the box geometry to an XML element.
 
@@ -113,7 +115,7 @@ class CylinderGeometry(BaseGeometry):
     radius: float
     length: float
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the cylinder geometry to an XML element.
 
@@ -178,7 +180,7 @@ class SphereGeometry(BaseGeometry):
 
     radius: float
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the sphere geometry to an XML element.
 
@@ -237,7 +239,7 @@ class MeshGeometry(BaseGeometry):
 
     filename: str
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the mesh geometry to an XML element.
 

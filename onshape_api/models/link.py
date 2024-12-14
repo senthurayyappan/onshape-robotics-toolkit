@@ -15,11 +15,12 @@ Enum:
     - **Colors**: Enumerates the possible colors for a link in the robot model.
 """
 
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional, Union
 
 import numpy as np
+from lxml import etree
 from scipy.spatial.transform import Rotation
 
 from onshape_api.models.geometry import BaseGeometry, BoxGeometry, CylinderGeometry, MeshGeometry, SphereGeometry
@@ -96,7 +97,39 @@ class Origin:
     xyz: tuple[float, float, float]
     rpy: tuple[float, float, float]
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def transform(self, matrix: np.matrix, inplace: bool = False) -> Union["Origin", None]:
+        """
+        Apply a transformation matrix to the origin.
+
+        Args:
+            matrix: The transformation matrix to apply to the origin.
+            inplace: Whether to apply the transformation in place.
+
+        Returns:
+            The origin with the transformation applied.
+
+        Examples:
+            >>> origin = Origin(xyz=(1.0, 2.0, 3.0), rpy=(0.0, 0.0, 0.0))
+            >>> matrix = np.eye(4)
+            >>> origin.transform(matrix)
+        """
+        # Apply the rotation and translation to the position
+        new_xyz = np.dot(matrix[:3, :3], np.array(self.xyz)) + matrix[:3, 3]
+
+        # Convert current RPY to a rotation matrix
+        current_rotation_matrix = Rotation.from_euler("xyz", self.rpy).as_matrix()
+
+        # Apply the rotation to the current rotation matrix
+        new_rotation_matrix = np.dot(matrix[:3, :3], current_rotation_matrix)
+        new_rpy = Rotation.from_matrix(new_rotation_matrix).as_euler("xyz")
+        if inplace:
+            self.xyz = tuple(new_xyz)
+            self.rpy = tuple(new_rpy)
+            return None
+
+        return Origin(new_xyz, new_rpy)
+
+    def to_xml(self, root: Optional[etree.Element] = None) -> etree.Element:
         """
         Convert the origin to an XML element.
 
@@ -112,13 +145,13 @@ class Origin:
             <Element 'origin' at 0x7f8b3c0b4c70>
         """
 
-        origin = ET.Element("origin") if root is None else ET.SubElement(root, "origin")
+        origin = etree.Element("origin") if root is None else etree.SubElement(root, "origin")
         origin.set("xyz", " ".join(format_number(v) for v in self.xyz))
         origin.set("rpy", " ".join(format_number(v) for v in self.rpy))
         return origin
 
     @classmethod
-    def from_xml(cls, xml: ET.Element) -> "Origin":
+    def from_xml(cls, xml: etree.Element) -> "Origin":
         """
         Create an origin from an XML element.
 
@@ -129,7 +162,7 @@ class Origin:
             The origin created from the XML element.
 
         Examples:
-            >>> xml = ET.Element('origin')
+            >>> xml = etree.Element('origin')
             >>> Origin.from_xml(xml)
             Origin(xyz=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0))
         """
@@ -201,7 +234,7 @@ class Axis:
 
     xyz: tuple[float, float, float]
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[etree.Element] = None) -> etree.Element:
         """
         Convert the axis to an XML element.
 
@@ -217,12 +250,12 @@ class Axis:
             <Element 'axis' at 0x7f8b3c0b4c70>
         """
 
-        axis = ET.Element("axis") if root is None else ET.SubElement(root, "axis")
+        axis = etree.Element("axis") if root is None else etree.SubElement(root, "axis")
         axis.set("xyz", " ".join(format_number(v) for v in self.xyz))
         return axis
 
     @classmethod
-    def from_xml(cls, xml: ET.Element) -> "Axis":
+    def from_xml(cls, xml: etree.Element) -> "Axis":
         """
         Create an axis from an XML element.
 
@@ -233,7 +266,7 @@ class Axis:
             The axis created from the XML element.
 
         Examples:
-            >>> xml = ET.Element('axis')
+            >>> xml = etree.Element('axis')
             >>> Axis.from_xml(xml)
             Axis(xyz=(0.0, 0.0, 0.0))
         """
@@ -270,7 +303,7 @@ class Inertia:
     ixz: float
     iyz: float
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[etree.Element] = None) -> etree.Element:
         """
         Convert the inertia tensor to an XML element.
 
@@ -286,7 +319,7 @@ class Inertia:
             <Element 'inertia' at 0x7f8b3c0b4c70>
         """
 
-        inertia = ET.Element("inertia") if root is None else ET.SubElement(root, "inertia")
+        inertia = etree.Element("inertia") if root is None else etree.SubElement(root, "inertia")
         inertia.set("ixx", format_number(self.ixx))
         inertia.set("iyy", format_number(self.iyy))
         inertia.set("izz", format_number(self.izz))
@@ -296,7 +329,7 @@ class Inertia:
         return inertia
 
     @classmethod
-    def from_xml(cls, xml: ET.Element) -> "Inertia":
+    def from_xml(cls, xml: etree.Element) -> "Inertia":
         """
         Create an inertia tensor from an XML element.
 
@@ -307,7 +340,7 @@ class Inertia:
             The inertia tensor created from the XML element.
 
         Examples:
-            >>> xml = ET.Element('inertia')
+            >>> xml = etree.Element('inertia')
             >>> Inertia.from_xml(xml)
             Inertia(ixx=0.0, iyy=0.0, izz=0.0, ixy=0.0, ixz=0.0, iyz=0.0)
         """
@@ -347,7 +380,7 @@ class Material:
     name: str
     color: tuple[float, float, float, float]
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[etree.Element] = None) -> etree.Element:
         """
         Convert the material properties to an XML element.
 
@@ -363,13 +396,13 @@ class Material:
             <Element 'material' at 0x7f8b3c0b4c70>
         """
 
-        material = ET.Element("material") if root is None else ET.SubElement(root, "material")
+        material = etree.Element("material") if root is None else etree.SubElement(root, "material")
         material.set("name", self.name)
-        ET.SubElement(material, "color", rgba=" ".join(format_number(v) for v in self.color))
+        etree.SubElement(material, "color", rgba=" ".join(format_number(v) for v in self.color))
         return material
 
     @classmethod
-    def from_xml(cls, xml: ET.Element) -> "Material":
+    def from_xml(cls, xml: etree.Element) -> "Material":
         """
         Create a material from an XML element.
 
@@ -380,7 +413,7 @@ class Material:
             The material created from the XML element.
 
         Examples:
-            >>> xml = ET.Element('material')
+            >>> xml = etree.Element('material')
             >>> Material.from_xml(xml)
             Material(name='material', color=(1.0, 0.0, 0.0, 1.0))
         """
@@ -431,7 +464,7 @@ class InertialLink:
     inertia: Inertia
     origin: Origin
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[etree.Element] = None) -> etree.Element:
         """
         Convert the inertial properties to an XML element.
 
@@ -446,14 +479,14 @@ class InertialLink:
             >>> inertial.to_xml()
             <Element 'inertial' at 0x7f8b3c0b4c70>
         """
-        inertial = ET.Element("inertial") if root is None else ET.SubElement(root, "inertial")
-        ET.SubElement(inertial, "mass", value=format_number(self.mass))
+        inertial = etree.Element("inertial") if root is None else etree.SubElement(root, "inertial")
+        etree.SubElement(inertial, "mass", value=format_number(self.mass))
         self.inertia.to_xml(inertial)
         self.origin.to_xml(inertial)
         return inertial
 
     @classmethod
-    def from_xml(cls, xml: ET.Element) -> "InertialLink":
+    def from_xml(cls, xml: etree.Element) -> "InertialLink":
         """
         Create inertial properties from an XML element.
 
@@ -464,7 +497,7 @@ class InertialLink:
             The inertial properties created from the XML element.
 
         Examples:
-            >>> xml = ET.Element('inertial')
+            >>> xml = etree.Element('inertial')
             >>> InertialLink.from_xml(xml)
             InertialLink(mass=0.0, inertia=None, origin=None)
         """
@@ -479,7 +512,7 @@ class InertialLink:
         return cls(mass=mass, inertia=inertia, origin=origin)
 
 
-def set_geometry_from_xml(geometry: ET.Element) -> BaseGeometry | None:
+def set_geometry_from_xml(geometry: etree.Element) -> BaseGeometry | None:
     if geometry.find("filename"):
         return MeshGeometry.from_xml(geometry)
     elif geometry.find("box"):
@@ -515,7 +548,7 @@ class VisualLink:
     geometry: BaseGeometry
     material: Material
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[etree.Element] = None) -> etree.Element:
         """
         Convert the visual properties to an XML element.
 
@@ -530,7 +563,7 @@ class VisualLink:
             >>> visual.to_xml()
             <Element 'visual' at 0x7f8b3c0b4c70>
         """
-        visual = ET.Element("visual") if root is None else ET.SubElement(root, "visual")
+        visual = etree.Element("visual") if root is None else etree.SubElement(root, "visual")
         visual.set("name", self.name)
         self.origin.to_xml(visual)
         self.geometry.to_xml(visual)
@@ -538,7 +571,7 @@ class VisualLink:
         return visual
 
     @classmethod
-    def from_xml(cls, xml: ET.Element) -> "VisualLink":
+    def from_xml(cls, xml: etree.Element) -> "VisualLink":
         """
         Create a visual link from an XML element.
 
@@ -549,7 +582,7 @@ class VisualLink:
             The visual link created from the XML element.
 
         Examples:
-            >>> xml = ET.Element('visual')
+            >>> xml = etree.Element('visual')
             >>> VisualLink.from_xml(xml)
             VisualLink(name='visual', origin=None, geometry=None, material=None)
         """
@@ -588,7 +621,7 @@ class CollisionLink:
     origin: Origin
     geometry: BaseGeometry
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[etree.Element] = None) -> etree.Element:
         """
         Convert the collision properties to an XML element.
 
@@ -603,14 +636,14 @@ class CollisionLink:
             >>> collision.to_xml()
             <Element 'collision' at 0x7f8b3c0b4c70>
         """
-        collision = ET.Element("collision") if root is None else ET.SubElement(root, "collision")
+        collision = etree.Element("collision") if root is None else etree.SubElement(root, "collision")
         collision.set("name", self.name)
         self.origin.to_xml(collision)
         self.geometry.to_xml(collision)
         return collision
 
     @classmethod
-    def from_xml(cls, xml: ET.Element) -> "CollisionLink":
+    def from_xml(cls, xml: etree.Element) -> "CollisionLink":
         """
         Create a collision link from an XML element.
 
@@ -621,7 +654,7 @@ class CollisionLink:
             The collision link created from the XML element.
 
         Examples:
-            >>> xml = ET.Element('collision')
+            >>> xml = etree.Element('collision')
             >>> CollisionLink.from_xml(xml)
             CollisionLink(name='collision', origin=None, geometry=None)
         """
@@ -668,7 +701,7 @@ class Link:
     collision: CollisionLink | None = None
     inertial: InertialLink | None = None
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[etree.Element] = None) -> etree.Element:
         """
         Convert the link to an XML element.
 
@@ -688,7 +721,7 @@ class Link:
             >>> link.to_xml()
             <Element 'link' at 0x7f8b3c0b4c70>
         """
-        link = ET.Element("link") if root is None else ET.SubElement(root, "link")
+        link = etree.Element("link") if root is None else etree.SubElement(root, "link")
         link.set("name", self.name)
         if self.visual is not None:
             self.visual.to_xml(link)
@@ -699,7 +732,7 @@ class Link:
         return link
 
     @classmethod
-    def from_xml(cls, xml: ET.Element) -> "Link":
+    def from_xml(cls, xml: etree.Element) -> "Link":
         """
         Create a link from an XML element.
 
@@ -710,7 +743,7 @@ class Link:
             The link created from the XML element.
 
         Examples:
-            >>> xml = ET.Element('link')
+            >>> xml = etree.Element('link')
             >>> Link.from_xml(xml)
             Link(name='link', visual=None, collision=None, inertial=None)
         """

@@ -44,6 +44,7 @@ from onshape_api.models.link import (
     VisualLink,
 )
 from onshape_api.parse import CHILD, MATE_JOINER, PARENT, RELATION_PARENT
+from onshape_api.robot import Robot
 from onshape_api.utilities.helpers import get_sanitized_name, make_unique_keys, make_unique_name
 
 SCRIPT_DIR = os.path.dirname(__file__)
@@ -510,3 +511,103 @@ def get_urdf_components(
         links_map[link_key] = links[unique_link_key_map[link_key]]
 
     return links_map, joints_map, assets_map
+
+
+def get_robot(
+    assembly: Assembly,
+    graph: DiGraph,
+    root_node: str,
+    parts: dict[str, Part],
+    mates: dict[str, MateFeatureData],
+    relations: dict[str, MateRelationFeatureData],
+    client: Client,
+    robot_name: str,
+) -> Robot:
+    """
+    Generate a Robot instance from an Onshape assembly.
+
+    Args:
+        assembly: The Onshape assembly object.
+        graph: The graph representation of the assembly.
+        root_node: The root node of the graph.
+        parts: The dictionary of parts in the assembly.
+        mates: The dictionary of mates in the assembly.
+        relations: The dictionary of mate relations in the assembly.
+        client: The Onshape client object.
+        robot_name: Name of the robot.
+
+    Returns:
+        Robot: The generated Robot instance.
+    """
+    robot = Robot(name=robot_name)
+
+    assets_map = {}
+    stl_to_link_tf_map = {}
+    topological_mates, topological_relations = get_topological_mates(graph, mates, relations)
+
+    LOGGER.info(f"Processing root node: {root_node}")
+
+    root_link, stl_to_root_tf, root_asset = get_robot_link(
+        name=root_node, part=parts[root_node], wid=assembly.document.wid, client=client, mate=None
+    )
+    robot.add_link(root_link)
+    assets_map[root_node] = root_asset
+    stl_to_link_tf_map[root_node] = stl_to_root_tf
+
+    LOGGER.info(f"Processing {len(graph.edges)} edges in the graph.")
+
+    for parent, child in graph.edges:
+        mate_key = f"{parent}{MATE_JOINER}{child}"
+        LOGGER.info(f"Processing edge: {parent} -> {child}")
+        parent_tf = stl_to_link_tf_map[parent]
+
+        if parent not in parts or child not in parts:
+            LOGGER.warning(f"Part {parent} or {child} not found in parts dictionary. Skipping.")
+            continue
+
+        joint_mimic = None
+        relation = topological_relations.get(topological_mates[mate_key].id)
+        if relation:
+            multiplier = (
+                relation.relationLength
+                if relation.relationType == RelationType.RACK_AND_PINION
+                else relation.relationRatio
+            )
+            joint_mimic = JointMimic(
+                joint=get_joint_name(relation.mates[RELATION_PARENT].featureId, mates),
+                multiplier=multiplier,
+                offset=0.0,
+            )
+
+        joint_list, link_list = get_robot_joint(
+            parent,
+            child,
+            topological_mates[mate_key],
+            parent_tf,
+            joint_mimic,
+            is_rigid_assembly=parts[parent].isRigidAssembly,
+        )
+
+        link, stl_to_link_tf, asset = get_robot_link(
+            child, parts[child], assembly.document.wid, client, topological_mates[mate_key]
+        )
+        stl_to_link_tf_map[child] = stl_to_link_tf
+        assets_map[child] = asset
+
+        if child not in robot.graph:
+            print(f"Link: {link}")
+            robot.add_link(link)
+        else:
+            LOGGER.warning(f"Link {child} already exists in the robot graph. Skipping.")
+
+        for joint in joint_list:
+            robot.add_joint(joint)
+
+        for link in link_list:
+            if link.name not in robot.graph:
+                robot.add_link(link)
+            else:
+                LOGGER.warning(f"Link {link.name} already exists in the robot graph. Skipping.")
+
+    robot.assets = assets_map
+    return robot

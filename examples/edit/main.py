@@ -8,8 +8,7 @@ from onshape_api.parse import (
     get_parts,
     get_subassemblies,
 )
-from onshape_api.robot import Robot
-from onshape_api.urdf import get_urdf_components
+from onshape_api.urdf import get_robot
 
 if __name__ == "__main__":
     LOGGER.set_file_name("edit.log")
@@ -30,7 +29,7 @@ if __name__ == "__main__":
     client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
     assembly = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
 
-    instances, occurrences, id_to_name_map = get_instances(assembly)
+    instances, occurrences, id_to_name_map = get_instances(assembly, max_depth=0)
 
     subassemblies, rigid_subassemblies = get_subassemblies(assembly, client, instances)
     parts = get_parts(assembly, rigid_subassemblies, client, instances)
@@ -40,6 +39,6 @@ if __name__ == "__main__":
     graph, root_node = create_graph(occurrences=occurrences, instances=instances, parts=parts, mates=mates)
     plot_graph(graph, "bike.png")
 
-    links, joints, assets = get_urdf_components(assembly, graph, root_node, parts, mates, relations, client)
-    robot = Robot(name="bike", links=links, joints=joints, assets=assets)
+    robot = get_robot(assembly, graph, root_node, parts, mates, relations, client, "test")
+    robot.show()
     robot.save()

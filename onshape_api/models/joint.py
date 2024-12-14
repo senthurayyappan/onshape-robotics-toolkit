@@ -24,10 +24,12 @@ Enum:
 
 """
 
-import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
+
+import lxml.etree as ET
 
 from onshape_api.models.link import Axis, Origin
 from onshape_api.utilities import format_number
@@ -85,7 +87,7 @@ class JointLimits:
     lower: float
     upper: float
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the joint limits to an XML element.
 
@@ -132,7 +134,7 @@ class JointMimic:
     multiplier: float = 1.0
     offset: float = 0.0
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the mimic information to an XML element.
 
@@ -201,7 +203,7 @@ class JointDynamics:
     damping: float
     friction: float
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the dynamics information to an XML element.
 
@@ -268,7 +270,7 @@ class BaseJoint(ABC):
     child: str
     origin: Origin
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the joint to an XML element.
 
@@ -407,7 +409,7 @@ class RevoluteJoint(BaseJoint):
     dynamics: JointDynamics | None = None
     mimic: JointMimic | None = None
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the revolute joint to an XML element.
 
@@ -561,7 +563,7 @@ class ContinuousJoint(BaseJoint):
 
     mimic: JointMimic | None = None
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the continuous joint to an XML element.
 
@@ -686,7 +688,7 @@ class PrismaticJoint(BaseJoint):
     dynamics: JointDynamics | None = None
     mimic: JointMimic | None = None
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the prismatic joint to an XML element.
 
@@ -830,7 +832,7 @@ class FixedJoint(BaseJoint):
         <Element 'joint' at 0x7f8b3c0b4c70>
     """
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the fixed joint to an XML element.
 
@@ -927,7 +929,7 @@ class FloatingJoint(BaseJoint):
 
     mimic: JointMimic | None = None
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the floating joint to an XML element.
 
@@ -1047,7 +1049,7 @@ class PlanarJoint(BaseJoint):
     axis: Axis
     mimic: JointMimic | None = None
 
-    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+    def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the planar joint to an XML element.
 
