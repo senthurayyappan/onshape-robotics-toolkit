@@ -5,8 +5,7 @@ from onshape_api.graph import create_graph, plot_graph
 from onshape_api.log import LOGGER, LogLevel
 from onshape_api.models.document import Document
 from onshape_api.parse import get_instances, get_mates_and_relations, get_parts, get_subassemblies
-from onshape_api.robot import Robot
-from onshape_api.urdf import get_urdf_components
+from onshape_api.urdf import get_robot
 from onshape_api.utilities.helpers import save_model_as_json
 
 SCRIPT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
@@ -45,7 +44,7 @@ if __name__ == "__main__":
     )
     plot_graph(graph, f"{assembly_robot_name}.png")
 
-    links, joints, assets = get_urdf_components(
+    robot = get_robot(
         assembly=assembly,
         graph=graph,
         root_node=root_node,
@@ -53,7 +52,6 @@ if __name__ == "__main__":
         mates=mates,
         relations=relations,
         client=client,
+        robot_name=assembly_robot_name,
     )
-
-    robot = Robot(name=assembly_robot_name, links=links, joints=joints, assets=assets)
     robot.save()

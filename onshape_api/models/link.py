@@ -352,6 +352,20 @@ class Inertia:
         iyz = float(xml.get("iyz"))
         return cls(ixx, iyy, izz, ixy, ixz, iyz)
 
+    @classmethod
+    def zero_inertia(cls) -> "Inertia":
+        """
+        Create an inertia tensor with zero values.
+
+        Returns:
+            The inertia tensor with zero values.
+
+        Examples:
+            >>> Inertia.zero_inertia()
+            Inertia(ixx=0.0, iyy=0.0, izz=0.0, ixy=0.0, ixz=0.0, iyz=0.0)
+        """
+        return cls(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
 
 @dataclass
 class Material:

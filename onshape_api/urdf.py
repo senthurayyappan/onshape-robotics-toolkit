@@ -45,7 +45,7 @@ from onshape_api.models.link import (
 )
 from onshape_api.parse import CHILD, MATE_JOINER, PARENT, RELATION_PARENT
 from onshape_api.robot import Robot
-from onshape_api.utilities.helpers import get_sanitized_name, make_unique_keys, make_unique_name
+from onshape_api.utilities.helpers import get_sanitized_name
 
 SCRIPT_DIR = os.path.dirname(__file__)
 
@@ -256,9 +256,19 @@ def get_robot_joint(
     elif mate.mateType == MateType.BALL:
         dummy_x = Link(
             name=f"{parent}-{get_sanitized_name(mate.name)}-x",
+            inertial=InertialLink(
+                mass=0.0,
+                inertia=Inertia.zero_inertia(),
+                origin=Origin.zero_origin(),
+            ),
         )
         dummy_y = Link(
             name=f"{parent}-{get_sanitized_name(mate.name)}-y",
+            inertial=InertialLink(
+                mass=0.0,
+                inertia=Inertia.zero_inertia(),
+                origin=Origin.zero_origin(),
+            ),
         )
 
         links = [dummy_x, dummy_y]
@@ -370,149 +380,6 @@ def get_topological_mates(
     return topological_mates, topological_relations
 
 
-def get_urdf_components(
-    assembly: Assembly,
-    graph: DiGraph,
-    root_node: str,
-    parts: dict[str, Part],
-    mates: dict[str, MateFeatureData],
-    relations: dict[str, MateRelationFeatureData],
-    client: Client,
-) -> tuple[dict[str, Link], dict[str, BaseJoint], dict[str, Asset]]:
-    """
-    Generate URDF links and joints from an Onshape assembly.
-
-    Args:
-        assembly: The Onshape assembly object.
-        graph: The graph representation of the assembly.
-        parts: The dictionary of parts in the assembly.
-        mates: The dictionary of mates in the assembly.
-        client: The Onshape client object to use for sending API requests.
-
-    Returns:
-        tuple[list[Link], list[BaseJoint]]: The generated URDF links and joints.
-
-    Examples:
-        >>> get_urdf_components(assembly, graph, parts, mates, client)
-        (
-            [
-                Link(name='root', visual=VisualLink(...), collision=CollisionLink(...), inertial=InertialLink(...)),
-                Link(name='link1', visual=VisualLink(...), collision=CollisionLink(...), inertial=InertialLink(...)),
-                Link(name='link2', visual=VisualLink(...), collision=CollisionLink(...), inertial=InertialLink(...))
-            ],
-            [
-                RevoluteJoint(...),
-                FixedJoint(...),
-            ]
-        )
-
-    """
-    joints = []
-    links = []
-
-    links_map = {}
-    joints_map = {}
-    assets_map = {}
-
-    parts_traversed_map: dict[str, str] = {}
-
-    topological_mates, topological_relations = get_topological_mates(graph, mates, relations)
-
-    stl_to_link_tf_map = {}
-
-    LOGGER.info(f"Processing root node: {root_node}")
-
-    root_link, stl_to_root_tf, _asset = get_robot_link(
-        name=root_node, part=parts[root_node], wid=assembly.document.wid, client=client, mate=None
-    )
-
-    links.append(root_link)
-    parts_traversed_map[root_node] = parts[root_node].uid
-    assets_map[root_node] = _asset
-    stl_to_link_tf_map[root_node] = stl_to_root_tf
-
-    LOGGER.info(f"Processing remaining {len(graph.nodes) - 1} nodes using {len(graph.edges)} edges")
-
-    # reorder the edges to start with the root node
-    for edge in graph.edges:
-        parent, child = edge
-        mate_key = f"{parent}{MATE_JOINER}{child}"
-        LOGGER.info(f"Processing edge: {parent} -> {child}")
-        parent_tf = stl_to_link_tf_map[parent]
-
-        if parent not in parts or child not in parts:
-            LOGGER.warning(f"Part {parent} or {child} not found in parts")
-            # remove the edge from the graph?
-            continue
-
-        relation = topological_relations.get(topological_mates[mate_key].id)
-
-        if relation:
-            multiplier = 1.0
-            if relation.relationType == RelationType.RACK_AND_PINION:
-                multiplier = relation.relationLength
-
-            elif relation.relationType == RelationType.GEAR or relation.relationType == RelationType.LINEAR:
-                multiplier = relation.relationRatio
-
-            joint_mimic = JointMimic(
-                joint=get_joint_name(relation.mates[RELATION_PARENT].featureId, topological_mates),
-                multiplier=multiplier,
-                offset=0.0,
-            )
-        else:
-            joint_mimic = None
-
-        joint_list, link_list = get_robot_joint(
-            parent,
-            child,
-            topological_mates[mate_key],
-            parent_tf,
-            joint_mimic,
-            is_rigid_assembly=parts[parent].isRigidAssembly,
-        )
-        links.extend(link_list)
-        joints.extend(joint_list)
-
-        link, stl_to_link_tf, asset = get_robot_link(
-            child,
-            parts[child],
-            assembly.document.wid,
-            client,
-            topological_mates[mate_key],
-        )
-
-        stl_to_link_tf_map[child] = stl_to_link_tf
-        assets_map[child] = asset
-
-        if child not in parts_traversed_map:
-            links.append(link)
-            parts_traversed_map[child] = parts[child].uid
-        elif child in parts_traversed_map and parts_traversed_map[child] != parts[child].uid:
-            LOGGER.warning(f"Part shares the same name but different UID: {child}")
-            LOGGER.info("Still adding the link with modified unique name.")
-            unique_name = make_unique_name(link.name, set(parts_traversed_map))
-            parts_traversed_map[unique_name] = parts[child].uid
-            link.name = unique_name
-            links.append(link)
-        else:
-            LOGGER.warning(f"Part {child} already traversed. Skipping.")
-            continue
-
-    unique_joint_key_map = make_unique_keys([joint.name for joint in joints])
-    unique_link_key_map = make_unique_keys([link.name for link in links])
-
-    for joint_key in unique_joint_key_map:
-        joints[unique_joint_key_map[joint_key]].name = joint_key
-        joints_map[joint_key] = joints[unique_joint_key_map[joint_key]]
-
-    for link_key in unique_link_key_map:
-        links[unique_link_key_map[link_key]].name = link_key
-        links_map[link_key] = links[unique_link_key_map[link_key]]
-
-    return links_map, joints_map, assets_map
-
-
 def get_robot(
     assembly: Assembly,
     graph: DiGraph,
@@ -595,19 +462,18 @@ def get_robot(
         assets_map[child] = asset
 
         if child not in robot.graph:
-            print(f"Link: {link}")
             robot.add_link(link)
         else:
             LOGGER.warning(f"Link {child} already exists in the robot graph. Skipping.")
-
-        for joint in joint_list:
-            robot.add_joint(joint)
 
         for link in link_list:
             if link.name not in robot.graph:
                 robot.add_link(link)
             else:
                 LOGGER.warning(f"Link {link.name} already exists in the robot graph. Skipping.")
+
+        for joint in joint_list:
+            robot.add_joint(joint)
 
     robot.assets = assets_map
     return robot

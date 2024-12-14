@@ -111,6 +111,7 @@ class Robot:
                 link_data.to_xml(robot)  # Assuming Link has `to_xml`
             else:
                 LOGGER.warning(f"Link {link_name} has no data.")
+                print(link_data)
 
         # Add joints
         for parent, child, joint_data in self.graph.edges(data="data"):

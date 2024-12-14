@@ -37,8 +37,7 @@ if __name__ == "__main__":
     mates, relations = get_mates_and_relations(assembly, subassemblies, rigid_subassemblies, id_to_name_map, parts)
 
     graph, root_node = create_graph(occurrences=occurrences, instances=instances, parts=parts, mates=mates)
-    plot_graph(graph, "bike.png")
-
     robot = get_robot(assembly, graph, root_node, parts, mates, relations, client, "test")
     robot.show()
+    plot_graph(graph, "bike.png")
     robot.save()

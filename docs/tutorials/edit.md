@@ -115,14 +115,11 @@ This will save an image of the assembly graph (`bike.png`) in your current worki
 Convert the assembly into a URDF file for robotics applications:
 
 ```python
-from onshape_api.urdf import get_urdf_components
+from onshape_api.urdf import get_robot
 from onshape_api.models.robot import Robot
 
 # Generate URDF links and joints
-links, joints = get_urdf_components(assembly, graph, root_node, parts, mates, relations, client)
-
-# Create and save the URDF file
-robot = Robot(name="bike", links=links, joints=joints)
+robot = get_robot(assembly, graph, root_node, parts, mates, relations, client, "bike")
 robot.save("bike.urdf")
 ```
 

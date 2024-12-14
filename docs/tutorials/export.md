@@ -100,7 +100,7 @@ This will save a PNG file of the assembly graph in your current working director
 Convert the parsed assembly data into a URDF file:
 
 ```python
-links, joints = osa.get_urdf_components(
+robot = osa.get_robot(
     assembly=assembly,
     graph=graph,
     root_node=root_node,
@@ -108,9 +108,9 @@ links, joints = osa.get_urdf_components(
     mates=mates,
     relations=relations,
     client=client,
+    robot_name=f"{assembly.document.name + '-' + assembly.name}",
 )
 
-robot = osa.Robot(name=f"{assembly.document.name + '-' + assembly.name}", links=links, joints=joints)
 robot.save(f"{assembly.document.name + '-' + assembly.name}.urdf")
 ```
 
