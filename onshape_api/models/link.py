@@ -22,8 +22,7 @@ from enum import Enum
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from onshape_api.models.assembly import Part
-from onshape_api.models.geometry import BaseGeometry
+from onshape_api.models.geometry import BaseGeometry, BoxGeometry, CylinderGeometry, MeshGeometry, SphereGeometry
 from onshape_api.utilities import format_number
 
 
@@ -119,6 +118,27 @@ class Origin:
         return origin
 
     @classmethod
+    def from_xml(cls, xml: ET.Element) -> "Origin":
+        """
+        Create an origin from an XML element.
+
+        Args:
+            xml: The XML element to create the origin from.
+
+        Returns:
+            The origin created from the XML element.
+
+        Examples:
+            >>> xml = ET.Element('origin')
+            >>> Origin.from_xml(xml)
+            Origin(xyz=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0))
+        """
+
+        xyz = tuple(map(float, xml.get("xyz").split()))
+        rpy = tuple(map(float, xml.get("rpy").split()))
+        return cls(xyz, rpy)
+
+    @classmethod
     def from_matrix(cls, matrix: np.matrix) -> "Origin":
         """
         Create an origin from a transformation matrix.
@@ -201,6 +221,25 @@ class Axis:
         axis.set("xyz", " ".join(format_number(v) for v in self.xyz))
         return axis
 
+    @classmethod
+    def from_xml(cls, xml: ET.Element) -> "Axis":
+        """
+        Create an axis from an XML element.
+
+        Args:
+            xml: The XML element to create the axis from.
+
+        Returns:
+            The axis created from the XML element.
+
+        Examples:
+            >>> xml = ET.Element('axis')
+            >>> Axis.from_xml(xml)
+            Axis(xyz=(0.0, 0.0, 0.0))
+        """
+        xyz = tuple(map(float, xml.get("xyz").split()))
+        return cls(xyz)
+
 
 @dataclass
 class Inertia:
@@ -256,6 +295,30 @@ class Inertia:
         inertia.set("iyz", format_number(self.iyz))
         return inertia
 
+    @classmethod
+    def from_xml(cls, xml: ET.Element) -> "Inertia":
+        """
+        Create an inertia tensor from an XML element.
+
+        Args:
+            xml: The XML element to create the inertia tensor from.
+
+        Returns:
+            The inertia tensor created from the XML element.
+
+        Examples:
+            >>> xml = ET.Element('inertia')
+            >>> Inertia.from_xml(xml)
+            Inertia(ixx=0.0, iyy=0.0, izz=0.0, ixy=0.0, ixz=0.0, iyz=0.0)
+        """
+        ixx = float(xml.get("ixx"))
+        iyy = float(xml.get("iyy"))
+        izz = float(xml.get("izz"))
+        ixy = float(xml.get("ixy"))
+        ixz = float(xml.get("ixz"))
+        iyz = float(xml.get("iyz"))
+        return cls(ixx, iyy, izz, ixy, ixz, iyz)
+
 
 @dataclass
 class Material:
@@ -304,6 +367,27 @@ class Material:
         material.set("name", self.name)
         ET.SubElement(material, "color", rgba=" ".join(format_number(v) for v in self.color))
         return material
+
+    @classmethod
+    def from_xml(cls, xml: ET.Element) -> "Material":
+        """
+        Create a material from an XML element.
+
+        Args:
+            xml: The XML element to create the material from.
+
+        Returns:
+            The material created from the XML element.
+
+        Examples:
+            >>> xml = ET.Element('material')
+            >>> Material.from_xml(xml)
+            Material(name='material', color=(1.0, 0.0, 0.0, 1.0))
+        """
+
+        name = xml.get("name")
+        color = tuple(map(float, xml.find("color").get("rgba").split()))
+        return cls(name, color)
 
     @classmethod
     def from_color(cls, name: str, color: Colors) -> "Material":
@@ -368,6 +452,44 @@ class InertialLink:
         self.origin.to_xml(inertial)
         return inertial
 
+    @classmethod
+    def from_xml(cls, xml: ET.Element) -> "InertialLink":
+        """
+        Create inertial properties from an XML element.
+
+        Args:
+            xml: The XML element to create the inertial properties from.
+
+        Returns:
+            The inertial properties created from the XML element.
+
+        Examples:
+            >>> xml = ET.Element('inertial')
+            >>> InertialLink.from_xml(xml)
+            InertialLink(mass=0.0, inertia=None, origin=None)
+        """
+        mass = float(xml.find("mass").get("value"))
+
+        inertia_element = xml.find("inertia")
+        inertia = Inertia.from_xml(inertia_element) if inertia_element is not None else None
+
+        origin_element = xml.find("origin")
+        origin = Origin.from_xml(origin_element) if origin_element is not None else None
+
+        return cls(mass=mass, inertia=inertia, origin=origin)
+
+
+def set_geometry_from_xml(geometry: ET.Element) -> BaseGeometry | None:
+    if geometry.find("filename"):
+        return MeshGeometry.from_xml(geometry)
+    elif geometry.find("box"):
+        return BoxGeometry.from_xml(geometry)
+    elif geometry.find("length") and geometry.find("radius"):
+        return CylinderGeometry.from_xml(geometry)
+    elif geometry.find("radius"):
+        return SphereGeometry.from_xml(geometry)
+    return None
+
 
 @dataclass
 class VisualLink:
@@ -415,6 +537,34 @@ class VisualLink:
         self.material.to_xml(visual)
         return visual
 
+    @classmethod
+    def from_xml(cls, xml: ET.Element) -> "VisualLink":
+        """
+        Create a visual link from an XML element.
+
+        Args:
+            xml: The XML element to create the visual link from.
+
+        Returns:
+            The visual link created from the XML element.
+
+        Examples:
+            >>> xml = ET.Element('visual')
+            >>> VisualLink.from_xml(xml)
+            VisualLink(name='visual', origin=None, geometry=None, material=None)
+        """
+        name = xml.get("name")
+
+        origin_element = xml.find("origin")
+        origin = Origin.from_xml(origin_element) if origin_element is not None else None
+
+        geometry_element = xml.find("geometry")
+        geometry = set_geometry_from_xml(geometry_element) if geometry_element is not None else None
+
+        material_element = xml.find("material")
+        material = Material.from_xml(material_element) if material_element is not None else None
+        return cls(name=name, origin=origin, geometry=geometry, material=material)
+
 
 @dataclass
 class CollisionLink:
@@ -459,6 +609,32 @@ class CollisionLink:
         self.geometry.to_xml(collision)
         return collision
 
+    @classmethod
+    def from_xml(cls, xml: ET.Element) -> "CollisionLink":
+        """
+        Create a collision link from an XML element.
+
+        Args:
+            xml: The XML element to create the collision link from.
+
+        Returns:
+            The collision link created from the XML element.
+
+        Examples:
+            >>> xml = ET.Element('collision')
+            >>> CollisionLink.from_xml(xml)
+            CollisionLink(name='collision', origin=None, geometry=None)
+        """
+        name = xml.get("name")
+
+        origin_element = xml.find("origin")
+        origin = Origin.from_xml(origin_element) if origin_element is not None else None
+
+        geometry_element = xml.find("geometry")
+        geometry = set_geometry_from_xml(geometry_element) if geometry_element is not None else None
+
+        return cls(name=name, origin=origin, geometry=geometry)
+
 
 @dataclass
 class Link:
@@ -475,7 +651,7 @@ class Link:
         to_xml: Converts the link to an XML element.
 
     Class Methods:
-        from_part: Creates a link from a part.
+        from_xml: Creates a link from an XML element.
 
     Examples:
         >>> link = Link(name="link", visual=VisualLink(...), collision=CollisionLink(...), inertial=InertialLink(...))
@@ -523,21 +699,50 @@ class Link:
         return link
 
     @classmethod
-    def from_part(cls, part: Part) -> "Link":
+    def from_xml(cls, xml: ET.Element) -> "Link":
         """
-        Create a link from a part.
+        Create a link from an XML element.
 
         Args:
-            part: The part to create the link from.
+            xml: The XML element to create the link from.
 
         Returns:
-            The link created from the part.
+            The link created from the XML element.
 
         Examples:
-            >>> part = Part(...)
-            >>> Link.from_part(part)
-            Link(name='partId', visual=None, collision=None, inertial=None)
+            >>> xml = ET.Element('link')
+            >>> Link.from_xml(xml)
+            Link(name='link', visual=None, collision=None, inertial=None)
         """
-        # TODO: Retrieve visual, collision, and inertial properties from the part
-        _cls = cls(name=part.partId)
-        return _cls
+        name = xml.get("name")
+
+        visual_element = xml.find("visual")
+        visual = VisualLink.from_xml(visual_element) if visual_element is not None else None
+
+        collision_element = xml.find("collision")
+        collision = CollisionLink.from_xml(collision_element) if collision_element is not None else None
+
+        inertial_element = xml.find("inertial")
+        inertial = InertialLink.from_xml(inertial_element) if inertial_element is not None else None
+
+        return cls(name=name, visual=visual, collision=collision, inertial=inertial)
+
+    # TODO: Implement from part method
+    # @classmethod
+    # def from_part(cls, part: Part) -> "Link":
+    #     """
+    #     Create a link from a part.
+
+    #     Args:
+    #         part: The part to create the link from.
+
+    #     Returns:
+    #         The link created from the part.
+
+    #     Examples:
+    #         >>> part = Part(...)
+    #         >>> Link.from_part(part)
+    #         Link(name='partId', visual=None, collision=None, inertial=None)
+    #     """
+    #     _cls = cls(name=part.partId)
+    #     return _cls

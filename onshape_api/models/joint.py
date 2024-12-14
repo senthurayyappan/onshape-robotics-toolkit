@@ -154,6 +154,31 @@ class JointMimic:
         mimic.set("offset", format_number(self.offset))
         return mimic
 
+    @classmethod
+    def from_xml(cls, element: ET.Element) -> "JointMimic":
+        """
+        Create a joint mimic from an XML element.
+
+        Args:
+            element: The XML element to create the joint mimic from.
+
+        Returns:
+            The joint mimic created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("mimic")
+            >>> element.set("joint", "joint1")
+            >>> element.set("multiplier", "1.0")
+            >>> element.set("offset", "0.0")
+            >>> JointMimic.from_xml(element)
+            JointMimic(joint="joint1", multiplier=1.0, offset=0.0)
+        """
+
+        joint = element.attrib["joint"]
+        multiplier = float(element.attrib.get("multiplier", 1.0))
+        offset = float(element.attrib.get("offset", 0.0))
+        return cls(joint, multiplier, offset)
+
 
 @dataclass
 class JointDynamics:
@@ -196,6 +221,28 @@ class JointDynamics:
         joint.set("damping", format_number(self.damping))
         joint.set("friction", format_number(self.friction))
         return joint
+
+    def from_xml(cls, element: ET.Element) -> "JointDynamics":
+        """
+        Create joint dynamics from an XML element.
+
+        Args:
+            element: The XML element to create the joint dynamics from.
+
+        Returns:
+            The joint dynamics created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("dynamics")
+            >>> element.set("damping", "0.0")
+            >>> element.set("friction", "0.0")
+            >>> JointDynamics.from_xml(element)
+            JointDynamics(damping=0.0, friction=0.0)
+        """
+
+        damping = float(element.attrib.get("damping", 0))
+        friction = float(element.attrib.get("friction", 0))
+        return cls(damping, friction)
 
 
 @dataclass
@@ -252,6 +299,10 @@ class BaseJoint(ABC):
 
         pass
 
+    @classmethod
+    @abstractmethod
+    def from_xml(cls, element: ET.Element) -> "BaseJoint": ...
+
 
 @dataclass
 class DummyJoint(BaseJoint):
@@ -272,6 +323,35 @@ class DummyJoint(BaseJoint):
         >>> joint.joint_type
         'dummy'
     """
+
+    @classmethod
+    def from_xml(cls, element: ET.Element) -> "DummyJoint":
+        """
+        Create a dummy joint from an XML element.
+
+        Args:
+            element: The XML element to create the dummy joint from.
+
+        Returns:
+            The dummy joint created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("joint")
+            >>> element.set("name", "joint1")
+            >>> element.set("type", "dummy")
+            >>> origin = Origin(xyz=(0, 0, 0), rpy=(0, 0, 0))
+            >>> ET.SubElement(element, "origin", xyz="0 0 0", rpy="0 0 0")
+            >>> ET.SubElement(element, "parent", link="base_link")
+            >>> ET.SubElement(element, "child", link="link1")
+            >>> DummyJoint.from_xml(element)
+            DummyJoint(name="joint1", parent="base_link", child="link1", origin=Origin(xyz=(0, 0, 0), rpy=(0, 0, 0)))
+        """
+
+        name = element.attrib["name"]
+        parent = element.find("parent").attrib["link"]
+        child = element.find("child").attrib["link"]
+        origin = Origin.from_xml(element.find("origin"))
+        return cls(name, parent, child, origin)
 
     @property
     def joint_type(self) -> str:
@@ -358,13 +438,86 @@ class RevoluteJoint(BaseJoint):
         """
 
         joint = super().to_xml(root)
-        self.limits.to_xml(joint)
         self.axis.to_xml(joint)
+        if self.limits is not None:
+            self.limits.to_xml(joint)
         if self.dynamics is not None:
             self.dynamics.to_xml(joint)
         if self.mimic is not None:
             self.mimic.to_xml(joint)
         return joint
+
+    @classmethod
+    def from_xml(cls, element: ET.Element) -> "RevoluteJoint":
+        """
+        Create a revolute joint from an XML element.
+
+        Args:
+            element: The XML element to create the revolute joint from.
+
+        Returns:
+            The revolute joint created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("joint")
+            >>> element.set("name", "joint1")
+            >>> element.set("type", "revolute")
+            >>> origin = Origin(xyz=(0, 0, 0), rpy=(0, 0, 0))
+            >>> ET.SubElement(element, "origin", xyz="0 0 0", rpy="0 0 0")
+            >>> ET.SubElement(element, "parent", link="base_link")
+            >>> ET.SubElement(element, "child", link="link1")
+            >>> limits = ET.SubElement(element, "limit", effort="10.0", velocity="1.0", lower="-1.0", upper="1.0")
+            >>> axis = ET.SubElement(element, "axis", xyz="0 0 1")
+            >>> dynamics = ET.SubElement(element, "dynamics", damping="0.0", friction="0.0")
+            >>> mimic = ET.SubElement(element, "mimic", joint="joint1", multiplier="1.0", offset="0.0")
+            >>> RevoluteJoint.from_xml(element)
+
+            RevoluteJoint(
+                name="joint1",
+                parent="base_link",
+                child="link1",
+                origin=Origin(xyz=(0, 0, 0), rpy=(0, 0, 0)),
+                limits=JointLimits(effort=10.0, velocity=1.0, lower=-1.0, upper=1.0),
+                axis=Axis(xyz=(0, 0, 1)),
+                dynamics=JointDynamics(damping=0.0, friction=0.0),
+                mimic=JointMimic(joint="joint1", multiplier=1.0, offset=0.0)
+            )
+        """
+
+        name = element.attrib["name"]
+        parent = element.find("parent").attrib["link"]
+        child = element.find("child").attrib["link"]
+        origin = Origin.from_xml(element.find("origin"))
+        # Handle limits
+        limit_element = element.find("limit")
+        if limit_element is not None:
+            limits = JointLimits(
+                effort=float(limit_element.attrib.get("effort", 0)),
+                velocity=float(limit_element.attrib.get("velocity", 0)),
+                lower=float(limit_element.attrib.get("lower", 0)),
+                upper=float(limit_element.attrib.get("upper", 0)),
+            )
+        else:
+            limits = None
+
+        # Handle axis
+        axis = Axis.from_xml(element.find("axis"))
+
+        # Handle dynamics
+        dynamics_element = element.find("dynamics")
+        if dynamics_element is not None:
+            dynamics = JointDynamics(
+                damping=float(dynamics_element.attrib.get("damping", 0)),
+                friction=float(dynamics_element.attrib.get("friction", 0)),
+            )
+        else:
+            dynamics = None
+
+        # Handle mimic
+        mimic_element = element.find("mimic")
+        mimic = JointMimic.from_xml(mimic_element) if mimic_element is not None else None
+
+        return cls(name, parent, child, origin, limits, axis, dynamics, mimic)
 
     @property
     def joint_type(self) -> str:
@@ -436,6 +589,48 @@ class ContinuousJoint(BaseJoint):
         if self.mimic is not None:
             self.mimic.to_xml(joint)
         return joint
+
+    @classmethod
+    def from_xml(cls, element: ET.Element) -> "ContinuousJoint":
+        """
+        Create a continuous joint from an XML element.
+
+        Args:
+            element: The XML element to create the continuous joint from.
+
+        Returns:
+            The continuous joint created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("joint")
+            >>> element.set("name", "joint1")
+            >>> element.set("type", "continuous")
+            >>> origin = Origin(xyz=(0, 0, 0), rpy=(0, 0, 0))
+            >>> ET.SubElement(element, "origin", xyz="0 0 0", rpy="0 0 0")
+            >>> ET.SubElement(element, "parent", link="base_link")
+            >>> ET.SubElement(element, "child", link="link1")
+            >>> mimic = ET.SubElement(element, "mimic", joint="joint1", multiplier="1.0", offset="0.0")
+            >>> ContinuousJoint.from_xml(element)
+
+            ContinuousJoint(
+                name="joint1",
+                parent="base_link",
+                child="link1",
+                origin=Origin(xyz=(0, 0, 0), rpy=(0, 0, 0)),
+                mimic=JointMimic(joint="joint1", multiplier=1.0, offset=0.0)
+            )
+        """
+
+        name = element.attrib["name"]
+        parent = element.find("parent").attrib["link"]
+        child = element.find("child").attrib["link"]
+        origin = Origin.from_xml(element.find("origin"))
+
+        # Handle mimic
+        mimic_element = element.find("mimic")
+        mimic = JointMimic.from_xml(mimic_element) if mimic_element is not None else None
+
+        return cls(name, parent, child, origin, mimic)
 
     @property
     def joint_type(self) -> str:
@@ -522,13 +717,83 @@ class PrismaticJoint(BaseJoint):
         """
 
         joint = super().to_xml(root)
-        self.limits.to_xml(joint)
         self.axis.to_xml(joint)
+        if self.limits is not None:
+            self.limits.to_xml(joint)
         if self.dynamics is not None:
             self.dynamics.to_xml(joint)
         if self.mimic is not None:
             self.mimic.to_xml(joint)
         return joint
+
+    @classmethod
+    def from_xml(cls, element: ET.Element) -> "PrismaticJoint":
+        """
+        Create a prismatic joint from an XML element.
+
+        Args:
+            element: The XML element to create the prismatic joint from.
+
+        Returns:
+            The prismatic joint created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("joint")
+            >>> element.set("name", "joint1")
+            >>> element.set("type", "prismatic")
+            >>> origin = Origin(xyz=(0, 0, 0), rpy=(0, 0, 0))
+            >>> ET.SubElement(element, "origin", xyz="0 0 0", rpy="0 0 0")
+            >>> ET.SubElement(element, "parent", link="base_link")
+            >>> ET.SubElement(element, "child", link="link1")
+            >>> limits = ET.SubElement(element, "limit", effort="10.0", velocity="1.0", lower="-1.0", upper="1.0")
+            >>> axis = ET.SubElement(element, "axis", xyz="0 0 1")
+            >>> dynamics = ET.SubElement(element, "dynamics", damping="0.0", friction="0.0")
+            >>> mimic = ET.SubElement(element, "mimic", joint="joint1", multiplier="1.0", offset="0.0")
+            >>> PrismaticJoint.from_xml(element)
+
+            PrismaticJoint(
+                name="joint1",
+                parent="base_link",
+                child="link1",
+                origin=Origin(xyz=(0, 0, 0), rpy=(0, 0, 0)),
+                limits=JointLimits(effort=10.0, velocity=1.0, lower=-1.0, upper=1.0),
+                axis=Axis(xyz=(0, 0, 1)),
+                dynamics=JointDynamics(damping=0.0, friction=0.0),
+                mimic=JointMimic(joint="joint1", multiplier=1.0, offset=0.0)
+            )
+        """
+
+        name = element.attrib["name"]
+        parent = element.find("parent").attrib["link"]
+        child = element.find("child").attrib["link"]
+        origin = Origin.from_xml(element.find("origin"))
+
+        limit_element = element.find("limit")
+        if limit_element is not None:
+            limits = JointLimits(
+                effort=float(limit_element.attrib.get("effort", 0)),
+                velocity=float(limit_element.attrib.get("velocity", 0)),
+                lower=float(limit_element.attrib.get("lower", 0)),
+                upper=float(limit_element.attrib.get("upper", 0)),
+            )
+        else:
+            limits = None
+
+        axis = Axis.from_xml(element.find("axis"))
+
+        dynamics_element = element.find("dynamics")
+        if dynamics_element is not None:
+            dynamics = JointDynamics(
+                damping=float(dynamics_element.attrib.get("damping", 0)),
+                friction=float(dynamics_element.attrib.get("friction", 0)),
+            )
+        else:
+            dynamics = None
+
+        mimic_element = element.find("mimic")
+        mimic = JointMimic.from_xml(mimic_element) if mimic_element is not None else None
+
+        return cls(name, parent, child, origin, limits, axis, dynamics, mimic)
 
     @property
     def joint_type(self) -> str:
@@ -589,6 +854,36 @@ class FixedJoint(BaseJoint):
 
         joint = super().to_xml(root)
         return joint
+
+    @classmethod
+    def from_xml(cls, element: ET.Element) -> "FixedJoint":
+        """
+        Create a fixed joint from an XML element.
+
+        Args:
+            element: The XML element to create the fixed joint from.
+
+        Returns:
+            The fixed joint created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("joint")
+            >>> element.set("name", "joint1")
+            >>> element.set("type", "fixed")
+            >>> origin = Origin(xyz=(0, 0, 0), rpy=(0, 0, 0))
+            >>> ET.SubElement(element, "origin", xyz="0 0 0", rpy="0 0 0")
+            >>> ET.SubElement(element, "parent", link="base_link")
+            >>> ET.SubElement(element, "child", link="link1")
+            >>> FixedJoint.from_xml(element)
+
+            FixedJoint(name="joint1", parent="base_link", child="link1", origin=Origin(xyz=(0, 0, 0), rpy=(0, 0, 0))
+        """
+
+        name = element.attrib["name"]
+        parent = element.find("parent").attrib["link"]
+        child = element.find("child").attrib["link"]
+        origin = Origin.from_xml(element.find("origin"))
+        return cls(name, parent, child, origin)
 
     @property
     def joint_type(self) -> str:
@@ -660,6 +955,47 @@ class FloatingJoint(BaseJoint):
         if self.mimic is not None:
             self.mimic.to_xml(joint)
         return joint
+
+    @classmethod
+    def from_xml(cls, element: ET.Element) -> "FloatingJoint":
+        """
+        Create a floating joint from an XML element.
+
+        Args:
+            element: The XML element to create the floating joint from.
+
+        Returns:
+            The floating joint created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("joint")
+            >>> element.set("name", "joint1")
+            >>> element.set("type", "floating")
+            >>> origin = Origin(xyz=(0, 0, 0), rpy=(0, 0, 0))
+            >>> ET.SubElement(element, "origin", xyz="0 0 0", rpy="0 0 0")
+            >>> ET.SubElement(element, "parent", link="base_link")
+            >>> ET.SubElement(element, "child", link="link1")
+            >>> mimic = ET.SubElement(element, "mimic", joint="joint1", multiplier="1.0", offset="0.0")
+            >>> FloatingJoint.from_xml(element)
+
+            FloatingJoint(
+                name="joint1",
+                parent="base_link",
+                child="link1",
+                origin=Origin(xyz=(0, 0, 0), rpy=(0, 0, 0)),
+                mimic=JointMimic(joint="joint1", multiplier=1.0, offset=0.0)
+            )
+        """
+
+        name = element.attrib["name"]
+        parent = element.find("parent").attrib["link"]
+        child = element.find("child").attrib["link"]
+        origin = Origin.from_xml(element.find("origin"))
+
+        mimic_element = element.find("mimic")
+        mimic = JointMimic.from_xml(mimic_element) if mimic_element is not None else None
+
+        return cls(name, parent, child, origin, mimic)
 
     @property
     def joint_type(self) -> str:
@@ -740,11 +1076,70 @@ class PlanarJoint(BaseJoint):
         """
 
         joint = super().to_xml(root)
-        self.limits.to_xml(joint)
         self.axis.to_xml(joint)
+        if self.limits is not None:
+            self.limits.to_xml(joint)
         if self.mimic is not None:
             self.mimic.to_xml(joint)
         return joint
+
+    @classmethod
+    def from_xml(cls, element: ET.Element) -> "PlanarJoint":
+        """
+        Create a planar joint from an XML element.
+
+        Args:
+            element: The XML element to create the planar joint from.
+
+        Returns:
+            The planar joint created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("joint")
+            >>> element.set("name", "joint1")
+            >>> element.set("type", "planar")
+            >>> origin = Origin(xyz=(0, 0, 0), rpy=(0, 0, 0))
+            >>> ET.SubElement(element, "origin", xyz="0 0 0", rpy="0 0 0")
+            >>> ET.SubElement(element, "parent", link="base_link")
+            >>> ET.SubElement(element, "child", link="link1")
+            >>> limits = ET.SubElement(element, "limit", effort="10.0", velocity="1.0", lower="-1.0", upper="1.0")
+            >>> axis = ET.SubElement(element, "axis", xyz="0 0 1")
+            >>> mimic = ET.SubElement(element, "mimic", joint="joint1", multiplier="1.0", offset="0.0")
+            >>> PlanarJoint.from_xml(element)
+
+            PlanarJoint(
+                name="joint1",
+                parent="base_link",
+                child="link1",
+                origin=Origin(xyz=(0, 0, 0), rpy=(0, 0, 0)),
+                limits=JointLimits(effort=10.0, velocity=1.0, lower=-1.0, upper=1.0),
+                axis=Axis(xyz=(0, 0, 1)),
+                mimic=JointMimic(joint="joint1", multiplier=1.0, offset=0.0)
+            )
+        """
+
+        name = element.attrib["name"]
+        parent = element.find("parent").attrib["link"]
+        child = element.find("child").attrib["link"]
+        origin = Origin.from_xml(element.find("origin"))
+
+        limit_element = element.find("limit")
+        if limit_element is not None:
+            limits = JointLimits(
+                effort=float(limit_element.attrib.get("effort", 0)),
+                velocity=float(limit_element.attrib.get("velocity", 0)),
+                lower=float(limit_element.attrib.get("lower", 0)),
+                upper=float(limit_element.attrib.get("upper", 0)),
+            )
+        else:
+            limits = None
+
+        axis = Axis.from_xml(element.find("axis"))
+
+        mimic_element = element.find("mimic")
+        mimic = JointMimic.from_xml(mimic_element) if mimic_element is not None else None
+
+        return cls(name, parent, child, origin, limits, axis, mimic)
 
     @property
     def joint_type(self) -> str:

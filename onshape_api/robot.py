@@ -12,14 +12,22 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-from defusedxml import minidom
+from lxml import etree
 
 from onshape_api.connect import Asset, Client
 from onshape_api.graph import create_graph
 from onshape_api.log import LOGGER
 from onshape_api.models.document import Document
-from onshape_api.models.joint import BaseJoint, FixedJoint
-from onshape_api.models.link import Link, Origin
+from onshape_api.models.joint import (
+    BaseJoint,
+    ContinuousJoint,
+    FixedJoint,
+    FloatingJoint,
+    JointType,
+    PrismaticJoint,
+    RevoluteJoint,
+)
+from onshape_api.models.link import Link
 from onshape_api.parse import get_instances, get_mates_and_relations, get_parts, get_subassemblies
 from onshape_api.urdf import get_urdf_components
 from onshape_api.utilities.helpers import save_model_as_json
@@ -35,6 +43,35 @@ class RobotType(str, Enum):
 
     def __str__(self):
         return self.value
+
+
+def set_joint_from_xml(element: ET.Element) -> BaseJoint | None:
+    """
+    Set the joint type from an XML element.
+
+    Args:
+        element (ET.Element): The XML element.
+
+    Returns:
+        BaseJoint: The joint type.
+
+    Examples:
+        >>> element = ET.Element("joint", type="fixed")
+        >>> set_joint_from_xml(element)
+        <FixedJoint>
+    """
+    joint_type = element.attrib["type"]
+    if joint_type == JointType.FIXED:
+        return FixedJoint.from_xml(element)
+    elif joint_type == JointType.REVOLUTE:
+        return RevoluteJoint.from_xml(element)
+    elif joint_type == JointType.CONTINUOUS:
+        return ContinuousJoint.from_xml(element)
+    elif joint_type == JointType.PRISMATIC:
+        return PrismaticJoint.from_xml(element)
+    elif joint_type == JointType.FLOATING:
+        return FloatingJoint.from_xml(element)
+    return None
 
 
 class Robot:
@@ -67,6 +104,8 @@ class Robot:
         joints: dict[str, BaseJoint],
         assets: Optional[dict[str, Asset]] = None,
         robot_type: RobotType = RobotType.URDF,
+        element: Optional[ET.Element] = None,
+        tree: Optional[ET.ElementTree] = None,
     ):
         self.name = name
         self.links = links
@@ -74,8 +113,8 @@ class Robot:
         self.assets = assets
         self.type = robot_type
 
-        self.element: ET.Element = self.to_xml(robot_type=self.type)
-        self.tree: ET.ElementTree = ET.ElementTree(self.element)
+        self.element: ET.Element = element if element is not None else self.to_xml(robot_type=self.type)
+        self.tree: ET.ElementTree = tree if tree is not None else ET.ElementTree(self.element)
 
     def to_xml(self, robot_type: RobotType) -> ET.Element:
         """
@@ -109,7 +148,7 @@ class Robot:
 
         return robot
 
-    def save(self) -> None:
+    def save(self, file_path: Optional[str] = None, download_assets: bool = True) -> None:
         """
         Save the robot model to a URDF file.
 
@@ -117,13 +156,16 @@ class Robot:
             >>> robot = Robot( ... )
             >>> robot.save()
         """
-        path = f"{self.name}.{self.type}"
-        # download assets before saving the URDF file
-        asyncio.run(self._download_assets())
+        path = file_path if file_path else f"{self.name}.{self.type}"
+
+        if download_assets:
+            asyncio.run(self._download_assets())
 
         if isinstance(path, (str, Path)):
             xml_str = ET.tostring(self.tree.getroot(), encoding="unicode")
-            pretty_xml_str = minidom.parseString(xml_str).toprettyxml(indent="    ")
+            xml_tree = etree.fromstring(xml_str)  # noqa: S320
+            pretty_xml_str = etree.tostring(xml_tree, pretty_print=True, encoding="unicode")
+
             with open(path, "w", encoding="utf-8") as f:
                 f.write(pretty_xml_str)
 
@@ -176,6 +218,40 @@ class Robot:
         except Exception as e:
             LOGGER.error(f"Error during asset download: {e}")
             return
+
+    @classmethod
+    def from_urdf(cls, filename: str) -> "Robot":
+        """
+        Load a robot model from a URDF file.
+
+        Args:
+            filename (str): The path to the URDF file.
+
+        Returns:
+            Robot: The robot model loaded from the URDF file.
+
+        Examples:
+            >>> robot = Robot.from_urdf("robot.urdf")
+        """
+        tree = ET.parse(filename)  # noqa: S314
+        root = tree.getroot()
+
+        name = root.attrib["name"]
+        links = {}
+        joints = {}
+
+        for child in root:
+            if child.tag == "link":
+                link = Link.from_xml(child)
+                links[link.name] = link
+            elif child.tag == "joint":
+                joint = set_joint_from_xml(child)
+                if joint:
+                    joints[joint.name] = joint
+
+        return Robot(
+            name=name, links=links, joints=joints, assets=None, robot_type=RobotType.URDF, element=root, tree=tree
+        )
 
 
 def get_robot(
@@ -259,40 +335,21 @@ def get_robot(
 
 if __name__ == "__main__":
     LOGGER.set_file_name("robot.log")
-    robot = Robot(
-        name="Test",
-        links={
-            "link1": Link(name="link1"),
-            "link2": Link(name="link2"),
-        },
-        joints={
-            "joint1": FixedJoint(name="joint1", parent="link1", child="link2", origin=Origin.zero_origin()),
-        },
-        assets={
-            "link1": Asset(
-                did="1f42f849180e6e5c9abfce52",
-                wtype="w",
-                wid="0c00b6520fac5fada24b2104",
-                eid="c96b40ef586e60c182f41d29",
-                client=Client(env="E:/onshape-api/tests/.env"),
-                transform=(0, 0, 0, 0, 0, 0),
-                file_name="link1.stl",
-                is_rigid_assembly=False,
-                partID="KHD",
-            ),
-            "link2": Asset(
-                did="1f42f849180e6e5c9abfce52",
-                wtype="w",
-                wid="0c00b6520fac5fada24b2104",
-                eid="c96b40ef586e60c182f41d29",
-                client=Client(env="E:/onshape-api/tests/.env"),
-                transform=(0, 0, 0, 0, 0, 0),
-                file_name="link2.stl",
-                is_rigid_assembly=False,
-                partID="KHD",
-            ),
-        },
-        robot_type=RobotType.MJCF,
-    )
 
+    # robot = Robot(
+    #     name="Test",
+    #     links={
+    #         "link1": Link(name="link1"),
+    #         "link2": Link(name="link2"),
+    #     },
+    #     joints={
+    #         "joint1": FixedJoint(name="joint1", parent="link1", child="link2", origin=Origin.zero_origin()),
+    #     },
+    #     robot_type=RobotType.URDF,
+    # )
+
+    # robot.save()
+
+    robot = Robot.from_urdf("E:/onshape-api/playground/Co-Design-Prototype-UMV.urdf")
     robot.show()
+    robot.save(file_path="E:/onshape-api/playground/test.urdf", download_assets=False)

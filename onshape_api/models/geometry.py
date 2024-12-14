@@ -28,6 +28,10 @@ class BaseGeometry(ABC):
     @abstractmethod
     def to_xml(self, root: ET.Element | None = None) -> ET.Element: ...
 
+    @classmethod
+    @abstractmethod
+    def from_xml(cls, element: ET.Element) -> "BaseGeometry": ...
+
 
 @dataclass
 class BoxGeometry(BaseGeometry):
@@ -66,6 +70,26 @@ class BoxGeometry(BaseGeometry):
         geometry = ET.Element("geometry") if root is None else ET.SubElement(root, "geometry")
         ET.SubElement(geometry, "box", size=" ".join(format_number(v) for v in self.size))
         return geometry
+
+    @classmethod
+    def from_xml(cls, element) -> "BoxGeometry":
+        """
+        Create a box geometry from an XML element.
+
+        Args:
+            element: The XML element to create the box geometry from.
+
+        Returns:
+            The box geometry created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("geometry")
+            >>> ET.SubElement(element, "box", size="1.0 2.0 3.0")
+            >>> BoxGeometry.from_xml(element)
+            BoxGeometry(size=(1.0, 2.0, 3.0))
+        """
+        size = tuple(float(v) for v in element.find("box").attrib["size"].split())
+        return cls(size)
 
 
 @dataclass
@@ -113,6 +137,27 @@ class CylinderGeometry(BaseGeometry):
         )
         return geometry
 
+    @classmethod
+    def from_xml(cls, element) -> "CylinderGeometry":
+        """
+        Create a cylinder geometry from an XML element.
+
+        Args:
+            element: The XML element to create the cylinder geometry from.
+
+        Returns:
+            The cylinder geometry created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("geometry")
+            >>> ET.SubElement(element, "cylinder", radius="1.0", length="2.0")
+            >>> CylinderGeometry.from_xml(element)
+            CylinderGeometry(radius=1.0, length=2.0)
+        """
+        radius = float(element.find("cylinder").attrib["radius"])
+        length = float(element.find("cylinder").attrib["length"])
+        return cls(radius, length)
+
 
 @dataclass
 class SphereGeometry(BaseGeometry):
@@ -152,6 +197,26 @@ class SphereGeometry(BaseGeometry):
         ET.SubElement(geometry, "sphere", radius=format_number(self.radius))
         return geometry
 
+    @classmethod
+    def from_xml(cls, element) -> "SphereGeometry":
+        """
+        Create a sphere geometry from an XML element.
+
+        Args:
+            element: The XML element to create the sphere geometry from.
+
+        Returns:
+            The sphere geometry created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("geometry")
+            >>> ET.SubElement(element, "sphere", radius="1.0")
+            >>> SphereGeometry.from_xml(element)
+            SphereGeometry(radius=1.0)
+        """
+        radius = float(element.find("sphere").attrib["radius"])
+        return cls(radius)
+
 
 @dataclass
 class MeshGeometry(BaseGeometry):
@@ -190,6 +255,26 @@ class MeshGeometry(BaseGeometry):
         geometry = ET.Element("geometry") if root is None else ET.SubElement(root, "geometry")
         ET.SubElement(geometry, "mesh", filename=self.filename)
         return geometry
+
+    @classmethod
+    def from_xml(cls, element) -> "MeshGeometry":
+        """
+        Create a mesh geometry from an XML element.
+
+        Args:
+            element: The XML element to create the mesh geometry from.
+
+        Returns:
+            The mesh geometry created from the XML element.
+
+        Examples:
+            >>> element = ET.Element("geometry")
+            >>> ET.SubElement(element, "mesh", filename="mesh.stl")
+            >>> MeshGeometry.from_xml(element)
+            MeshGeometry(filename="mesh.stl")
+        """
+        filename = element.find("mesh").attrib["filename"]
+        return cls(filename)
 
     def __post_init__(self) -> None:
         self.filename = xml_escape(self.filename)
