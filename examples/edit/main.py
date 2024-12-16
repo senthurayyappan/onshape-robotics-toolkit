@@ -1,5 +1,5 @@
 from onshape_api.connect import Client
-from onshape_api.graph import create_graph, plot_graph
+from onshape_api.graph import create_graph
 from onshape_api.log import LOGGER, LogLevel
 from onshape_api.models.document import Document
 from onshape_api.parse import (
@@ -8,7 +8,7 @@ from onshape_api.parse import (
     get_parts,
     get_subassemblies,
 )
-from onshape_api.urdf import get_robot
+from onshape_api.robot import get_robot
 
 if __name__ == "__main__":
     LOGGER.set_file_name("edit.log")
@@ -38,6 +38,6 @@ if __name__ == "__main__":
 
     graph, root_node = create_graph(occurrences=occurrences, instances=instances, parts=parts, mates=mates)
     robot = get_robot(assembly, graph, root_node, parts, mates, relations, client, "test")
-    robot.show()
-    plot_graph(graph, "bike.png")
+    robot.show_tree()
+    robot.show_graph("bike.png")
     robot.save()

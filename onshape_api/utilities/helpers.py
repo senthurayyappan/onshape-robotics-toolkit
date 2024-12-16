@@ -19,13 +19,25 @@ from xml.sax.saxutils import escape
 
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+import numpy as np
 from PIL import Image
 from pydantic import BaseModel
 
 from onshape_api.log import LOGGER
 
 
-def save_model_as_json(model: BaseModel, file_path: str) -> None:
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()  # Convert numpy array to list
+        if isinstance(obj, np.matrix):
+            return obj.tolist()  # Convert numpy matrix to list
+        if isinstance(obj, set):
+            return list(obj)  # Convert set to list
+        return super().default(obj)
+
+
+def save_model_as_json(model: BaseModel, file_path: str, indent: int = 4) -> None:
     """
     Save a Pydantic model as a JSON file
 
@@ -45,7 +57,7 @@ def save_model_as_json(model: BaseModel, file_path: str) -> None:
     """
 
     with open(file_path, "w") as file:
-        json.dump(model.model_dump(), file, indent=4)
+        json.dump(model.model_dump(), file, indent=indent, cls=CustomJSONEncoder)
 
 
 def xml_escape(unescaped: str) -> str:

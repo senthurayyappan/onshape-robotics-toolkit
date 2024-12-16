@@ -14,6 +14,7 @@ from onshape_api.connect import Client
 from onshape_api.log import LOGGER
 from onshape_api.models.assembly import (
     Assembly,
+    AssemblyFeature,
     AssemblyFeatureType,
     AssemblyInstance,
     InstanceType,
@@ -268,20 +269,20 @@ async def get_subassemblies_async(
 def get_subassemblies(
     assembly: Assembly,
     client: Client,
-    instance_map: dict[str, Union[PartInstance, AssemblyInstance]],
+    instances: dict[str, Union[PartInstance, AssemblyInstance]],
 ) -> tuple[dict[str, SubAssembly], dict[str, RootAssembly]]:
     """
     Synchronous wrapper for `get_subassemblies_async`.
     """
-    return asyncio.run(get_subassemblies_async(assembly, client, instance_map))
+    return asyncio.run(get_subassemblies_async(assembly, client, instances))
 
 
 async def _fetch_mass_properties_async(
     part: Part,
     key: str,
     client: Client,
-    rigid_subassembly_map: dict[str, RootAssembly],
-    part_map: dict[str, Part],
+    rigid_subassemblies: dict[str, RootAssembly],
+    parts: dict[str, Part],
 ):
     """
     Asynchronously fetch mass properties for a part.
@@ -293,9 +294,9 @@ async def _fetch_mass_properties_async(
         rigid_subassembly_map: Mapping of instance IDs to rigid subassemblies.
         part_map: The dictionary to store fetched parts.
     """
-    if key.split(SUBASSEMBLY_JOINER)[0] not in rigid_subassembly_map:
+    if key.split(SUBASSEMBLY_JOINER)[0] not in rigid_subassemblies:
         try:
-            LOGGER.info(f"Fetching mass properties for part: {part.documentVersion}, {part.partId}")
+            LOGGER.info(f"Fetching mass properties for part: {part.uid}, {part.partId}")
             part.MassProperty = await asyncio.to_thread(
                 client.get_mass_property,
                 did=part.documentId,
@@ -307,14 +308,14 @@ async def _fetch_mass_properties_async(
         except Exception as e:
             LOGGER.error(f"Failed to fetch mass properties for part {part.partId}: {e}")
 
-    part_map[key] = part
+    parts[key] = part
 
 
 async def _get_parts_async(
     assembly: Assembly,
-    rigid_subassembly_map: dict[str, RootAssembly],
+    rigid_subassemblies: dict[str, RootAssembly],
     client: Client,
-    instance_map: dict[str, Union[PartInstance, AssemblyInstance]],
+    instances: dict[str, Union[PartInstance, AssemblyInstance]],
 ) -> dict[str, Part]:
     """
     Asynchronously get parts of an Onshape assembly.
@@ -331,7 +332,7 @@ async def _get_parts_async(
     part_instance_map: dict[str, list[str]] = {}
     part_map: dict[str, Part] = {}
 
-    for key, instance in instance_map.items():
+    for key, instance in instances.items():
         if instance.type == InstanceType.PART:
             part_instance_map.setdefault(instance.uid, []).append(key)
 
@@ -339,7 +340,7 @@ async def _get_parts_async(
     for part in assembly.parts:
         if part.uid in part_instance_map:
             for key in part_instance_map[part.uid]:
-                tasks.append(_fetch_mass_properties_async(part, key, client, rigid_subassembly_map, part_map))
+                tasks.append(_fetch_mass_properties_async(part, key, client, rigid_subassemblies, part_map))
 
     await asyncio.gather(*tasks)
 
@@ -348,9 +349,9 @@ async def _get_parts_async(
 
 def get_parts(
     assembly: Assembly,
-    rigid_subassembly_map: dict[str, RootAssembly],
+    rigid_subassemblies: dict[str, RootAssembly],
     client: Client,
-    instance_map: dict[str, Union[PartInstance, AssemblyInstance]],
+    instances: dict[str, Union[PartInstance, AssemblyInstance]],
 ) -> dict[str, Part]:
     """
     Get parts of an Onshape assembly.
@@ -364,7 +365,7 @@ def get_parts(
     Returns:
         A dictionary mapping part IDs to their corresponding part objects.
     """
-    return asyncio.run(_get_parts_async(assembly, rigid_subassembly_map, client, instance_map))
+    return asyncio.run(_get_parts_async(assembly, rigid_subassemblies, client, instances))
 
 
 def get_occurrence_name(occurrences: list[str], subassembly_prefix: Optional[str] = None) -> str:
@@ -414,13 +415,13 @@ def join_mate_occurrences(parent: list[str], child: list[str], prefix: Optional[
 
 
 async def build_rigid_subassembly_occurrence_map(
-    rigid_subassembly_map: dict[str, RootAssembly], id_to_name_map: dict[str, str], parts: dict[str, Part]
+    rigid_subassemblies: dict[str, RootAssembly], id_to_name_map: dict[str, str], parts: dict[str, Part]
 ) -> dict[str, dict[str, Occurrence]]:
     """
     Asynchronously build a map of rigid subassembly occurrences.
     """
     occurrence_map: dict[str, dict[str, Occurrence]] = {}
-    for assembly_key, rigid_subassembly in rigid_subassembly_map.items():
+    for assembly_key, rigid_subassembly in rigid_subassemblies.items():
         sub_occurrences: dict[str, Occurrence] = {}
         for occurrence in rigid_subassembly.occurrences:
             try:
@@ -451,11 +452,11 @@ async def build_rigid_subassembly_occurrence_map(
 
 
 async def process_features_async(  # noqa: C901
-    features: list,
+    features: list[AssemblyFeature],
     parts: dict[str, Part],
     id_to_name_map: dict[str, str],
     rigid_subassembly_occurrence_map: dict[str, dict[str, Occurrence]],
-    rigid_subassembly_map: dict[str, RootAssembly],
+    rigid_subassemblies: dict[str, RootAssembly],
     subassembly_prefix: Optional[str],
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
@@ -488,7 +489,7 @@ async def process_features_async(  # noqa: C901
                 continue
 
             # Handle rigid subassemblies
-            if parent_occurrences[0] in rigid_subassembly_map:
+            if parent_occurrences[0] in rigid_subassemblies:
                 _occurrence = rigid_subassembly_occurrence_map[parent_occurrences[0]].get(parent_occurrences[1])
                 if _occurrence:
                     parent_parentCS = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
@@ -496,7 +497,7 @@ async def process_features_async(  # noqa: C901
                     feature.featureData.matedEntities[PARENT].parentCS = parent_parentCS
                 parent_occurrences = [parent_occurrences[0]]
 
-            if child_occurrences[0] in rigid_subassembly_map:
+            if child_occurrences[0] in rigid_subassemblies:
                 _occurrence = rigid_subassembly_occurrence_map[child_occurrences[0]].get(child_occurrences[1])
                 if _occurrence:
                     child_parentCS = MatedCS.from_tf(np.matrix(_occurrence.transform).reshape(4, 4))
@@ -525,8 +526,8 @@ async def process_features_async(  # noqa: C901
 
 async def get_mates_and_relations_async(
     assembly: Assembly,
-    subassembly_map: dict[str, SubAssembly],
-    rigid_subassembly_map: dict[str, RootAssembly],
+    subassemblies: dict[str, SubAssembly],
+    rigid_subassemblies: dict[str, RootAssembly],
     id_to_name_map: dict[str, str],
     parts: dict[str, Part],
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
@@ -534,7 +535,7 @@ async def get_mates_and_relations_async(
     Asynchronously get mates and relations.
     """
     rigid_subassembly_occurrence_map = await build_rigid_subassembly_occurrence_map(
-        rigid_subassembly_map, id_to_name_map, parts
+        rigid_subassemblies, id_to_name_map, parts
     )
 
     mates_map, relations_map = await process_features_async(
@@ -542,13 +543,13 @@ async def get_mates_and_relations_async(
         parts,
         id_to_name_map,
         rigid_subassembly_occurrence_map,
-        rigid_subassembly_map,
+        rigid_subassemblies,
         None,
     )
 
-    for key, subassembly in subassembly_map.items():
+    for key, subassembly in subassemblies.items():
         sub_mates, sub_relations = await process_features_async(
-            subassembly.features, parts, id_to_name_map, rigid_subassembly_occurrence_map, rigid_subassembly_map, key
+            subassembly.features, parts, id_to_name_map, rigid_subassembly_occurrence_map, rigid_subassemblies, key
         )
         mates_map.update(sub_mates)
         relations_map.update(sub_relations)
@@ -558,8 +559,8 @@ async def get_mates_and_relations_async(
 
 def get_mates_and_relations(
     assembly: Assembly,
-    subassembly_map: dict[str, SubAssembly],
-    rigid_subassembly_map: dict[str, RootAssembly],
+    subassemblies: dict[str, SubAssembly],
+    rigid_subassemblies: dict[str, RootAssembly],
     id_to_name_map: dict[str, str],
     parts: dict[str, Part],
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
@@ -567,5 +568,5 @@ def get_mates_and_relations(
     Synchronous wrapper for `get_mates_and_relations_async`.
     """
     return asyncio.run(
-        get_mates_and_relations_async(assembly, subassembly_map, rigid_subassembly_map, id_to_name_map, parts)
+        get_mates_and_relations_async(assembly, subassemblies, rigid_subassemblies, id_to_name_map, parts)
     )

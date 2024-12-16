@@ -13,18 +13,39 @@ from typing import Optional
 import networkx as nx
 from lxml import etree as ET
 
-from onshape_api.connect import Asset
+from onshape_api.connect import Asset, Client
+from onshape_api.graph import create_graph, plot_graph
 from onshape_api.log import LOGGER
+from onshape_api.models.assembly import (
+    Assembly,
+    MateFeatureData,
+    MateRelationFeatureData,
+    Part,
+    RelationType,
+    RootAssembly,
+    SubAssembly,
+)
+from onshape_api.models.document import Document
 from onshape_api.models.joint import (
     BaseJoint,
     ContinuousJoint,
     FixedJoint,
     FloatingJoint,
+    JointMimic,
     JointType,
     PrismaticJoint,
     RevoluteJoint,
 )
 from onshape_api.models.link import Link
+from onshape_api.parse import (
+    MATE_JOINER,
+    RELATION_PARENT,
+    get_instances,
+    get_mates_and_relations,
+    get_parts,
+    get_subassemblies,
+)
+from onshape_api.urdf import get_joint_name, get_robot_joint, get_robot_link, get_topological_mates
 
 
 class RobotType(str, Enum):
@@ -88,10 +109,20 @@ class Robot:
     """
 
     def __init__(self, name: str, assets: Optional[dict[str, Asset]] = None, robot_type: RobotType = RobotType.URDF):
-        self.name = name
-        self.graph = nx.DiGraph()  # Graph to hold links and joints
-        self.assets = assets
-        self.type = robot_type
+        self.name: str = name
+        self.graph: nx.DiGraph = nx.DiGraph()  # Graph to hold links and joints
+        self.assets: Optional[dict[str, Asset]] = assets
+        self.type: RobotType = robot_type
+
+        # Onshape assembly attributes
+        self.parts: dict[str, Part] = {}
+        self.mates: dict[str, MateFeatureData] = {}
+        self.relations: dict[str, MateRelationFeatureData] = {}
+
+        self.subassemblies: dict[str, SubAssembly] = {}
+        self.rigid_subassemblies: dict[str, RootAssembly] = {}
+
+        self.assembly: Optional[Assembly] = None
 
     def add_link(self, link: Link) -> None:
         """Add a link to the graph."""
@@ -138,7 +169,7 @@ class Robot:
 
         LOGGER.info(f"Robot model saved to {file_path}")
 
-    def show(self) -> None:
+    def show_tree(self) -> None:
         """Display the robot's graph as a tree structure."""
 
         def print_tree(node, depth=0):
@@ -150,6 +181,10 @@ class Robot:
         root_nodes = [n for n in self.graph.nodes if self.graph.in_degree(n) == 0]
         for root in root_nodes:
             print_tree(root)
+
+    def show_graph(self, file_name: Optional[str] = None) -> None:
+        """Display the robot's graph as a directed graph."""
+        plot_graph(self.graph, file_name=file_name)
 
     async def _download_assets(self) -> None:
         """Asynchronously download the assets."""
@@ -184,6 +219,167 @@ class Robot:
 
         return robot
 
+    @classmethod
+    def from_url(
+        cls, name: str, url: str, client: Client, max_depth: int = 0, use_user_defined_root: bool = False
+    ) -> "Robot":
+        """Create a robot model from an Onshape CAD assembly."""
+
+        document = Document.from_url(url=url)
+        client.set_base_url(document.base_url)
+
+        assembly = client.get_assembly(
+            did=document.did,
+            wtype=document.wtype,
+            wid=document.wid,
+            eid=document.eid,
+            log_response=False,
+            with_meta_data=True,
+        )
+
+        instances, occurrences, id_to_name_map = get_instances(assembly=assembly, max_depth=max_depth)
+        subassemblies, rigid_subassemblies = get_subassemblies(assembly=assembly, client=client, instances=instances)
+
+        parts = get_parts(
+            assembly=assembly, rigid_subassemblies=rigid_subassemblies, client=client, instances=instances
+        )
+        mates, relations = get_mates_and_relations(
+            assembly=assembly,
+            subassemblies=subassemblies,
+            rigid_subassemblies=rigid_subassemblies,
+            id_to_name_map=id_to_name_map,
+            parts=parts,
+        )
+
+        graph, root_node = create_graph(
+            occurrences=occurrences,
+            instances=instances,
+            parts=parts,
+            mates=mates,
+            use_user_defined_root=use_user_defined_root,
+        )
+
+        robot = get_robot(
+            assembly=assembly,
+            graph=graph,
+            root_node=root_node,
+            parts=parts,
+            mates=mates,
+            relations=relations,
+            client=client,
+            robot_name=name,
+        )
+
+        robot.parts = parts
+        robot.mates = mates
+        robot.relations = relations
+
+        robot.subassemblies = subassemblies
+        robot.rigid_subassemblies = rigid_subassemblies
+
+        robot.assembly = assembly
+
+        return robot
+
+
+def get_robot(
+    assembly: Assembly,
+    graph: nx.DiGraph,
+    root_node: str,
+    parts: dict[str, Part],
+    mates: dict[str, MateFeatureData],
+    relations: dict[str, MateRelationFeatureData],
+    client: Client,
+    robot_name: str,
+) -> Robot:
+    """
+    Generate a Robot instance from an Onshape assembly.
+
+    Args:
+        assembly: The Onshape assembly object.
+        graph: The graph representation of the assembly.
+        root_node: The root node of the graph.
+        parts: The dictionary of parts in the assembly.
+        mates: The dictionary of mates in the assembly.
+        relations: The dictionary of mate relations in the assembly.
+        client: The Onshape client object.
+        robot_name: Name of the robot.
+
+    Returns:
+        Robot: The generated Robot instance.
+    """
+    robot = Robot(name=robot_name)
+
+    assets_map = {}
+    stl_to_link_tf_map = {}
+    topological_mates, topological_relations = get_topological_mates(graph, mates, relations)
+
+    LOGGER.info(f"Processing root node: {root_node}")
+
+    root_link, stl_to_root_tf, root_asset = get_robot_link(
+        name=root_node, part=parts[root_node], wid=assembly.document.wid, client=client, mate=None
+    )
+    robot.add_link(root_link)
+    assets_map[root_node] = root_asset
+    stl_to_link_tf_map[root_node] = stl_to_root_tf
+
+    LOGGER.info(f"Processing {len(graph.edges)} edges in the graph.")
+
+    for parent, child in graph.edges:
+        mate_key = f"{parent}{MATE_JOINER}{child}"
+        LOGGER.info(f"Processing edge: {parent} -> {child}")
+        parent_tf = stl_to_link_tf_map[parent]
+
+        if parent not in parts or child not in parts:
+            LOGGER.warning(f"Part {parent} or {child} not found in parts dictionary. Skipping.")
+            continue
+
+        joint_mimic = None
+        relation = topological_relations.get(topological_mates[mate_key].id)
+        if relation:
+            multiplier = (
+                relation.relationLength
+                if relation.relationType == RelationType.RACK_AND_PINION
+                else relation.relationRatio
+            )
+            joint_mimic = JointMimic(
+                joint=get_joint_name(relation.mates[RELATION_PARENT].featureId, mates),
+                multiplier=multiplier,
+                offset=0.0,
+            )
+
+        joint_list, link_list = get_robot_joint(
+            parent,
+            child,
+            topological_mates[mate_key],
+            parent_tf,
+            joint_mimic,
+            is_rigid_assembly=parts[parent].isRigidAssembly,
+        )
+
+        link, stl_to_link_tf, asset = get_robot_link(
+            child, parts[child], assembly.document.wid, client, topological_mates[mate_key]
+        )
+        stl_to_link_tf_map[child] = stl_to_link_tf
+        assets_map[child] = asset
+
+        if child not in robot.graph:
+            robot.add_link(link)
+        else:
+            LOGGER.warning(f"Link {child} already exists in the robot graph. Skipping.")
+
+        for link in link_list:
+            if link.name not in robot.graph:
+                robot.add_link(link)
+            else:
+                LOGGER.warning(f"Link {link.name} already exists in the robot graph. Skipping.")
+
+        for joint in joint_list:
+            robot.add_joint(joint)
+
+    robot.assets = assets_map
+    return robot
+
 
 if __name__ == "__main__":
     LOGGER.set_file_name("robot.log")
@@ -203,6 +399,6 @@ if __name__ == "__main__":
     # robot.save()
 
     robot = Robot.from_urdf("E:/onshape-api/playground/20240920_umv_mini/20240920_umv_mini/20240920_umv_mini.urdf")
-    robot.show()
-    # plot_graph(robot.graph)
+    # robot.show()
+    plot_graph(robot.graph)
     # robot.save(file_path="E:/onshape-api/playground/test.urdf", download_assets=False)

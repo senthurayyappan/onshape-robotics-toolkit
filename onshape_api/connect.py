@@ -128,8 +128,7 @@ class Client:
 
     Args:
         env (str, default='./.env'): Path to the environment file containing the access and secret keys
-        log_file (str, default='./onshape_api'): Path to save the log file
-        log_level (int, default=1): Log level (0-4) for the logger (0=DEBUG, 1=INFO, 2=WARNING, 3=ERROR, 4=CRITICAL)
+        base_url (str, default='https://cad.onshape.com'): Base URL for the Onshape API
 
     Methods:
         get_document_metadata: Get details for a specified document.
@@ -144,8 +143,6 @@ class Client:
     Examples:
         >>> client = Client(
         ...     env=".env",
-        ...     log_file="./onshape_api",
-        ...     log_level=1
         ... )
         >>> document_meta_data = client.get_document_metadata("document_id")
     """
@@ -170,6 +167,18 @@ class Client:
         self._url = base_url
         self._access_key, self._secret_key = load_env_variables(env)
         LOGGER.info(f"Onshape API initialized with env file: {env}")
+
+    def set_base_url(self, base_url: str):
+        """
+        Set the base URL for the Onshape API.
+
+        Args:
+            base_url: Base URL for the Onshape API
+
+        Examples:
+            >>> client.set_base_url("https://cad.onshape.com")
+        """
+        self._url = base_url
 
     def get_document_metadata(self, did: str) -> DocumentMetaData:
         """
@@ -986,6 +995,10 @@ class Client:
             req_headers[h] = headers[h]
 
         return req_headers
+
+    @property
+    def base_url(self):
+        return self._url
 
 
 class Asset:
