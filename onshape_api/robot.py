@@ -8,7 +8,7 @@ Dataclass:
 
 import asyncio
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 import networkx as nx
 from lxml import etree as ET
@@ -26,17 +26,19 @@ from onshape_api.models.assembly import (
     SubAssembly,
 )
 from onshape_api.models.document import Document
+from onshape_api.models.geometry import CylinderGeometry
 from onshape_api.models.joint import (
     BaseJoint,
     ContinuousJoint,
     FixedJoint,
     FloatingJoint,
+    JointLimits,
     JointMimic,
     JointType,
     PrismaticJoint,
     RevoluteJoint,
 )
-from onshape_api.models.link import Link
+from onshape_api.models.link import Axis, Colors, Link, Material, Origin, VisualLink
 from onshape_api.parse import (
     MATE_JOINER,
     RELATION_PARENT,
@@ -124,6 +126,12 @@ class Robot:
 
         self.assembly: Optional[Assembly] = None
 
+        # MuJoCo attributes
+        self.lights: dict[str, Any] = {}
+        self.cameras: dict[str, Any] = {}
+        self.actuators: dict[str, Any] = {}
+        self.sensors: dict[str, Any] = {}
+
     def add_link(self, link: Link) -> None:
         """Add a link to the graph."""
         self.graph.add_node(link.name, data=link)
@@ -153,19 +161,57 @@ class Robot:
 
         return ET.tostring(robot, pretty_print=True, encoding="unicode")
 
+    def to_mjcf(self) -> str:
+        """Generate MJCF XML from the graph."""
+        robot = ET.Element("mujoco", model=self.name)
+
+        ET.SubElement(
+            robot,
+            "compiler",
+            attrib={
+                "angle": "radian",
+                "meshdir": "meshes",
+            },
+        )
+
+        ET.SubElement(
+            robot,
+            "option",
+            attrib={
+                "timestep": "0.01",
+                "gravity": "0 0 -9.81",
+                "iterations": "50",
+            },
+        )
+
+        worldbody = ET.SubElement(robot, "worldbody")
+
+        for link_name, link_data in self.graph.nodes(data="data"):
+            if link_data:
+                link_data.to_mjcf(worldbody)  # Assuming Link has `to_mjcf`
+            else:
+                LOGGER.warning(f"Link {link_name} has no data.")
+
+        return ET.tostring(robot, pretty_print=True, encoding="unicode")
+
     def save(self, file_path: Optional[str] = None, download_assets: bool = True) -> None:
         """Save the robot model to a URDF file."""
         if download_assets and self.assets:
             asyncio.run(self._download_assets())
 
         if not file_path:
-            file_path = f"{self.name}.urdf"
+            file_path = f"{self.name}.{self.type}"
 
-        # Add XML declaration
-        xml_declaration = '<?xml version="1.0" ?>\n'
-        urdf_str = xml_declaration + self.to_urdf()
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(urdf_str)
+        if self.type == RobotType.URDF:
+            # Add XML declaration
+            xml_declaration = '<?xml version="1.0" ?>\n'
+            urdf_str = xml_declaration + self.to_urdf()
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(urdf_str)
+        elif self.type == RobotType.MJCF:
+            mjcf_str = self.to_mjcf()
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(mjcf_str)
 
         LOGGER.info(f"Robot model saved to {file_path}")
 
@@ -384,21 +430,62 @@ def get_robot(
 if __name__ == "__main__":
     LOGGER.set_file_name("robot.log")
 
-    # robot = Robot(
-    #     name="Test",
-    #     links={
-    #         "link1": Link(name="link1"),
-    #         "link2": Link(name="link2"),
-    #     },
-    #     joints={
-    #         "joint1": FixedJoint(name="joint1", parent="link1", child="link2", origin=Origin.zero_origin()),
-    #     },
-    #     robot_type=RobotType.URDF,
-    # )
+    robot = Robot(name="Test", robot_type=RobotType.MJCF)
+    link1 = Link(
+        name="link1",
+        visual=VisualLink(
+            name="link1-visual",
+            geometry=CylinderGeometry(radius=0.1, length=0.5),
+            origin=Origin(xyz=[0, 0, 0], rpy=[0, 0, 0]),
+            material=Material.from_color("link1-material", color=Colors.RED),
+        ),
+    )
 
-    # robot.save()
+    link2 = Link(
+        name="link2",
+        visual=VisualLink(
+            name="link2-visual",
+            geometry=CylinderGeometry(radius=0.1, length=0.5),
+            origin=Origin(xyz=[0, 0, 0], rpy=[0, 0, 0]),
+            material=Material.from_color("link2-material", color=Colors.GREEN),
+        ),
+    )
 
-    robot = Robot.from_urdf("E:/onshape-api/playground/20240920_umv_mini/20240920_umv_mini/20240920_umv_mini.urdf")
-    # robot.show()
-    plot_graph(robot.graph)
+    link3 = Link(
+        name="link3",
+        visual=VisualLink(
+            name="link3-visual",
+            geometry=CylinderGeometry(radius=0.1, length=0.5),
+            origin=Origin(xyz=[0, 0, 0], rpy=[0, 0, 0]),
+            material=Material.from_color("link3-material", color=Colors.BLUE),
+        ),
+    )
+
+    robot.add_link(link1)
+    robot.add_link(link2)
+    robot.add_link(link3)
+
+    joint1 = RevoluteJoint(
+        name="joint1",
+        parent="link1",
+        child="link2",
+        origin=Origin(xyz=[0, 0, 0.25], rpy=[0, 1.57, 0]),
+        axis=Axis(xyz=(0, 1, 0)),
+        limits=JointLimits(effort=10, velocity=10, lower=-1, upper=1),
+    )
+    joint2 = RevoluteJoint(
+        name="joint2",
+        parent="link2",
+        child="link3",
+        origin=Origin(xyz=[0, 0, 0.25], rpy=[1.57, 0, 0]),
+        axis=Axis(xyz=(0, 0, 1)),
+        limits=JointLimits(effort=10, velocity=10, lower=-1, upper=1),
+    )
+    robot.add_joint(joint1)
+    robot.add_joint(joint2)
+
+    # robot.show_graph()
+    robot.save()
+
+    # robot = Robot.from_urdf("E:/onshape-api/playground/20240920_umv_mini/20240920_umv_mini/20240920_umv_mini.urdf")
     # robot.save(file_path="E:/onshape-api/playground/test.urdf", download_assets=False)
