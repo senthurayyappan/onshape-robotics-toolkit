@@ -62,6 +62,16 @@ class JointType(str, Enum):
     PLANAR = "planar"
 
 
+MJCF_JOINT_MAP = {
+    JointType.REVOLUTE: "hinge",
+    JointType.CONTINUOUS: "hinge",
+    JointType.PRISMATIC: "slide",
+    JointType.FIXED: "fixed",
+    JointType.FLOATING: "free",
+    JointType.PLANAR: "slide",
+}
+
+
 @dataclass
 class JointLimits:
     """
@@ -289,17 +299,20 @@ class BaseJoint(ABC):
         ET.SubElement(joint, "child", link=self.child)
         return joint
 
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Converts the joint to an XML element and appends it to the given root element.
+
+        Args:
+            root: The root element to append the joint to.
+        """
+
+        joint = ET.SubElement(root, "joint", name=self.name, type=MJCF_JOINT_MAP[self.joint_type])
+        joint.set("pos", " ".join(map(str, self.origin.xyz)))
+
     @property
     @abstractmethod
-    def joint_type(self) -> str:
-        """
-        The type of the joint.
-
-        Returns:
-            The type of the joint.
-        """
-
-        pass
+    def joint_type(self) -> str: ...
 
     @classmethod
     @abstractmethod
@@ -449,6 +462,24 @@ class RevoluteJoint(BaseJoint):
             self.mimic.to_xml(joint)
         return joint
 
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Converts the revolute joint to an XML element and appends it to the given root element.
+
+        Args:
+            root: The root element to append the revolute joint to.
+        """
+
+        joint = ET.SubElement(root, "joint", name=self.name, type=MJCF_JOINT_MAP[self.joint_type])
+        joint.set("pos", " ".join(map(str, self.origin.xyz)))
+
+        self.axis.to_mjcf(joint)
+        joint.set("range", " ".join(map(str, [self.limits.lower, self.limits.upper])))
+
+        if self.dynamics:
+            joint.set("damping", str(self.dynamics.damping))
+            joint.set("frictionloss", str(self.dynamics.friction))
+
     @classmethod
     def from_xml(cls, element: ET.Element) -> "RevoluteJoint":
         """
@@ -530,7 +561,7 @@ class RevoluteJoint(BaseJoint):
             The type of the joint: "revolute".
         """
 
-        return "revolute"
+        return JointType.REVOLUTE
 
 
 @dataclass
@@ -592,6 +623,9 @@ class ContinuousJoint(BaseJoint):
             self.mimic.to_xml(joint)
         return joint
 
+    def to_mjcf(self, root):
+        return super().to_mjcf(root)
+
     @classmethod
     def from_xml(cls, element: ET.Element) -> "ContinuousJoint":
         """
@@ -643,7 +677,7 @@ class ContinuousJoint(BaseJoint):
             The type of the joint: "continuous".
         """
 
-        return "continuous"
+        return JointType.CONTINUOUS
 
 
 @dataclass
@@ -806,7 +840,7 @@ class PrismaticJoint(BaseJoint):
             The type of the joint: "prismatic".
         """
 
-        return "prismatic"
+        return JointType.PRISMATIC
 
 
 @dataclass
@@ -896,7 +930,7 @@ class FixedJoint(BaseJoint):
             The type of the joint: "fixed".
         """
 
-        return "fixed"
+        return JointType.FIXED
 
 
 @dataclass
@@ -1008,7 +1042,7 @@ class FloatingJoint(BaseJoint):
             The type of the joint: "floating".
         """
 
-        return "floating"
+        return JointType.FLOATING
 
 
 @dataclass
@@ -1152,4 +1186,4 @@ class PlanarJoint(BaseJoint):
             The type of the joint: "planar".
         """
 
-        return "planar"
+        return JointType.PLANAR

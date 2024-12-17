@@ -9,13 +9,38 @@ Class:
     - **MeshGeometry**: Represents a mesh geometry.
 """
 
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 
 import lxml.etree as ET
 
 from onshape_api.utilities import format_number, xml_escape
+
+
+class GeometryType(str, Enum):
+    """
+    Enumerates the possible geometry types in Onshape.
+
+    Attributes:
+        BOX (str): Box geometry.
+        CYLINDER (str): Cylinder geometry.
+        SPHERE (str): Sphere geometry.
+        MESH (str): Mesh geometry.
+
+    Examples:
+        >>> GeometryType.BOX
+        'BOX'
+        >>> GeometryType.CYLINDER
+        'CYLINDER'
+    """
+
+    BOX = "box"
+    CYLINDER = "cylinder"
+    SPHERE = "sphere"
+    MESH = "mesh"
 
 
 @dataclass
@@ -30,9 +55,16 @@ class BaseGeometry(ABC):
     @abstractmethod
     def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element: ...
 
+    @abstractmethod
+    def to_mjcf(self, root: ET.Element) -> None: ...
+
     @classmethod
     @abstractmethod
     def from_xml(cls, element: ET.Element) -> "BaseGeometry": ...
+
+    @property
+    @abstractmethod
+    def geometry_type(self) -> str: ...
 
 
 @dataclass
@@ -73,6 +105,25 @@ class BoxGeometry(BaseGeometry):
         ET.SubElement(geometry, "box", size=" ".join(format_number(v) for v in self.size))
         return geometry
 
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the box geometry to an MJCF element.
+
+        Args:
+            root: The root element to append the box geometry to.
+
+        Returns:
+            The MJCF element representing the box geometry.
+
+        Examples:
+            >>> box = BoxGeometry(size=(1.0, 2.0, 3.0))
+            >>> box.to_mjcf()
+            <Element 'geom' at 0x7f8b3c0b4c70>
+        """
+        geom = root if root.tag == "geom" else ET.SubElement(root, "geom")
+        geom.set("type", GeometryType.BOX)
+        geom.set("size", " ".join(format_number(v) for v in self.size))
+
     @classmethod
     def from_xml(cls, element) -> "BoxGeometry":
         """
@@ -92,6 +143,10 @@ class BoxGeometry(BaseGeometry):
         """
         size = tuple(float(v) for v in element.find("box").attrib["size"].split())
         return cls(size)
+
+    @property
+    def geometry_type(self) -> str:
+        return GeometryType.BOX
 
 
 @dataclass
@@ -139,6 +194,25 @@ class CylinderGeometry(BaseGeometry):
         )
         return geometry
 
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the cylinder geometry to an MJCF element.
+
+        Args:
+            root: The root element to append the cylinder geometry to.
+
+        Returns:
+            The MJCF element representing the cylinder geometry.
+
+        Examples:
+            >>> cylinder = CylinderGeometry(radius=1.0, length=2.0)
+            >>> cylinder.to_mjcf()
+            <Element 'geom' at 0x7f8b3c0b4c70>
+        """
+        geom = root if root is not None and root.tag == "geom" else ET.SubElement(root, "geom")
+        geom.set("type", GeometryType.CYLINDER)
+        geom.set("size", f"{format_number(self.radius)} {format_number(self.length)}")
+
     @classmethod
     def from_xml(cls, element) -> "CylinderGeometry":
         """
@@ -159,6 +233,10 @@ class CylinderGeometry(BaseGeometry):
         radius = float(element.find("cylinder").attrib["radius"])
         length = float(element.find("cylinder").attrib["length"])
         return cls(radius, length)
+
+    @property
+    def geometry_type(self) -> str:
+        return GeometryType.CYLINDER
 
 
 @dataclass
@@ -199,6 +277,25 @@ class SphereGeometry(BaseGeometry):
         ET.SubElement(geometry, "sphere", radius=format_number(self.radius))
         return geometry
 
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the sphere geometry to an MJCF element.
+
+        Args:
+            root: The root element to append the sphere geometry to.
+
+        Returns:
+            The MJCF element representing the sphere geometry.
+
+        Examples:
+            >>> sphere = SphereGeometry(radius=1.0)
+            >>> sphere.to_mjcf()
+            <Element 'geom' at 0x7f8b3c0b4c70>
+        """
+        geom = root if root is not None and root.tag == "geom" else ET.SubElement(root, "geom")
+        geom.set("type", GeometryType.SPHERE)
+        geom.set("size", format_number(self.radius))
+
     @classmethod
     def from_xml(cls, element) -> "SphereGeometry":
         """
@@ -218,6 +315,10 @@ class SphereGeometry(BaseGeometry):
         """
         radius = float(element.find("sphere").attrib["radius"])
         return cls(radius)
+
+    @property
+    def geometry_type(self) -> str:
+        return GeometryType.SPHERE
 
 
 @dataclass
@@ -258,6 +359,25 @@ class MeshGeometry(BaseGeometry):
         ET.SubElement(geometry, "mesh", filename=self.filename)
         return geometry
 
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the mesh geometry to an MJCF element.
+
+        Args:
+            root: The root element to append the mesh geometry to.
+
+        Returns:
+            The MJCF element representing the mesh geometry.
+
+        Examples:
+            >>> mesh = MeshGeometry(filename="mesh.stl")
+            >>> mesh.to_mjcf()
+            <Element 'geom' at 0x7f8b3c0b4c70>
+        """
+        geom = root if root is not None and root.tag == "geom" else ET.SubElement(root, "geom")
+        geom.set("type", GeometryType.MESH)
+        geom.set("mesh", self.mesh_name)
+
     @classmethod
     def from_xml(cls, element) -> "MeshGeometry":
         """
@@ -280,3 +400,12 @@ class MeshGeometry(BaseGeometry):
 
     def __post_init__(self) -> None:
         self.filename = xml_escape(self.filename)
+
+    @property
+    def geometry_type(self) -> str:
+        return GeometryType.MESH
+
+    @property
+    def mesh_name(self) -> str:
+        file_name_w_ext = os.path.basename(self.filename)
+        return os.path.splitext(file_name_w_ext)[0]

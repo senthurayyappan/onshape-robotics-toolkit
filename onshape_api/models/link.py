@@ -22,6 +22,7 @@ from typing import Optional, Union
 import numpy as np
 from lxml import etree as ET
 from scipy.spatial.transform import Rotation
+from scipy.spatial.transform import Rotation as R
 
 from onshape_api.models.geometry import BaseGeometry, BoxGeometry, CylinderGeometry, MeshGeometry, SphereGeometry
 from onshape_api.utilities import format_number
@@ -113,13 +114,9 @@ class Origin:
             >>> matrix = np.eye(4)
             >>> origin.transform(matrix)
         """
-        # Apply the rotation and translation to the position
         new_xyz = np.dot(matrix[:3, :3], np.array(self.xyz)) + matrix[:3, 3]
-
-        # Convert current RPY to a rotation matrix
         current_rotation_matrix = Rotation.from_euler("xyz", self.rpy).as_matrix()
 
-        # Apply the rotation to the current rotation matrix
         new_rotation_matrix = np.dot(matrix[:3, :3], current_rotation_matrix)
         new_rpy = Rotation.from_matrix(new_rotation_matrix).as_euler("xyz")
         if inplace:
@@ -150,6 +147,24 @@ class Origin:
         origin.set("rpy", " ".join(format_number(v) for v in self.rpy))
         return origin
 
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the origin to an MuJoCo compatible XML element.
+
+        Args:
+            root: The root element to append the origin to.
+
+        Returns:
+            The XML element representing the origin.
+
+        Examples:
+            >>> origin = Origin(xyz=(1.0, 2.0, 3.0), rpy=(0.0, 0.0, 0.0))
+            >>> origin.to_mjcf()
+            <Element 'origin' at 0x7f8b3c0b4c70>
+        """
+        root.set("pos", " ".join(format_number(v) for v in self.xyz))
+        root.set("quat", " ".join(format_number(v) for v in self.quat()))
+
     @classmethod
     def from_xml(cls, xml: ET.Element) -> "Origin":
         """
@@ -170,6 +185,18 @@ class Origin:
         xyz = tuple(map(float, xml.get("xyz").split()))
         rpy = tuple(map(float, xml.get("rpy").split()))
         return cls(xyz, rpy)
+
+    def quat(self, sequence: str = "zyx") -> str:
+        """
+        Convert the origin to a quaternion.
+
+        Args:
+            sequence: The sequence of the Euler angles.
+
+        Returns:
+            The quaternion representing the origin.
+        """
+        return Rotation.from_euler(sequence, self.rpy).as_quat()
 
     @classmethod
     def from_matrix(cls, matrix: np.matrix) -> "Origin":
@@ -254,6 +281,23 @@ class Axis:
         axis.set("xyz", " ".join(format_number(v) for v in self.xyz))
         return axis
 
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the axis to an MuJoCo compatible XML element.
+
+        Args:
+            root: The root element to append the axis to.
+
+        Returns:
+            The XML element representing the axis.
+
+        Examples:
+            >>> axis = Axis(xyz=(1.0, 0.0, 0.0))
+            >>> axis.to_mjcf()
+            <Element 'axis' at 0x7f8b3c0b4c70>
+        """
+        root.set("axis", " ".join(format_number(v) for v in self.xyz))
+
     @classmethod
     def from_xml(cls, xml: ET.Element) -> "Axis":
         """
@@ -327,6 +371,24 @@ class Inertia:
         inertia.set("ixz", format_number(self.ixz))
         inertia.set("iyz", format_number(self.iyz))
         return inertia
+
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the inertia tensor to an MuJoCo compatible XML element.
+
+        Args:
+            root: The root element to append the inertia tensor to.
+
+        Returns:
+            The XML element representing the inertia tensor.
+
+        Examples:
+            >>> inertia = Inertia(ixx=1.0, iyy=2.0, izz=3.0, ixy=0.0, ixz=0.0, iyz=0.0)
+            >>> inertia.to_mjcf()
+            <Element 'inertia' at 0x7f8b3c0b4c70>
+        """
+        inertial = root if root.tag == "inertial" else ET.SubElement(root, "inertial")
+        inertial.set("diaginertia", " ".join(format_number(v) for v in [self.ixx, self.iyy, self.izz]))
 
     @classmethod
     def from_xml(cls, xml: ET.Element) -> "Inertia":
@@ -415,6 +477,24 @@ class Material:
         ET.SubElement(material, "color", rgba=" ".join(format_number(v) for v in self.color))
         return material
 
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the material properties to an MuJoCo compatible XML element.
+
+        Args:
+            root: The root element to append the material properties to.
+
+        Returns:
+            The XML element representing the material properties.
+
+        Examples:
+            >>> material = Material(name="material", color=(1.0, 0.0, 0.0, 1.0))
+            >>> material.to_mjcf()
+            <Element 'material' at 0x7f8b3c0b4c70>
+        """
+        geom = root if root is not None and root.tag == "geom" else ET.SubElement(root, "geom")
+        geom.set("rgba", " ".join(format_number(v) for v in self.color))
+
     @classmethod
     def from_xml(cls, xml: ET.Element) -> "Material":
         """
@@ -499,6 +579,23 @@ class InertialLink:
         self.origin.to_xml(inertial)
         return inertial
 
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the inertial properties to an MuJoCo compatible XML element.
+
+        Example XML:
+        ```xml
+        <inertial pos="0 0 -0.0075" quat="0.5 0.5 -0.5 0.5" mass="0.624"
+                  diaginertia="0.073541512 0.07356916 0.073543931" />
+        ```
+        Args:
+            root: The root element to append the inertial properties to.
+        """
+        inertial = root if root.tag == "inertial" else ET.SubElement(root, "inertial")
+        inertial.set("mass", format_number(self.mass))
+        self.origin.to_mjcf(inertial)
+        self.inertia.to_mjcf(inertial)
+
     @classmethod
     def from_xml(cls, xml: ET.Element) -> "InertialLink":
         """
@@ -527,7 +624,7 @@ class InertialLink:
 
 
 def set_geometry_from_xml(geometry: ET.Element) -> BaseGeometry | None:
-    if geometry.find("filename"):
+    if geometry.find("mesh") is not None:
         return MeshGeometry.from_xml(geometry)
     elif geometry.find("box"):
         return BoxGeometry.from_xml(geometry)
@@ -535,6 +632,7 @@ def set_geometry_from_xml(geometry: ET.Element) -> BaseGeometry | None:
         return CylinderGeometry.from_xml(geometry)
     elif geometry.find("radius"):
         return SphereGeometry.from_xml(geometry)
+
     return None
 
 
@@ -562,6 +660,24 @@ class VisualLink:
     geometry: BaseGeometry
     material: Material
 
+    def transform(self, transformation_matrix: np.ndarray) -> None:
+        """
+        Apply a transformation to the visual link's origin.
+
+        Args:
+            transformation_matrix (np.ndarray): A 4x4 transformation matrix (homogeneous).
+        """
+        # Apply translation and rotation to the origin position
+        pos = np.array([self.origin.xyz[0], self.origin.xyz[1], self.origin.xyz[2], 1])
+        new_pos = transformation_matrix @ pos
+        self.origin.xyz = tuple(new_pos[:3])  # Update position
+
+        # Extract the rotation from the transformation matrix
+        rotation_matrix = transformation_matrix[:3, :3]
+        current_rotation = R.from_euler("xyz", self.origin.rpy)
+        new_rotation = R.from_matrix(rotation_matrix @ current_rotation.as_matrix())
+        self.origin.rpy = new_rotation.as_euler("xyz").tolist()
+
     def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the visual properties to an XML element.
@@ -583,6 +699,37 @@ class VisualLink:
         self.geometry.to_xml(visual)
         self.material.to_xml(visual)
         return visual
+
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the visual properties to an MuJoCo compatible XML element.
+
+        Args:
+            root: The root element to append the visual properties to.
+
+        Returns:
+            The XML element representing the visual properties.
+
+        Examples:
+            >>> visual = VisualLink(origin=Origin(...), geometry=BoxGeometry(...), material=Material(...))
+            >>> visual.to_mjcf()
+            <Element 'visual' at 0x7f8b3c0b4c70>
+        """
+        visual = root if root.tag == "geom" else ET.SubElement(root, "geom")
+        visual.set("name", self.name)
+        # TODO: Parent body uses visual origin, these share the same?
+        # self.origin.to_mjcf(visual)
+
+        if self.geometry:
+            self.geometry.to_mjcf(visual)
+
+        self.material.to_mjcf(visual)
+
+        visual.set("conaffinity", "0")
+        visual.set("condim", "1")
+        visual.set("contype", "0")
+        visual.set("density", "0")
+        visual.set("group", "1")
 
     @classmethod
     def from_xml(cls, xml: ET.Element) -> "VisualLink":
@@ -635,6 +782,26 @@ class CollisionLink:
     origin: Origin
     geometry: BaseGeometry
 
+    friction: Optional[tuple[float, float, float]] = None
+
+    def transform(self, transformation_matrix: np.ndarray) -> None:
+        """
+        Apply a transformation to the visual link's origin.
+
+        Args:
+            transformation_matrix (np.ndarray): A 4x4 transformation matrix (homogeneous).
+        """
+        # Apply translation and rotation to the origin position
+        pos = np.array([self.origin.xyz[0], self.origin.xyz[1], self.origin.xyz[2], 1])
+        new_pos = transformation_matrix @ pos
+        self.origin.xyz = tuple(new_pos[:3])  # Update position
+
+        # Extract the rotation from the transformation matrix
+        rotation_matrix = transformation_matrix[:3, :3]
+        current_rotation = R.from_euler("xyz", self.origin.rpy)
+        new_rotation = R.from_matrix(rotation_matrix @ current_rotation.as_matrix())
+        self.origin.rpy = new_rotation.as_euler("xyz").tolist()
+
     def to_xml(self, root: Optional[ET.Element] = None) -> ET.Element:
         """
         Convert the collision properties to an XML element.
@@ -655,6 +822,48 @@ class CollisionLink:
         self.origin.to_xml(collision)
         self.geometry.to_xml(collision)
         return collision
+
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Convert the collision properties to an MuJoCo compatible XML element.
+
+        Example XML:
+        ```xml
+              <geom name="Assembly-2-1-SUB-Part-5-1-collision"
+                    pos="0.0994445 -0.000366963 0.0171076"
+                    quat="-0.92388 -4.28774e-08 0.382683 0"
+                    type="mesh"
+                    rgba="1 0.5 0 1"
+                    mesh="Assembly-2-1-SUB-Part-5-1"
+                    contype="1"
+                    conaffinity="0"
+                    density="0"
+                    group="1"/>
+        ```
+        Args:
+            root: The root element to append the collision properties to.
+
+        Returns:
+            The XML element representing the collision properties.
+
+        Examples:
+            >>> collision = CollisionLink(origin=Origin(...), geometry=BoxGeometry(...))
+            >>> collision.to_mjcf()
+            <Element 'collision' at 0x7f8b3c0b4c70>
+        """
+        collision = root if root.tag == "geom" else ET.SubElement(root, "geom")
+        collision.set("name", self.name)
+        collision.set("contype", "1")
+        collision.set("conaffinity", "1")
+        self.origin.to_mjcf(collision)
+
+        if self.geometry:
+            self.geometry.to_mjcf(collision)
+
+        collision.set("group", "0")
+
+        if self.friction:
+            collision.set("friction", " ".join(format_number(v) for v in self.friction))
 
     @classmethod
     def from_xml(cls, xml: ET.Element) -> "CollisionLink":
@@ -768,10 +977,18 @@ class Link:
         link = ET.Element("body") if root is None else ET.SubElement(root, "body")
         link.set("name", self.name)
         link.set("pos", f"{self.visual.origin.xyz[0]} {self.visual.origin.xyz[1]} {self.visual.origin.xyz[2]}")
-        link.set("quat", "0 0 0 1")
+        link.set("quat", " ".join(map(str, self.visual.origin.quat())))
 
-        geom = ET.SubElement(link, "geom", type="cylinder")
-        geom.set("pos", f"{self.visual.origin.xyz[0]} {self.visual.origin.xyz[1]} {self.visual.origin.xyz[2]}")
+        if self.collision:
+            self.collision.to_mjcf(link)
+
+        if self.visual:
+            self.visual.to_mjcf(link)
+
+        if self.inertial:
+            self.inertial.to_mjcf(link)
+
+        return link
 
     @classmethod
     def from_xml(cls, xml: ET.Element) -> "Link":

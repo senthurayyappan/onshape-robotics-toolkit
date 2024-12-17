@@ -1008,15 +1008,16 @@ class Asset:
 
     def __init__(
         self,
-        did: str,
-        wtype: str,
-        wid: str,
-        eid: str,
-        client: Client,
-        transform: np.ndarray,
         file_name: str,
+        did: str = "",
+        wtype: str = "",
+        wid: str = "",
+        eid: str = "",
+        client: Optional[Client] = None,
+        transform: Optional[np.ndarray] = None,
         is_rigid_assembly: bool = False,
         partID: Optional[str] = None,
+        is_from_file: bool = False,
     ) -> None:
         """
         Initialize the Asset object.
@@ -1041,12 +1042,18 @@ class Asset:
         self.file_name = file_name
         self.is_rigid_assembly = is_rigid_assembly
         self.partID = partID
+        self.is_from_file = is_from_file
+
+        self._file_path = None
 
     @property
     def absolute_path(self) -> str:
         """
         Returns the file path of the mesh file.
         """
+        if self.is_from_file:
+            return self._file_path
+
         # if meshes directory does not exist, create it
         if not os.path.exists(os.path.join(CURRENT_DIR, MESHES_DIR)):
             os.makedirs(os.path.join(CURRENT_DIR, MESHES_DIR))
@@ -1097,7 +1104,7 @@ class Asset:
         except Exception as e:
             LOGGER.error(f"Failed to download {self.file_name}: {e}")
 
-    def to_xml(self, root: Optional[ET.Element] = None) -> str:
+    def to_mjcf(self, root: ET.Element) -> None:
         """
         Returns the XML representation of the asset, which is a mesh file.
 
@@ -1112,10 +1119,33 @@ class Asset:
             ...     file_name="mesh.stl",
             ...     is_rigid_assembly=True
             ... )
-            >>> asset.to_xml()
+            >>> asset.to_mjcf()
             <mesh name="Part-1-1" file="Part-1-1.stl" />
         """
         asset = ET.Element("mesh") if root is None else ET.SubElement(root, "mesh")
-        asset.set("mesh", self.file_name)
+        asset.set("name", self.file_name)
         asset.set("file", self.relative_path)
+
+    @classmethod
+    def from_file(cls, file_path: str) -> "Asset":
+        """
+        Create an Asset object from a mesh file.
+
+        Args:
+            file_path: Path to the mesh file.
+            client: Onshape API client object.
+
+        Returns:
+            Asset: Asset object representing the mesh file.
+
+        Examples:
+            >>> asset = Asset.from_file("mesh.stl", client)
+        """
+        file_name = os.path.basename(file_path)
+        asset = cls(
+            file_name=file_name.split(".")[0],
+            is_from_file=True,
+        )
+
+        asset._file_path = file_path
         return asset

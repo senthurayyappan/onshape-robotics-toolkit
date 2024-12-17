@@ -21,7 +21,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
 
-__all__ = ["ElementType", "Element"]
+__all__ = ["Element", "ElementType"]
 
 
 class ElementType(str, Enum):

@@ -11,7 +11,9 @@ from enum import Enum
 from typing import Any, Optional
 
 import networkx as nx
+import numpy as np
 from lxml import etree as ET
+from scipy.spatial.transform import Rotation as R
 
 from onshape_api.connect import Asset, Client
 from onshape_api.graph import create_graph, plot_graph
@@ -26,19 +28,17 @@ from onshape_api.models.assembly import (
     SubAssembly,
 )
 from onshape_api.models.document import Document
-from onshape_api.models.geometry import CylinderGeometry
 from onshape_api.models.joint import (
     BaseJoint,
     ContinuousJoint,
     FixedJoint,
     FloatingJoint,
-    JointLimits,
     JointMimic,
     JointType,
     PrismaticJoint,
     RevoluteJoint,
 )
-from onshape_api.models.link import Axis, Colors, Link, Material, Origin, VisualLink
+from onshape_api.models.link import Link
 from onshape_api.parse import (
     MATE_JOINER,
     RELATION_PARENT,
@@ -48,6 +48,14 @@ from onshape_api.parse import (
     get_subassemblies,
 )
 from onshape_api.urdf import get_joint_name, get_robot_joint, get_robot_link, get_topological_mates
+
+DEFAULT_COMPILER_ATTRIBUTES = {
+    "angle": "radian",
+    "eulerseq": "xyz",
+    # "meshdir": "meshes",
+}
+
+DEFAULT_OPTION_ATTRIBUTES = {"timestep": "0.001", "gravity": "0 0 -9.81", "iterations": "50", "solver": "PGS"}
 
 
 class RobotType(str, Enum):
@@ -113,7 +121,12 @@ class Robot:
     def __init__(self, name: str, assets: Optional[dict[str, Asset]] = None, robot_type: RobotType = RobotType.URDF):
         self.name: str = name
         self.graph: nx.DiGraph = nx.DiGraph()  # Graph to hold links and joints
-        self.assets: Optional[dict[str, Asset]] = assets
+
+        if assets is None:
+            self.assets: dict[str, Asset] = {}
+        else:
+            self.assets: dict[str, Asset] = assets
+
         self.type: RobotType = robot_type
 
         # Onshape assembly attributes
@@ -132,6 +145,11 @@ class Robot:
         self.actuators: dict[str, Any] = {}
         self.sensors: dict[str, Any] = {}
 
+        self.position: tuple[float, float, float] = (0, 0, 0)
+        self.ground_position: tuple[float, float, float] = (0, 0, 0)
+        self.compiler_attributes: dict[str, str] = DEFAULT_COMPILER_ATTRIBUTES
+        self.option_attributes: dict[str, str] = DEFAULT_OPTION_ATTRIBUTES
+
     def add_link(self, link: Link) -> None:
         """Add a link to the graph."""
         self.graph.add_node(link.name, data=link)
@@ -140,6 +158,46 @@ class Robot:
         """Add a joint to the graph."""
         self.graph.add_edge(joint.parent, joint.child, data=joint)
 
+    def set_robot_position(self, pos: tuple[float, float, float]) -> None:
+        self.position = pos
+
+    def set_ground_position(self, pos: tuple[float, float, float]) -> None:
+        self.ground_position = pos
+
+    def set_compiler_attributes(self, attributes: dict[str, str]) -> None:
+        self.compiler_attributes = attributes
+
+    def set_option_attributes(self, attributes: dict[str, str]) -> None:
+        self.option_attributes = attributes
+
+    def add_light(self, light: dict[str, Any]) -> None:
+        pass
+
+    def add_actuator(self, actuator: dict[str, Any]) -> None:
+        pass
+
+    def add_sensor(self, sensor: dict[str, Any]) -> None:
+        pass
+
+    def add_ground_plane(
+        self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float, float] = (1, 0, 0, 0)
+    ) -> None:
+        """
+        Add a ground plane to the root element.
+
+        Args:
+            root: The root element to append the ground plane to.
+        """
+        geom = ET.Element("geom", name="ground")
+        geom.set("type", "plane")
+        geom.set("pos", " ".join(map(str, self.ground_position)))
+        geom.set("quat", " ".join(map(str, orientation)))
+        geom.set("size", f"{size} {size} 0.001")
+        geom.set("condim", "3")
+        geom.set("conaffinity", "15")
+        # TODO: geom.set("material", "groundplane")
+        root.append(geom)
+
     def to_urdf(self) -> str:
         """Generate URDF XML from the graph."""
         robot = ET.Element("robot", name=self.name)
@@ -147,52 +205,114 @@ class Robot:
         # Add links
         for link_name, link_data in self.graph.nodes(data="data"):
             if link_data is not None:
-                link_data.to_xml(robot)  # Assuming Link has `to_xml`
+                link_data.to_xml(robot)
             else:
                 LOGGER.warning(f"Link {link_name} has no data.")
-                print(link_data)
 
         # Add joints
         for parent, child, joint_data in self.graph.edges(data="data"):
             if joint_data is not None:
-                joint_data.to_xml(robot)  # Assuming Joint has `to_xml`
+                joint_data.to_xml(robot)
             else:
                 LOGGER.warning(f"Joint between {parent} and {child} has no data.")
 
         return ET.tostring(robot, pretty_print=True, encoding="unicode")
 
-    def to_mjcf(self) -> str:
+    def dissolve_fixed_joints(self) -> None:
+        """Dissolve all fixed joints by merging child links into parent links."""
+        fixed_joints = [
+            (parent, child, data["data"])
+            for parent, child, data in self.graph.edges(data=True)
+            if isinstance(data.get("data"), FixedJoint)
+        ]
+
+        for parent, child, joint in fixed_joints:
+            # Get link data
+            parent_link = self.graph.nodes[parent]["data"]
+            child_link = self.graph.nodes[child]["data"]
+
+            if not parent_link or not child_link:
+                continue  # Skip if either link is missing data
+
+            # Apply transformation from child to parent
+            transform = joint.origin  # Assuming joint.origin provides translation/rotation
+            translation = transform.xyz
+            rotation = transform.rpy
+
+            # Convert rotation to transformation matrix
+            rotation_matrix = R.from_euler("xyz", rotation).as_matrix()
+            transformation_matrix = np.eye(4)
+            transformation_matrix[:3, :3] = rotation_matrix
+            transformation_matrix[:3, 3] = translation
+
+            # Transform visuals and collisions of child link
+            child_link.visual.transform(transformation_matrix)
+            child_link.collision.transform(transformation_matrix)
+
+            print(f"Dissolved fixed joint between {parent} and {child}.")
+
+    def to_mjcf(self) -> str:  # noqa: C901
         """Generate MJCF XML from the graph."""
-        robot = ET.Element("mujoco", model=self.name)
+        model = ET.Element("mujoco", model=self.name)
 
         ET.SubElement(
-            robot,
+            model,
             "compiler",
-            attrib={
-                "angle": "radian",
-                "meshdir": "meshes",
-            },
+            attrib=self.compiler_attributes,
         )
 
         ET.SubElement(
-            robot,
+            model,
             "option",
-            attrib={
-                "timestep": "0.01",
-                "gravity": "0 0 -9.81",
-                "iterations": "50",
-            },
+            attrib=self.option_attributes,
         )
 
-        worldbody = ET.SubElement(robot, "worldbody")
+        if self.assets:
+            asset_element = ET.SubElement(model, "asset")
+            for asset in self.assets.values():
+                asset.to_mjcf(asset_element)
+
+        worldbody = ET.SubElement(model, "worldbody")
+        self.add_ground_plane(worldbody)
+
+        root_body = ET.SubElement(worldbody, "body", name=self.name, pos=" ".join(map(str, self.position)))
+        ET.SubElement(root_body, "freejoint", name=f"{self.name}_freejoint")
+
+        body_elements = {self.name: root_body}
 
         for link_name, link_data in self.graph.nodes(data="data"):
-            if link_data:
-                link_data.to_mjcf(worldbody)  # Assuming Link has `to_mjcf`
+            if link_data is not None:
+                body_elements[link_name] = link_data.to_mjcf(root_body)
             else:
                 LOGGER.warning(f"Link {link_name} has no data.")
 
-        return ET.tostring(robot, pretty_print=True, encoding="unicode")
+        # Process joints and build the correct hierarchy
+        for parent_name, child_name, joint_data in self.graph.edges(data="data"):
+            if joint_data is not None:
+                parent_body = body_elements.get(parent_name)
+                child_body = body_elements.get(child_name)
+
+                if parent_body is not None and child_body is not None:
+                    if joint_data.joint_type == "fixed":
+                        # Merge the contents of child_body into parent_body
+                        for element in list(child_body):
+                            if element.tag == "inertial":
+                                continue
+
+                            parent_body.append(element)
+
+                        root_body.remove(child_body)
+                        body_elements[child_name] = parent_body
+                    else:
+                        # Move the child body under its correct parent
+                        parent_body.append(child_body)
+                        joint_data.to_mjcf(child_body)
+                else:
+                    LOGGER.warning(f"Body {parent_name} or {child_name} not found for joint.")
+            else:
+                LOGGER.warning(f"Joint between {parent_name} and {child_name} has no data.")
+
+        return ET.tostring(model, pretty_print=True, encoding="unicode")
 
     def save(self, file_path: Optional[str] = None, download_assets: bool = True) -> None:
         """Save the robot model to a URDF file."""
@@ -202,14 +322,16 @@ class Robot:
         if not file_path:
             file_path = f"{self.name}.{self.type}"
 
+        xml_declaration = '<?xml version="1.0" ?>\n'
+
         if self.type == RobotType.URDF:
-            # Add XML declaration
-            xml_declaration = '<?xml version="1.0" ?>\n'
             urdf_str = xml_declaration + self.to_urdf()
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(urdf_str)
+
         elif self.type == RobotType.MJCF:
-            mjcf_str = self.to_mjcf()
+            self.dissolve_fixed_joints()
+            mjcf_str = xml_declaration + self.to_mjcf()
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(mjcf_str)
 
@@ -238,7 +360,7 @@ class Robot:
             LOGGER.warning("No assets found for the robot model.")
             return
 
-        tasks = [asset.download() for asset in self.assets.values()]
+        tasks = [asset.download() for asset in self.assets.values() if not asset.is_from_file]
         try:
             await asyncio.gather(*tasks)
             LOGGER.info("All assets downloaded successfully.")
@@ -246,20 +368,43 @@ class Robot:
             LOGGER.error(f"Error downloading assets: {e}")
 
     @classmethod
-    def from_urdf(cls, filename: str) -> "Robot":
+    def from_urdf(cls, filename: str, robot_type: RobotType) -> "Robot":  # noqa: C901
         """Load a robot model from a URDF file."""
         tree: ET.ElementTree = ET.parse(filename)  # noqa: S320
         root: ET.Element = tree.getroot()
 
         name = root.attrib["name"]
-        robot = cls(name=name)
+        robot = cls(name=name, robot_type=robot_type)
 
         for element in root:
             if element.tag == "link":
-                link = Link.from_xml(element)  # Assuming Link.from_xml exists
+                link = Link.from_xml(element)
                 robot.add_link(link)
+
+                # Process the visual element within the link
+                visual = element.find("visual")
+                if visual is not None:
+                    geometry = visual.find("geometry")
+                    if geometry is not None:
+                        mesh = geometry.find("mesh")
+                        if mesh is not None:
+                            filename = mesh.attrib.get("filename")
+                            if filename and filename not in robot.assets:
+                                robot.assets[filename] = Asset.from_file(filename)
+
+                # Process the collision element within the link
+                collision = element.find("collision")
+                if collision is not None:
+                    geometry = collision.find("geometry")
+                    if geometry is not None:
+                        mesh = geometry.find("mesh")
+                        if mesh is not None:
+                            filename = mesh.attrib.get("filename")
+                            if filename and filename not in robot.assets:
+                                robot.assets[filename] = Asset.from_file(filename)
+
             elif element.tag == "joint":
-                joint = set_joint_from_xml(element)  # Assuming set_joint_from_xml exists
+                joint = set_joint_from_xml(element)
                 if joint:
                     robot.add_joint(joint)
 
@@ -428,64 +573,13 @@ def get_robot(
 
 
 if __name__ == "__main__":
-    LOGGER.set_file_name("robot.log")
+    LOGGER.set_file_name("test.log")
 
-    robot = Robot(name="Test", robot_type=RobotType.MJCF)
-    link1 = Link(
-        name="link1",
-        visual=VisualLink(
-            name="link1-visual",
-            geometry=CylinderGeometry(radius=0.1, length=0.5),
-            origin=Origin(xyz=[0, 0, 0], rpy=[0, 0, 0]),
-            material=Material.from_color("link1-material", color=Colors.RED),
-        ),
-    )
-
-    link2 = Link(
-        name="link2",
-        visual=VisualLink(
-            name="link2-visual",
-            geometry=CylinderGeometry(radius=0.1, length=0.5),
-            origin=Origin(xyz=[0, 0, 0], rpy=[0, 0, 0]),
-            material=Material.from_color("link2-material", color=Colors.GREEN),
-        ),
-    )
-
-    link3 = Link(
-        name="link3",
-        visual=VisualLink(
-            name="link3-visual",
-            geometry=CylinderGeometry(radius=0.1, length=0.5),
-            origin=Origin(xyz=[0, 0, 0], rpy=[0, 0, 0]),
-            material=Material.from_color("link3-material", color=Colors.BLUE),
-        ),
-    )
-
-    robot.add_link(link1)
-    robot.add_link(link2)
-    robot.add_link(link3)
-
-    joint1 = RevoluteJoint(
-        name="joint1",
-        parent="link1",
-        child="link2",
-        origin=Origin(xyz=[0, 0, 0.25], rpy=[0, 1.57, 0]),
-        axis=Axis(xyz=(0, 1, 0)),
-        limits=JointLimits(effort=10, velocity=10, lower=-1, upper=1),
-    )
-    joint2 = RevoluteJoint(
-        name="joint2",
-        parent="link2",
-        child="link3",
-        origin=Origin(xyz=[0, 0, 0.25], rpy=[1.57, 0, 0]),
-        axis=Axis(xyz=(0, 0, 1)),
-        limits=JointLimits(effort=10, velocity=10, lower=-1, upper=1),
-    )
-    robot.add_joint(joint1)
-    robot.add_joint(joint2)
-
-    # robot.show_graph()
+    robot = Robot.from_urdf(filename="E:/onshape-api/onshape_api/ballbot.urdf", robot_type=RobotType.MJCF)
+    robot.set_robot_position((0, 0, 0.6))
     robot.save()
+
+    # simulate_robot("test.xml")
 
     # robot = Robot.from_urdf("E:/onshape-api/playground/20240920_umv_mini/20240920_umv_mini/20240920_umv_mini.urdf")
     # robot.save(file_path="E:/onshape-api/playground/test.urdf", download_assets=False)
