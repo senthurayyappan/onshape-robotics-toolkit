@@ -11,9 +11,7 @@ from enum import Enum
 from typing import Any, Optional
 
 import networkx as nx
-import numpy as np
 from lxml import etree as ET
-from scipy.spatial.transform import Rotation as R
 
 from onshape_api.connect import Asset, Client
 from onshape_api.graph import create_graph, plot_graph
@@ -48,6 +46,7 @@ from onshape_api.parse import (
     get_subassemblies,
 )
 from onshape_api.urdf import get_joint_name, get_robot_joint, get_robot_link, get_topological_mates
+from onshape_api.utilities.helpers import format_number
 
 DEFAULT_COMPILER_ATTRIBUTES = {
     "angle": "radian",
@@ -180,7 +179,7 @@ class Robot:
         pass
 
     def add_ground_plane(
-        self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float, float] = (1, 0, 0, 0)
+        self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float] = (0, 0, 0)
     ) -> None:
         """
         Add a ground plane to the root element.
@@ -191,7 +190,7 @@ class Robot:
         geom = ET.Element("geom", name="ground")
         geom.set("type", "plane")
         geom.set("pos", " ".join(map(str, self.ground_position)))
-        geom.set("quat", " ".join(map(str, orientation)))
+        geom.set("euler", " ".join(map(str, orientation)))
         geom.set("size", f"{size} {size} 0.001")
         geom.set("condim", "3")
         geom.set("conaffinity", "15")
@@ -217,39 +216,6 @@ class Robot:
                 LOGGER.warning(f"Joint between {parent} and {child} has no data.")
 
         return ET.tostring(robot, pretty_print=True, encoding="unicode")
-
-    def dissolve_fixed_joints(self) -> None:
-        """Dissolve all fixed joints by merging child links into parent links."""
-        fixed_joints = [
-            (parent, child, data["data"])
-            for parent, child, data in self.graph.edges(data=True)
-            if isinstance(data.get("data"), FixedJoint)
-        ]
-
-        for parent, child, joint in fixed_joints:
-            # Get link data
-            parent_link = self.graph.nodes[parent]["data"]
-            child_link = self.graph.nodes[child]["data"]
-
-            if not parent_link or not child_link:
-                continue  # Skip if either link is missing data
-
-            # Apply transformation from child to parent
-            transform = joint.origin  # Assuming joint.origin provides translation/rotation
-            translation = transform.xyz
-            rotation = transform.rpy
-
-            # Convert rotation to transformation matrix
-            rotation_matrix = R.from_euler("xyz", rotation).as_matrix()
-            transformation_matrix = np.eye(4)
-            transformation_matrix[:3, :3] = rotation_matrix
-            transformation_matrix[:3, 3] = translation
-
-            # Transform visuals and collisions of child link
-            child_link.visual.transform(transformation_matrix)
-            child_link.collision.transform(transformation_matrix)
-
-            print(f"Dissolved fixed joint between {parent} and {child}.")
 
     def to_mjcf(self) -> str:  # noqa: C901
         """Generate MJCF XML from the graph."""
@@ -298,6 +264,9 @@ class Robot:
                         for element in list(child_body):
                             if element.tag == "inertial":
                                 continue
+                            elif element.tag == "geom":
+                                element.set("pos", " ".join(format_number(v) for v in joint_data.origin.xyz))
+                                element.set("euler", " ".join(format_number(v) for v in joint_data.origin.rpy))
 
                             parent_body.append(element)
 
@@ -320,6 +289,8 @@ class Robot:
             asyncio.run(self._download_assets())
 
         if not file_path:
+            LOGGER.warning("No file path provided. Saving to current directory.")
+            LOGGER.warning("Please keep in mind that the path to the assets will not be updated")
             file_path = f"{self.name}.{self.type}"
 
         xml_declaration = '<?xml version="1.0" ?>\n'
@@ -330,7 +301,6 @@ class Robot:
                 f.write(urdf_str)
 
         elif self.type == RobotType.MJCF:
-            self.dissolve_fixed_joints()
             mjcf_str = xml_declaration + self.to_mjcf()
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(mjcf_str)
@@ -575,9 +545,13 @@ def get_robot(
 if __name__ == "__main__":
     LOGGER.set_file_name("test.log")
 
-    robot = Robot.from_urdf(filename="E:/onshape-api/onshape_api/ballbot.urdf", robot_type=RobotType.MJCF)
+    robot = Robot.from_urdf(filename="E:/onshape-api/playground/ballbot.urdf", robot_type=RobotType.MJCF)
     robot.set_robot_position((0, 0, 0.6))
-    robot.save()
+    robot.save(file_path="E:/onshape-api/playground/ballbot.xml")
+
+    # import mujoco
+    # model = mujoco.MjModel.from_xml_path(filename="E:/onshape-api/playground/ballbot.urdf")
+    # mujoco.mj_saveLastXML("ballbot-raw-ref.xml", model)
 
     # simulate_robot("test.xml")
 

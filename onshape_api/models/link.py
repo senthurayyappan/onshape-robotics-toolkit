@@ -163,7 +163,7 @@ class Origin:
             <Element 'origin' at 0x7f8b3c0b4c70>
         """
         root.set("pos", " ".join(format_number(v) for v in self.xyz))
-        root.set("quat", " ".join(format_number(v) for v in self.quat()))
+        root.set("euler", " ".join(format_number(v) for v in self.rpy))
 
     @classmethod
     def from_xml(cls, xml: ET.Element) -> "Origin":
@@ -186,7 +186,7 @@ class Origin:
         rpy = tuple(map(float, xml.get("rpy").split()))
         return cls(xyz, rpy)
 
-    def quat(self, sequence: str = "zyx") -> str:
+    def quat(self, sequence: str = "xyz") -> str:
         """
         Convert the origin to a quaternion.
 
@@ -585,7 +585,7 @@ class InertialLink:
 
         Example XML:
         ```xml
-        <inertial pos="0 0 -0.0075" quat="0.5 0.5 -0.5 0.5" mass="0.624"
+        <inertial pos="0 0 -0.0075" euler="0.5 0.5 -0.5" mass="0.624"
                   diaginertia="0.073541512 0.07356916 0.073543931" />
         ```
         Args:
@@ -718,7 +718,7 @@ class VisualLink:
         visual = root if root.tag == "geom" else ET.SubElement(root, "geom")
         visual.set("name", self.name)
         # TODO: Parent body uses visual origin, these share the same?
-        # self.origin.to_mjcf(visual)
+        self.origin.to_mjcf(visual)
 
         if self.geometry:
             self.geometry.to_mjcf(visual)
@@ -976,8 +976,8 @@ class Link:
         """
         link = ET.Element("body") if root is None else ET.SubElement(root, "body")
         link.set("name", self.name)
-        link.set("pos", f"{self.visual.origin.xyz[0]} {self.visual.origin.xyz[1]} {self.visual.origin.xyz[2]}")
-        link.set("quat", " ".join(map(str, self.visual.origin.quat())))
+        link.set("pos", " ".join(map(str, self.visual.origin.xyz)))
+        link.set("euler", " ".join(map(str, self.visual.origin.rpy)))
 
         if self.collision:
             self.collision.to_mjcf(link)
@@ -1038,3 +1038,8 @@ class Link:
     #     """
     #     _cls = cls(name=part.partId)
     #     return _cls
+
+
+if __name__ == "__main__":
+    origin = Origin(xyz=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0))
+    print(origin.quat())
