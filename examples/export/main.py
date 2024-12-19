@@ -9,14 +9,14 @@ if __name__ == "__main__":
     client = Client()
 
     robot = Robot.from_url(
-        name="ballbot",
-        url="https://cad.onshape.com/documents/1f42f849180e6e5c9abfce52/w/0c00b6520fac5fada24b2104/e/c96b40ef586e60c182f41d29",
+        name="quadruped",
+        url="https://cad.onshape.com/documents/cf6b852d2c88d661ac2e17e8/w/c842455c29cc878dc48bdc68/e/b5e293d409dd0b88596181ef",
         client=client,
         max_depth=0,
         use_user_defined_root=False,
     )
 
-    save_model_as_json(robot.assembly, "ballbot.json")
+    save_model_as_json(robot.assembly, "quadruped.json")
 
-    robot.show_graph(file_name="ballbot.png")
+    robot.show_graph(file_name="quadruped.png")
     robot.save()

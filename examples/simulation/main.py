@@ -1,6 +1,8 @@
 import mujoco
+import mujoco.include
 import mujoco.viewer
 import numpy as np
+from lxml import etree as ET
 from scipy.spatial.transform import Rotation
 from transformations import compute_motor_torques
 
@@ -18,6 +20,18 @@ PHASE = 3
 KP = 1
 KI = 0.1
 KD = 0
+
+DEFAULT_COMPILER_ATTRIBUTES = {
+    "angle": "radian",
+    "meshdir": "meshes",
+}
+
+DEFAULT_OPTION_ATTRIBUTES = {
+    "timestep": "0.001",
+    "gravity": "0 0 -9.81",
+    "iterations": "50",
+    "solver": "PGS",
+}
 
 
 def run_simulation(model, data, duration, framerate):
@@ -79,6 +93,14 @@ def control(data, roll_sp=0, pitch_sp=0):
     print(f"Roll {roll}, Pitch: {pitch}")
 
 
+def get_mujoco_element():
+    mujoco_element = ET.Element("mujoco")
+    ET.SubElement(mujoco_element, "compiler", attrib=DEFAULT_COMPILER_ATTRIBUTES)
+    ET.SubElement(mujoco_element, "option", attrib=DEFAULT_OPTION_ATTRIBUTES)
+
+    return mujoco_element
+
+
 if __name__ == "__main__":
     LOGGER.set_file_name("sim.log")
     LOGGER.set_stream_level(LogLevel.INFO)
@@ -91,20 +113,37 @@ if __name__ == "__main__":
     # )
     # ballbot.show()
 
-    model = mujoco.MjModel.from_xml_path(filename="ballbot.xml")
-    data = mujoco.MjData(model)
+    # client = Client()
+    # ballbot = Robot.from_url(
+    #     name="ballbot",
+    #     url="https://cad.onshape.com/documents/1f42f849180e6e5c9abfce52/w/0c00b6520fac5fada24b2104/e/c96b40ef586e60c182f41d29",
+    #     client=client,
+    #     max_depth=0,
+    #     use_user_defined_root=True,
+    # )
+    # ballbot.show_tree()
 
-    # run_simulation(model, data, 20, 60)
+    # mujoco_attributes = {
+    #     "compiler": DEFAULT_COMPILER_ATTRIBUTES,
+    #     "option": DEFAULT_OPTION_ATTRIBUTES,
+    # }
 
-    mujoco.mj_resetData(model, data)
+    # custom_element = get_mujoco_element()
+    # ballbot.add_custom_element(parent_name="root", element=custom_element)
 
-    with mujoco.viewer.launch_passive(model, data) as viewer:
-        initial_roll, initial_pitch, initial_yaw = get_theta(data)
+    # ballbot.save(file_path="ballbot.urdf")
 
-        while viewer.is_running():
-            mujoco.mj_step(model, data)
-            mujoco.mj_forward(model, data)
+    spec = mujoco.MjSpec.from_xml_path(filename="ballbot.urdf")
 
-            control(data)
+    # data = mujoco.MjData(model)
 
-            viewer.sync()
+    # # # run_simulation(model, data, 20, 60)
+
+    # mujoco.mj_resetData(model, data)
+
+    # with mujoco.viewer.launch_passive(model, data) as viewer:
+    #     while viewer.is_running():
+    #         mujoco.mj_step(model, data)
+    #         mujoco.mj_forward(model, data)
+
+    #         viewer.sync()

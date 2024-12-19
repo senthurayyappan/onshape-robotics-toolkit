@@ -123,6 +123,7 @@ class Robot:
         self.rigid_subassemblies: dict[str, RootAssembly] = {}
 
         self.assembly: Optional[Assembly] = None
+        self.model: Optional[ET.Element] = None
 
     def add_link(self, link: Link) -> None:
         """Add a link to the graph."""
@@ -132,8 +133,7 @@ class Robot:
         """Add a joint to the graph."""
         self.graph.add_edge(joint.parent, joint.child, data=joint)
 
-    def to_urdf(self) -> str:
-        """Generate URDF XML from the graph."""
+    def create_robot_model(self) -> ET.Element:
         robot = ET.Element("robot", name=self.name)
 
         # Add links
@@ -151,7 +151,11 @@ class Robot:
             else:
                 LOGGER.warning(f"Joint between {parent} and {child} has no data.")
 
-        return ET.tostring(robot, pretty_print=True, encoding="unicode")
+        return robot
+
+    def get_xml_string(self, element: ET.Element) -> str:
+        """Generate URDF XML from the graph."""
+        return ET.tostring(element, pretty_print=True, encoding="unicode")
 
     def save(self, file_path: Optional[str] = None, download_assets: bool = True) -> None:
         """Save the robot model to a URDF file."""
@@ -161,9 +165,12 @@ class Robot:
         if not file_path:
             file_path = f"{self.name}.urdf"
 
+        if self.model is None:
+            self.model = self.create_robot_model()
+
         # Add XML declaration
         xml_declaration = '<?xml version="1.0" ?>\n'
-        urdf_str = xml_declaration + self.to_urdf()
+        urdf_str = xml_declaration + self.get_xml_string(self.model)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(urdf_str)
 
@@ -198,6 +205,23 @@ class Robot:
             LOGGER.info("All assets downloaded successfully.")
         except Exception as e:
             LOGGER.error(f"Error downloading assets: {e}")
+
+    def add_custom_element(self, parent_name: str, element: ET.Element) -> None:
+        """Add a custom XML element to the robot model."""
+        if self.model is None:
+            self.model = self.create_robot_model()
+
+        if parent_name == "root":
+            self.model.insert(0, element)
+        else:
+            parent = self.model.find(f".//*[@name='{parent_name}']")
+            if parent is None:
+                raise ValueError(f"Parent with name '{parent_name}' not found in the robot model.")
+
+            # Add the custom element under the parent
+            parent.append(element)
+
+        LOGGER.info(f"Custom element added to parent '{parent_name}'.")
 
     @classmethod
     def from_urdf(cls, filename: str) -> "Robot":
