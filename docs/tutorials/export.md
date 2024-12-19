@@ -29,13 +29,13 @@ Start by configuring the logger and initializing the Onshape API client:
 from onshape_api.connect import Client
 from onshape_api.log import LOGGER, LogLevel
 
-LOGGER.set_file_name("ballbot.log")
+LOGGER.set_file_name("quadruped.log")
 LOGGER.set_stream_level(LogLevel.INFO)
 
 client = Client(env="./.env")
 ```
 
-The logger will save logs to `ballbot.log` and display logs at the `INFO` level in the console.
+The logger will save logs to `quadruped.log` and display logs at the `INFO` level in the console.
 
 ---
 

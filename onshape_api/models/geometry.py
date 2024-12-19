@@ -74,7 +74,7 @@ class BoxGeometry(BaseGeometry):
         return geometry
 
     @classmethod
-    def from_xml(cls, element) -> "BoxGeometry":
+    def from_xml(cls, element: ET.Element) -> "BoxGeometry":
         """
         Create a box geometry from an XML element.
 
@@ -140,7 +140,7 @@ class CylinderGeometry(BaseGeometry):
         return geometry
 
     @classmethod
-    def from_xml(cls, element) -> "CylinderGeometry":
+    def from_xml(cls, element: ET.Element) -> "CylinderGeometry":
         """
         Create a cylinder geometry from an XML element.
 
@@ -200,7 +200,7 @@ class SphereGeometry(BaseGeometry):
         return geometry
 
     @classmethod
-    def from_xml(cls, element) -> "SphereGeometry":
+    def from_xml(cls, element: ET.Element) -> "SphereGeometry":
         """
         Create a sphere geometry from an XML element.
 
@@ -259,7 +259,7 @@ class MeshGeometry(BaseGeometry):
         return geometry
 
     @classmethod
-    def from_xml(cls, element) -> "MeshGeometry":
+    def from_xml(cls, element: ET.Element) -> "MeshGeometry":
         """
         Create a mesh geometry from an XML element.
 
