@@ -23,13 +23,13 @@ nav:
           - Joint: api/joint.md
           - Link: api/link.md
           - Mass: api/mass.md
-          - Robot: api/robot.md
           - Variable: api/variable.md
       - Connect: api/connect.md
       - Graph: api/graph.md
       - Log: api/log.md
       - Mesh: api/mesh.md
       - Parse: api/parse.md
+      - Robot: api/robot.md
       - Urdf: api/urdf.md
       - Utilities: api/utilities.md
 

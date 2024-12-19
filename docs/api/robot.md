@@ -1,3 +1,3 @@
 # Robot
 
-::: onshape_api.models.robot
+::: onshape_api.robot
