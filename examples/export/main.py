@@ -16,8 +16,7 @@ if __name__ == "__main__":
         use_user_defined_root=False,
     )
 
-    print(robot.assembly.model_dump(), type(robot.assembly))
     save_model_as_json(robot.assembly, "ballbot.json")
 
-    robot.show_graph()
+    robot.show_graph(file_name="ballbot.png")
     robot.save()

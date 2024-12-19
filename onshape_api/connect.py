@@ -873,7 +873,7 @@ class Client:
         body: Optional[dict[str, Any]] = None,
         base_url: Optional[str] = None,
         log_response: bool = True,
-        timeout: int = 30,
+        timeout: int = 50,
     ) -> requests.Response:
         """
         Send a request to the Onshape API.

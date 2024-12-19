@@ -3,7 +3,6 @@ import logging
 import subprocess
 import time
 
-# Configure logging
 logging.basicConfig(
     filename="benchmark.log",
     level=logging.INFO,
@@ -49,7 +48,6 @@ def run_benchmark(script_path, iterations=1):
 
 
 if __name__ == "__main__":
-    # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Benchmark a Python script.")
     parser.add_argument(
         "script_path",
@@ -65,5 +63,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Run the benchmark
     run_benchmark(args.script_path, args.iterations)
