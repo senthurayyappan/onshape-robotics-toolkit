@@ -1,4 +1,4 @@
-# Sequence
+# Sequence Diagram
 
 <body>
     <pre class="mermaid">
@@ -22,11 +22,10 @@
         Onshape-->>Client: Return Assembly Data (JSON)
         Client-->>User: Deliver Assembly Data
 
-        User->>Client: Initiate URDF Export Workflow
-        Client->>Robot: Parse Assembly Data for URDF
-        Robot->>Client: Generate URDF File
+        User->>Robot: Initiate URDF Export Workflow
+        Robot-->>Onshape: Parse Assembly Data for URDF
+        Robot-->>User: Deliver Robot model (URDF)
 
-        Client-->>User: Deliver URDF File
         User->>User: Use URDF for Simulation or Control
 
 </body>
