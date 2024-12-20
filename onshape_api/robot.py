@@ -58,6 +58,9 @@ DEFAULT_COMPILER_ATTRIBUTES = {
 
 DEFAULT_OPTION_ATTRIBUTES = {"timestep": "0.001", "gravity": "0 0 -9.81", "iterations": "50", "solver": "PGS"}
 
+URDF_EULER_SEQ = "xyz"  # URDF uses XYZ fixed angles
+MJCF_EULER_SEQ = "XYZ"  # MuJoCo uses XYZ extrinsic rotations, capitalization matters
+
 
 class RobotType(str, Enum):
     """
@@ -254,9 +257,6 @@ class Robot:
             else:
                 LOGGER.warning(f"Link {link_name} has no data.")
 
-        URDF_EULER_SEQ = "xyz"  # URDF uses XYZ fixed angles
-        MJCF_EULER_SEQ = "xyz"  # MuJoCo's default is XYZ
-
         dissolved_transforms = {}
 
         # First, process all fixed joints
@@ -290,14 +290,14 @@ class Robot:
                             current_euler = np.array([float(x) for x in (element.get("euler") or "0 0 0").split()])
 
                             # Convert current rotation from MuJoCo convention
-                            current_rot = Rotation.from_euler(MJCF_EULER_SEQ, current_euler)
+                            current_rot = Rotation.from_euler(MJCF_EULER_SEQ, current_euler, degrees=False)
 
                             # Apply the dissolved transformation
                             new_pos = joint_rot.apply(current_pos) + joint_pos
-                            new_rot = joint_rot * current_rot
+                            new_rot = joint_rot * current_rot  # Order matters for rotation composition
 
-                            # Convert back to MuJoCo convention
-                            new_euler = new_rot.as_euler(MJCF_EULER_SEQ)
+                            # Convert back to MuJoCo convention - explicitly specify intrinsic/extrinsic
+                            new_euler = new_rot.as_euler(MJCF_EULER_SEQ, degrees=False)
 
                             element.set("pos", " ".join(format_number(v) for v in new_pos))
                             element.set("euler", " ".join(format_number(v) for v in new_euler))
@@ -331,8 +331,8 @@ class Robot:
                     final_pos = parent_rot.apply(joint_pos) + parent_pos
                     final_rot = parent_rot * joint_rot
 
-                    # Convert to MuJoCo convention
-                    final_euler = final_rot.as_euler(MJCF_EULER_SEQ)
+                    # Convert to MuJoCo convention while maintaining the joint axis orientation
+                    final_euler = final_rot.as_euler(MJCF_EULER_SEQ, degrees=False)
 
                     LOGGER.debug(f"Joint {parent_name}->{child_name}:")
                     LOGGER.debug(f"  Original: pos={joint_data.origin.xyz}, rpy={joint_data.origin.rpy}")
