@@ -451,7 +451,13 @@ class Robot:
 
     @classmethod
     def from_url(
-        cls, name: str, url: str, client: Client, max_depth: int = 0, use_user_defined_root: bool = False
+        cls,
+        name: str,
+        url: str,
+        client: Client,
+        max_depth: int = 0,
+        use_user_defined_root: bool = False,
+        robot_type: RobotType = RobotType.URDF,
     ) -> "Robot":
         """Create a robot model from an Onshape CAD assembly."""
 
@@ -508,6 +514,8 @@ class Robot:
         robot.rigid_subassemblies = rigid_subassemblies
 
         robot.assembly = assembly
+
+        robot.type = robot_type
 
         return robot
 

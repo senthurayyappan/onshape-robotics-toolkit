@@ -1123,7 +1123,7 @@ class Asset:
             <mesh name="Part-1-1" file="Part-1-1.stl" />
         """
         asset = ET.Element("mesh") if root is None else ET.SubElement(root, "mesh")
-        asset.set("name", self.file_name)
+        asset.set("name", self.file_name.split(".")[0])
         asset.set("file", self.relative_path)
 
     @classmethod
