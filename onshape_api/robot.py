@@ -11,7 +11,9 @@ from enum import Enum
 from typing import Any, Optional
 
 import networkx as nx
+import numpy as np
 from lxml import etree as ET
+from scipy.spatial.transform import Rotation
 
 from onshape_api.connect import Asset, Client
 from onshape_api.graph import create_graph, plot_graph
@@ -252,34 +254,101 @@ class Robot:
             else:
                 LOGGER.warning(f"Link {link_name} has no data.")
 
-        # Process joints and build the correct hierarchy
+        URDF_EULER_SEQ = "xyz"  # URDF uses XYZ fixed angles
+        MJCF_EULER_SEQ = "xyz"  # MuJoCo's default is XYZ
+
+        dissolved_transforms = {}
+
+        # First, process all fixed joints
         for parent_name, child_name, joint_data in self.graph.edges(data="data"):
-            if joint_data is not None:
+            if joint_data is not None and joint_data.joint_type == "fixed":
                 parent_body = body_elements.get(parent_name)
                 child_body = body_elements.get(child_name)
 
                 if parent_body is not None and child_body is not None:
-                    if joint_data.joint_type == "fixed":
-                        # Merge the contents of child_body into parent_body
-                        for element in list(child_body):
-                            if element.tag == "inertial":
-                                continue
-                            elif element.tag == "geom":
-                                element.set("pos", " ".join(format_number(v) for v in joint_data.origin.xyz))
-                                element.set("euler", " ".join(format_number(v) for v in joint_data.origin.rpy))
+                    LOGGER.debug(f"\nProcessing fixed joint from {parent_name} to {child_name}")
 
-                            parent_body.append(element)
+                    # Convert joint transform from URDF convention
+                    joint_pos = np.array(joint_data.origin.xyz)
+                    joint_rot = Rotation.from_euler(URDF_EULER_SEQ, joint_data.origin.rpy)
 
-                        root_body.remove(child_body)
-                        body_elements[child_name] = parent_body
+                    # If parent was dissolved, compose transformations
+                    if parent_name in dissolved_transforms:
+                        parent_pos, parent_rot = dissolved_transforms[parent_name]
+                        # Transform position and rotation
+                        joint_pos = parent_rot.apply(joint_pos) + parent_pos
+                        joint_rot = parent_rot * joint_rot
+
+                    dissolved_transforms[child_name] = (joint_pos, joint_rot)
+
+                    # Transform geometries
+                    for element in list(child_body):
+                        if element.tag == "inertial":
+                            continue
+                        elif element.tag == "geom":
+                            current_pos = np.array([float(x) for x in (element.get("pos") or "0 0 0").split()])
+                            current_euler = np.array([float(x) for x in (element.get("euler") or "0 0 0").split()])
+
+                            # Convert current rotation from MuJoCo convention
+                            current_rot = Rotation.from_euler(MJCF_EULER_SEQ, current_euler)
+
+                            # Apply the dissolved transformation
+                            new_pos = joint_rot.apply(current_pos) + joint_pos
+                            new_rot = joint_rot * current_rot
+
+                            # Convert back to MuJoCo convention
+                            new_euler = new_rot.as_euler(MJCF_EULER_SEQ)
+
+                            element.set("pos", " ".join(format_number(v) for v in new_pos))
+                            element.set("euler", " ".join(format_number(v) for v in new_euler))
+
+                        parent_body.append(element)
+
+                    root_body.remove(child_body)
+                    body_elements[child_name] = parent_body
+
+        # Then process revolute joints
+        for parent_name, child_name, joint_data in self.graph.edges(data="data"):
+            if joint_data is not None and joint_data.joint_type != "fixed":
+                parent_body = body_elements.get(parent_name)
+                child_body = body_elements.get(child_name)
+
+                if parent_body is not None and child_body is not None:
+                    LOGGER.debug(f"\nProcessing revolute joint from {parent_name} to {child_name}")
+
+                    # Get dissolved parent transform
+                    if parent_name in dissolved_transforms:
+                        parent_pos, parent_rot = dissolved_transforms[parent_name]
                     else:
-                        # Move the child body under its correct parent
-                        parent_body.append(child_body)
-                        joint_data.to_mjcf(child_body)
-                else:
-                    LOGGER.warning(f"Body {parent_name} or {child_name} not found for joint.")
-            else:
-                LOGGER.warning(f"Joint between {parent_name} and {child_name} has no data.")
+                        parent_pos = np.array([0, 0, 0])
+                        parent_rot = Rotation.from_euler(URDF_EULER_SEQ, [0, 0, 0])
+
+                    # Convert joint transform from URDF convention
+                    joint_pos = np.array(joint_data.origin.xyz)
+                    joint_rot = Rotation.from_euler(URDF_EULER_SEQ, joint_data.origin.rpy)
+
+                    # Apply parent's dissolved transformation
+                    final_pos = parent_rot.apply(joint_pos) + parent_pos
+                    final_rot = parent_rot * joint_rot
+
+                    # Convert to MuJoCo convention
+                    final_euler = final_rot.as_euler(MJCF_EULER_SEQ)
+
+                    LOGGER.debug(f"Joint {parent_name}->{child_name}:")
+                    LOGGER.debug(f"  Original: pos={joint_data.origin.xyz}, rpy={joint_data.origin.rpy}")
+                    LOGGER.debug(f"  Final: pos={final_pos}, euler={final_euler}")
+
+                    # Update child body transformation
+                    child_body.set("pos", " ".join(format_number(v) for v in final_pos))
+                    child_body.set("euler", " ".join(format_number(v) for v in final_euler))
+
+                    # Create joint with zero origin
+                    joint_data.origin.xyz = [0, 0, 0]
+                    joint_data.origin.rpy = [0, 0, 0]
+                    joint_data.to_mjcf(child_body)
+
+                    # Move child under parent
+                    parent_body.append(child_body)
 
         return ET.tostring(model, pretty_print=True, encoding="unicode")
 
@@ -547,6 +616,7 @@ if __name__ == "__main__":
 
     robot = Robot.from_urdf(filename="E:/onshape-api/playground/ballbot.urdf", robot_type=RobotType.MJCF)
     robot.set_robot_position((0, 0, 0.6))
+    robot.show_tree()
     robot.save(file_path="E:/onshape-api/playground/ballbot.xml")
 
     # import mujoco
