@@ -976,8 +976,10 @@ class Link:
         """
         link = ET.Element("body") if root is None else ET.SubElement(root, "body")
         link.set("name", self.name)
-        link.set("pos", " ".join(map(str, self.visual.origin.xyz)))
-        link.set("euler", " ".join(map(str, self.visual.origin.rpy)))
+
+        if self.visual:
+            link.set("pos", " ".join(map(str, self.visual.origin.xyz)))
+            link.set("euler", " ".join(map(str, self.visual.origin.rpy)))
 
         if self.collision:
             self.collision.to_mjcf(link)
