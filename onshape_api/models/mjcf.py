@@ -132,6 +132,7 @@ class Sensor(ABC):
     """
     Represents a sensor in a mujoco model.
     """
+
     def __init__(self, name: str):
         self.name = name
 
@@ -143,12 +144,20 @@ class IMU(Sensor):
     """
     Represents an IMU sensor in a mujoco model.
     """
-    def __init__(self, name: str, objtype: str, noise: float, objname: str,
-                 reftype: Optional[str] = None, refname: Optional[str] = None):
+
+    def __init__(
+        self,
+        name: str,
+        objtype: str,
+        objname: str,
+        noise: Optional[float] = None,
+        reftype: Optional[str] = None,
+        refname: Optional[str] = None,
+    ):
         super().__init__(name)
         self.objtype = objtype
-        self.noise = noise
         self.objname = objname
+        self.noise = noise
         self.reftype = reftype
         self.refname = refname
 
@@ -162,17 +171,50 @@ class IMU(Sensor):
         framequat = ET.Element("framequat") if root is None else ET.SubElement(root, "framequat")
         framequat.set("name", self.name)
         framequat.set("objtype", self.objtype)
-        framequat.set("noise", str(self.noise))
         framequat.set("objname", self.objname)
+
+        if self.noise is not None:
+            framequat.set("noise", str(self.noise))
 
         if self.reftype is not None and self.refname is not None:
             framequat.set("reftype", self.reftype)
             framequat.set("refname", self.refname)
 
+
+class Gyro(Sensor):
+    """
+    Represents a gyro sensor in a mujoco model.
+    """
+
+    def __init__(self, name: str, site: str, noise: Optional[float] = None, cutoff: Optional[float] = None):
+        super().__init__(name)
+        self.site = site
+        self.noise = noise
+        self.cutoff = cutoff
+
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Converts the gyro to an XML element and appends it to the given root element.
+
+        Args:
+            root: The root element to append the gyro to.
+        """
+        gyro = ET.Element("gyro") if root is None else ET.SubElement(root, "gyro")
+        gyro.set("name", self.name)
+        gyro.set("site", self.site)
+
+        if self.noise is not None:
+            gyro.set("noise", str(self.noise))
+
+        if self.cutoff is not None:
+            gyro.set("cutoff", str(self.cutoff))
+
+
 class Encoder(Sensor):
     """
     Represents an encoder sensor in a mujoco model.
     """
+
     def __init__(self, name: str, actuator: str, noise: Optional[float] = None):
         super().__init__(name)
         self.actuator = actuator
@@ -197,10 +239,12 @@ class Encoder(Sensor):
         if self.noise is not None:
             encoder_vel.set("noise", str(self.noise))
 
+
 class ForceSensor(Sensor):
     """
     Represents a force sensor in a mujoco model.
     """
+
     def __init__(self, name: str, actuator: str, noise: Optional[float] = None):
         super().__init__(name)
         self.actuator = actuator
@@ -218,4 +262,3 @@ class ForceSensor(Sensor):
         force_sensor.set("actuator", self.actuator)
         if self.noise is not None:
             force_sensor.set("noise", str(self.noise))
-

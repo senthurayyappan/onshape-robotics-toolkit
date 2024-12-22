@@ -151,6 +151,8 @@ class Robot:
         self.cameras: dict[str, Any] = {}
         self.actuators: dict[str, Any] = {}
         self.sensors: dict[str, Any] = {}
+        self.custom_elements: dict[str, Any] = {}
+        self.mutated_elements: dict[str, Any] = {}
 
         self.position: tuple[float, float, float] = (0, 0, 0)
         self.ground_position: tuple[float, float, float] = (0, 0, 0)
@@ -206,7 +208,6 @@ class Robot:
         add_force_sensor: bool = True,
         ctrl_range: tuple[float, float] = (0, 0),
     ) -> None:
-
         self.actuators[actuator_name] = Actuator(
             name=actuator_name,
             joint=joint_name,
@@ -224,53 +225,59 @@ class Robot:
     def add_sensor(self, name: str, sensor: Sensor) -> None:
         self.sensors[name] = sensor
 
-    def add_custom_element(
+    def add_custom_element_by_tag(
         self,
-        parent: ET.Element,
-        tag: str,
-        name: Optional[str] = None,
-        attributes: Optional[dict[str, str]] = None,
-    ) -> ET.Element:
+        name: str,
+        parent_tag: str,  # Like 'asset', 'worldbody', etc.
+        element: ET.Element,
+    ) -> None:
         """
-        Add a custom XML element to a parent element.
+        Add a custom XML element to the first occurrence of a parent tag.
 
         Args:
-            parent: The parent element to append to
-            tag: The tag name for the new element
-            name: Optional name attribute for the element
-            attributes: Optional dictionary of attribute key-value pairs
-
-        Returns:
-            ET.Element: The newly created element
+            name: Name for referencing this custom element
+            parent_tag: Tag name of parent element (e.g. "asset", "worldbody")
+            element: The XML element to add
 
         Examples:
-            >>> # Add ground plane
-            >>> ground = robot.add_custom_element(
-            ...     worldbody,
-            ...     "geom",
-            ...     name="ground",
-            ...     attributes={
-            ...         "type": "plane",
-            ...         "pos": "0 0 0",
-            ...         "size": "2 2 0.001",
-            ...         "condim": "3"
-            ...     }
+            >>> # Add texture to asset section
+            >>> texture = ET.Element("texture", ...)
+            >>> robot.add_custom_element_by_tag(
+            ...     "wood_texture",
+            ...     "asset",
+            ...     texture
             ... )
         """
-        element = ET.Element(tag)
-        if name:
-            element.set("name", name)
+        self.custom_elements[name] = {"parent": parent_tag, "element": element, "find_by_tag": True}
 
-        if attributes:
-            for key, value in attributes.items():
-                element.set(key, str(value))
+    def add_custom_element_by_name(
+        self,
+        name: str,
+        parent_name: str,  # Like 'Part-3-1', 'ballbot', etc.
+        element: ET.Element,
+    ) -> None:
+        """
+        Add a custom XML element to a parent element with specific name.
 
-        parent.append(element)
-        return element
+        Args:
+            name: Name for referencing this custom element
+            parent_name: Name attribute of the parent element (e.g. "Part-3-1")
+            element: The XML element to add
+
+        Examples:
+            >>> # Add IMU site to specific body
+            >>> imu_site = ET.Element("site", ...)
+            >>> robot.add_custom_element_by_name(
+            ...     "imu",
+            ...     "Part-3-1",
+            ...     imu_site
+            ... )
+        """
+        self.custom_elements[name] = {"parent": parent_name, "element": element, "find_by_tag": False}
 
     def set_element_attributes(
         self,
-        element: ET.Element,
+        element_name: str,
         attributes: dict[str, str],
     ) -> None:
         """
@@ -287,63 +294,56 @@ class Robot:
             ...     {"size": "3 3 0.001", "friction": "1 0.5 0.5"}
             ... )
         """
-        for key, value in attributes.items():
-            element.set(key, str(value))
+        self.mutated_elements[element_name] = attributes
 
     def add_ground_plane(
         self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float] = (0, 0, 0)
     ) -> ET.Element:
         """
         Add a ground plane to the root element with associated texture and material.
-
-        Args:
+            Args:
             root: The root element to append the ground plane to
             size: Size of the ground plane (default: 2)
             orientation: Euler angles for orientation (default: (0, 0, 0))
-
-        Returns:
+            Returns:
             ET.Element: The ground plane element
         """
-        # Add ground plane geom
-        attributes = {
-            "type": "plane",
-            "pos": " ".join(map(str, self.ground_position)),
-            "euler": " ".join(map(str, orientation)),
-            "size": f"{size} {size} 0.001",
-            "condim": "3",
-            "conaffinity": "15",
-            "material": "grid"
-        }
+        # Create ground plane geom element
+        ground_geom = ET.Element(
+            "geom",
+            type="plane",
+            pos=" ".join(map(str, self.ground_position)),
+            euler=" ".join(map(str, orientation)),
+            size=f"{size} {size} 0.001",
+            condim="3",
+            conaffinity="15",
+            material="grid",
+        )
 
-        return self.add_custom_element(root, "geom", name="ground", attributes=attributes)
+        # Add to custom elements
+        self.add_custom_element_by_tag("ground", "worldbody", ground_geom)
+
+        return ground_geom
 
     def add_ground_plane_assets(self, root: ET.Element) -> None:
         # Add texture definition
-        self.add_custom_element(
-            root,
+        """Add texture and material assets for the ground plane"""
+        # Create texture element
+        checker_texture = ET.Element(
             "texture",
             name="checker",
-            attributes={
-                "type": "2d",
-                "builtin": "checker",
-                "rgb1": ".1 .2 .3",
-                "rgb2": ".2 .3 .4",
-                "width": "300",
-                "height": "300"
-            }
+            type="2d",
+            builtin="checker",
+            rgb1=".1 .2 .3",
+            rgb2=".2 .3 .4",
+            width="300",
+            height="300",
         )
+        self.add_custom_element_by_tag("checker", "asset", checker_texture)
 
-        # Add material definitions
-        self.add_custom_element(
-            root,
-            "material",
-            name="grid",
-            attributes={
-                "texture": "checker",
-                "texrepeat": "8 8",
-                "reflectance": ".2"
-            }
-        )
+        # Create material element
+        grid_material = ET.Element("material", name="grid", texture="checker", texrepeat="8 8", reflectance=".2")
+        self.add_custom_element_by_tag("grid", "asset", grid_material)
 
     def to_urdf(self) -> str:
         """Generate URDF XML from the graph."""
@@ -393,12 +393,11 @@ class Robot:
             self.add_ground_plane_assets(asset)
 
         worldbody = ET.SubElement(model, "worldbody")
+        self.add_ground_plane(worldbody)
 
         if self.lights:
             for light in self.lights.values():
                 light.to_mjcf(worldbody)
-
-        self.add_ground_plane(worldbody)
 
         root_body = ET.SubElement(worldbody, "body", name=self.name, pos=" ".join(map(str, self.position)))
         ET.SubElement(root_body, "freejoint", name=f"{self.name}_freejoint")
@@ -513,6 +512,38 @@ class Robot:
             sensor_element = ET.SubElement(model, "sensor")
             for sensor in self.sensors.values():
                 sensor.to_mjcf(sensor_element)
+
+        if self.custom_elements:
+            for element_info in self.custom_elements.values():
+                parent = element_info["parent"]
+                find_by_tag = element_info.get("find_by_tag", False)
+                element = element_info["element"]
+
+                if find_by_tag:
+                    parent_element = model.find(parent)
+                else:
+                    xpath = f".//body[@name='{parent}']"
+                    parent_element = model.find(xpath)
+
+                if parent_element is not None:
+                    # Create new element with proper parent relationship
+                    new_element = ET.SubElement(parent_element, element.tag, element.attrib)
+                    # Copy any children if they exist
+                    for child in element:
+                        new_element.append(ET.fromstring(ET.tostring(child)))  # noqa: S320
+                else:
+                    search_type = "tag" if find_by_tag else "name"
+                    LOGGER.warning(f"Parent element with {search_type} '{parent}' not found in model.")
+
+        for element_name, attributes in self.mutated_elements.items():
+            # Search recursively through all descendants, looking for both body and joint elements
+            elements = model.findall(f".//*[@name='{element_name}']")
+            if elements:
+                element = elements[0]  # Get the first matching element
+                for key, value in attributes.items():
+                    element.set(key, str(value))
+            else:
+                LOGGER.warning(f"Could not find element with name '{element_name}'")
 
         return ET.tostring(model, pretty_print=True, encoding="unicode")
 
@@ -682,6 +713,12 @@ class Robot:
         robot.type = robot_type
 
         return robot
+
+
+def load_element(file_name: str) -> ET.Element:
+    tree: ET.ElementTree = ET.parse(file_name)  # noqa: S320
+    root: ET.Element = tree.getroot()
+    return root
 
 
 def get_robot(
