@@ -101,6 +101,25 @@ if __name__ == "__main__":
         robot_type=RobotType.MJCF,
     )
 
+    ballbot.add_light(
+        name="light-1",
+        directional=True,
+        diffuse=[0.4, 0.4, 0.4],
+        specular=[0.1, 0.1, 0.1],
+        pos=[0, 0, 5.0],
+        direction=[0, 0, -1],
+        castshadow=False
+    )
+    ballbot.add_light(
+        name="light-2",
+        directional=True,
+        diffuse=[0.6, 0.6, 0.6],
+        specular=[0.2, 0.2, 0.2],
+        pos=[0, 0, 4],
+        direction=[0, 0, -1],
+        castshadow=False,
+    )
+
     ballbot.set_robot_position(pos=(0, 0, 0.6))
     ballbot.add_actuator(
         actuator_name="motor-1",

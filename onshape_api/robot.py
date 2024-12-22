@@ -39,7 +39,7 @@ from onshape_api.models.joint import (
     RevoluteJoint,
 )
 from onshape_api.models.link import Link
-from onshape_api.models.mjcf import Actuator, Encoder, ForceSensor, Sensor
+from onshape_api.models.mjcf import Actuator, Encoder, ForceSensor, Light, Sensor
 from onshape_api.parse import (
     MATE_JOINER,
     RELATION_PARENT,
@@ -177,8 +177,24 @@ class Robot:
     def set_option_attributes(self, attributes: dict[str, str]) -> None:
         self.option_attributes = attributes
 
-    def add_light(self, light: dict[str, Any]) -> None:
-        pass
+    def add_light(
+        self,
+        name: str,
+        directional: bool,
+        diffuse: tuple[float, float, float],
+        specular: tuple[float, float, float],
+        pos: tuple[float, float, float],
+        direction: tuple[float, float, float],
+        castshadow: bool,
+    ) -> None:
+        self.lights[name] = Light(
+            directional=directional,
+            diffuse=diffuse,
+            specular=specular,
+            pos=pos,
+            direction=direction,
+            castshadow=castshadow,
+        )
 
     def add_actuator(
         self,
@@ -208,24 +224,126 @@ class Robot:
     def add_sensor(self, name: str, sensor: Sensor) -> None:
         self.sensors[name] = sensor
 
-    def add_ground_plane(
-        self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float] = (0, 0, 0)
-    ) -> None:
+    def add_custom_element(
+        self,
+        parent: ET.Element,
+        tag: str,
+        name: Optional[str] = None,
+        attributes: Optional[dict[str, str]] = None,
+    ) -> ET.Element:
         """
-        Add a ground plane to the root element.
+        Add a custom XML element to a parent element.
 
         Args:
-            root: The root element to append the ground plane to.
+            parent: The parent element to append to
+            tag: The tag name for the new element
+            name: Optional name attribute for the element
+            attributes: Optional dictionary of attribute key-value pairs
+
+        Returns:
+            ET.Element: The newly created element
+
+        Examples:
+            >>> # Add ground plane
+            >>> ground = robot.add_custom_element(
+            ...     worldbody,
+            ...     "geom",
+            ...     name="ground",
+            ...     attributes={
+            ...         "type": "plane",
+            ...         "pos": "0 0 0",
+            ...         "size": "2 2 0.001",
+            ...         "condim": "3"
+            ...     }
+            ... )
         """
-        geom = ET.Element("geom", name="ground")
-        geom.set("type", "plane")
-        geom.set("pos", " ".join(map(str, self.ground_position)))
-        geom.set("euler", " ".join(map(str, orientation)))
-        geom.set("size", f"{size} {size} 0.001")
-        geom.set("condim", "3")
-        geom.set("conaffinity", "15")
-        # TODO: geom.set("material", "groundplane")
-        root.append(geom)
+        element = ET.Element(tag)
+        if name:
+            element.set("name", name)
+
+        if attributes:
+            for key, value in attributes.items():
+                element.set(key, str(value))
+
+        parent.append(element)
+        return element
+
+    def set_element_attributes(
+        self,
+        element: ET.Element,
+        attributes: dict[str, str],
+    ) -> None:
+        """
+        Set or update attributes of an existing XML element.
+
+        Args:
+            element: The element to modify
+            attributes: Dictionary of attribute key-value pairs to set/update
+
+        Examples:
+            >>> # Update existing element attributes
+            >>> robot.set_element_attributes(
+            ...     ground_element,
+            ...     {"size": "3 3 0.001", "friction": "1 0.5 0.5"}
+            ... )
+        """
+        for key, value in attributes.items():
+            element.set(key, str(value))
+
+    def add_ground_plane(
+        self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float] = (0, 0, 0)
+    ) -> ET.Element:
+        """
+        Add a ground plane to the root element with associated texture and material.
+
+        Args:
+            root: The root element to append the ground plane to
+            size: Size of the ground plane (default: 2)
+            orientation: Euler angles for orientation (default: (0, 0, 0))
+
+        Returns:
+            ET.Element: The ground plane element
+        """
+        # Add ground plane geom
+        attributes = {
+            "type": "plane",
+            "pos": " ".join(map(str, self.ground_position)),
+            "euler": " ".join(map(str, orientation)),
+            "size": f"{size} {size} 0.001",
+            "condim": "3",
+            "conaffinity": "15",
+            "material": "grid"
+        }
+
+        return self.add_custom_element(root, "geom", name="ground", attributes=attributes)
+
+    def add_ground_plane_assets(self, root: ET.Element) -> None:
+        # Add texture definition
+        self.add_custom_element(
+            root,
+            "texture",
+            name="checker",
+            attributes={
+                "type": "2d",
+                "builtin": "checker",
+                "rgb1": ".1 .2 .3",
+                "rgb2": ".2 .3 .4",
+                "width": "300",
+                "height": "300"
+            }
+        )
+
+        # Add material definitions
+        self.add_custom_element(
+            root,
+            "material",
+            name="grid",
+            attributes={
+                "texture": "checker",
+                "texrepeat": "8 8",
+                "reflectance": ".2"
+            }
+        )
 
     def to_urdf(self) -> str:
         """Generate URDF XML from the graph."""
@@ -268,7 +386,18 @@ class Robot:
             for asset in self.assets.values():
                 asset.to_mjcf(asset_element)
 
+            self.add_ground_plane_assets(asset_element)
+        else:
+            # Find or create asset element after default element
+            asset = ET.SubElement(model, "asset")
+            self.add_ground_plane_assets(asset)
+
         worldbody = ET.SubElement(model, "worldbody")
+
+        if self.lights:
+            for light in self.lights.values():
+                light.to_mjcf(worldbody)
+
         self.add_ground_plane(worldbody)
 
         root_body = ET.SubElement(worldbody, "body", name=self.name, pos=" ".join(map(str, self.position)))

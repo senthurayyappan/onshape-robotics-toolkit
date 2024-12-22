@@ -1,8 +1,8 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional
 
 from lxml import etree as ET
-from abc import ABC, abstractmethod
 
 
 @dataclass
@@ -30,7 +30,7 @@ class Light:
     diffuse: tuple[float, float, float]
     specular: tuple[float, float, float]
     pos: tuple[float, float, float]
-    dir: tuple[float, float, float]
+    direction: tuple[float, float, float]
     castshadow: bool
 
     def to_mjcf(self, root: ET.Element) -> None:
@@ -41,12 +41,12 @@ class Light:
             root: The root element to append the light to.
         """
         light = ET.Element("light") if root is None else ET.SubElement(root, "light")
-        light.set("directional", str(self.directional))
+        light.set("directional", str(self.directional).lower())
         light.set("diffuse", " ".join(map(str, self.diffuse)))
         light.set("specular", " ".join(map(str, self.specular)))
         light.set("pos", " ".join(map(str, self.pos)))
-        light.set("dir", " ".join(map(str, self.dir)))
-        light.set("castshadow", str(self.castshadow))
+        light.set("dir", " ".join(map(str, self.direction)))
+        light.set("castshadow", str(self.castshadow).lower())
 
 
 @dataclass
