@@ -86,16 +86,46 @@ if __name__ == "__main__":
     LOGGER.set_stream_level(LogLevel.INFO)
 
     # TODO: Add native support for MJCF (XML) exports: #17
-    client = Client()
-    ballbot: Robot = Robot.from_url(
-        url="https://cad.onshape.com/documents/1f42f849180e6e5c9abfce52/w/0c00b6520fac5fada24b2104/e/c96b40ef586e60c182f41d29",
-        client=client,
-        max_depth=0,
-        name="ballbot",
+    # client = Client()
+    # ballbot: Robot = Robot.from_url(
+    #     url="https://cad.onshape.com/documents/1f42f849180e6e5c9abfce52/w/0c00b6520fac5fada24b2104/e/c96b40ef586e60c182f41d29",
+    #     client=client,
+    #     max_depth=1,
+    #     name="ballbot",
+    #     # robot_type=RobotType.MJCF,
+    # )
+    # ballbot.save()
+
+    ballbot: Robot = Robot.from_urdf(
+        file_name="ballbot.urdf",
         robot_type=RobotType.MJCF,
     )
-    ballbot.show_tree()
+
     ballbot.set_robot_position(pos=(0, 0, 0.6))
+    ballbot.add_actuator(
+        actuator_name="motor-1",
+        joint_name="Revolute-1",
+        ctrl_limited=False,
+        gear=70,
+        add_encoder=True,
+        add_force_sensor=True,
+    )
+    ballbot.add_actuator(
+        actuator_name="motor-2",
+        joint_name="Revolute-2",
+        ctrl_limited=False,
+        gear=70,
+        add_encoder=True,
+        add_force_sensor=True,
+    )
+    ballbot.add_actuator(
+        actuator_name="motor-3",
+        joint_name="Revolute-3",
+        ctrl_limited=False,
+        gear=70,
+        add_encoder=True,
+        add_force_sensor=True,
+    )
     ballbot.save("ballbot.xml")
 
     model = mujoco.MjModel.from_xml_path(filename="ballbot.xml")

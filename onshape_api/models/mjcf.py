@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from lxml import etree as ET
+from abc import ABC, abstractmethod
 
 
 @dataclass
@@ -106,8 +107,8 @@ class Actuator:
     name: str
     joint: str
     ctrllimited: bool
-    ctrlrange: tuple[float, float] = (0, 0)
     gear: float
+    ctrlrange: tuple[float, float] = (0, 0)
 
     def to_mjcf(self, root: ET.Element) -> None:
         """
@@ -119,7 +120,7 @@ class Actuator:
         motor = ET.Element("motor") if root is None else ET.SubElement(root, "motor")
         motor.set("name", self.name)
         motor.set("joint", self.joint)
-        motor.set("ctrllimited", str(self.ctrllimited))
+        motor.set("ctrllimited", str(self.ctrllimited).lower())
 
         if self.ctrllimited:
             motor.set("ctrlrange", " ".join(map(str, self.ctrlrange)))
@@ -127,31 +128,29 @@ class Actuator:
         motor.set("gear", str(self.gear))
 
 
-@dataclass
-class IMU:
+class Sensor(ABC):
+    """
+    Represents a sensor in a mujoco model.
+    """
+    def __init__(self, name: str):
+        self.name = name
+
+    @abstractmethod
+    def to_mjcf(self, root: ET.Element) -> None: ...
+
+
+class IMU(Sensor):
     """
     Represents an IMU sensor in a mujoco model.
-
-    Example IMU XML:
-    ```xml
-    <framequat name="orientation" objtype="site" noise="0.001" objname="imu" reftype="site" refname="root" />
-    ```
-
-    Attributes:
-        name: The name of the IMU.
-        objtype: The object type of the IMU.
-        noise: The noise of the IMU.
-        objname: The object name of the IMU.
-        reftype: The reference type of the IMU.
-        refname: The reference name of the IMU.
     """
-
-    name: str
-    objtype: str
-    noise: float
-    objname: str
-    reftype: Optional[str] = None
-    refname: Optional[str] = None
+    def __init__(self, name: str, objtype: str, noise: float, objname: str,
+                 reftype: Optional[str] = None, refname: Optional[str] = None):
+        super().__init__(name)
+        self.objtype = objtype
+        self.noise = noise
+        self.objname = objname
+        self.reftype = reftype
+        self.refname = refname
 
     def to_mjcf(self, root: ET.Element) -> None:
         """
@@ -169,3 +168,54 @@ class IMU:
         if self.reftype is not None and self.refname is not None:
             framequat.set("reftype", self.reftype)
             framequat.set("refname", self.refname)
+
+class Encoder(Sensor):
+    """
+    Represents an encoder sensor in a mujoco model.
+    """
+    def __init__(self, name: str, actuator: str, noise: Optional[float] = None):
+        super().__init__(name)
+        self.actuator = actuator
+        self.noise = noise
+
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Converts the encoder to an XML element and appends it to the given root element.
+
+        Args:
+            root: The root element to append the encoder to.
+        """
+        encoder_pos = ET.Element("actuatorpos") if root is None else ET.SubElement(root, "actuatorpos")
+        encoder_pos.set("name", self.name + "-pos")
+        encoder_pos.set("actuator", self.actuator)
+        if self.noise is not None:
+            encoder_pos.set("noise", str(self.noise))
+
+        encoder_vel = ET.Element("actuatorvel") if root is None else ET.SubElement(root, "actuatorvel")
+        encoder_vel.set("name", self.name + "-vel")
+        encoder_vel.set("actuator", self.actuator)
+        if self.noise is not None:
+            encoder_vel.set("noise", str(self.noise))
+
+class ForceSensor(Sensor):
+    """
+    Represents a force sensor in a mujoco model.
+    """
+    def __init__(self, name: str, actuator: str, noise: Optional[float] = None):
+        super().__init__(name)
+        self.actuator = actuator
+        self.noise = noise
+
+    def to_mjcf(self, root: ET.Element) -> None:
+        """
+        Converts the force sensor to an XML element and appends it to the given root element.
+
+        Args:
+            root: The root element to append the force sensor to.
+        """
+        force_sensor = ET.Element("actuatorfrc") if root is None else ET.SubElement(root, "actuatorfrc")
+        force_sensor.set("name", self.name)
+        force_sensor.set("actuator", self.actuator)
+        if self.noise is not None:
+            force_sensor.set("noise", str(self.noise))
+

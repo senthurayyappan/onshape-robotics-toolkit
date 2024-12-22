@@ -39,6 +39,7 @@ from onshape_api.models.joint import (
     RevoluteJoint,
 )
 from onshape_api.models.link import Link
+from onshape_api.models.mjcf import Actuator, Encoder, ForceSensor, Sensor
 from onshape_api.parse import (
     MATE_JOINER,
     RELATION_PARENT,
@@ -60,6 +61,8 @@ DEFAULT_OPTION_ATTRIBUTES = {"timestep": "0.001", "gravity": "0 0 -9.81", "itera
 
 URDF_EULER_SEQ = "xyz"  # URDF uses XYZ fixed angles
 MJCF_EULER_SEQ = "XYZ"  # MuJoCo uses XYZ extrinsic rotations, capitalization matters
+
+ACTUATOR_SUFFIX = "-actuator"
 
 
 class RobotType(str, Enum):
@@ -177,11 +180,33 @@ class Robot:
     def add_light(self, light: dict[str, Any]) -> None:
         pass
 
-    def add_actuator(self, actuator: dict[str, Any]) -> None:
-        pass
+    def add_actuator(
+        self,
+        actuator_name: str,
+        joint_name: str,
+        ctrl_limited: bool,
+        gear: float,
+        add_encoder: bool = True,
+        add_force_sensor: bool = True,
+        ctrl_range: tuple[float, float] = (0, 0),
+    ) -> None:
 
-    def add_sensor(self, sensor: dict[str, Any]) -> None:
-        pass
+        self.actuators[actuator_name] = Actuator(
+            name=actuator_name,
+            joint=joint_name,
+            ctrllimited=ctrl_limited,
+            gear=gear,
+            ctrlrange=ctrl_range,
+        )
+
+        if add_encoder:
+            self.add_sensor(actuator_name + "-enc", Encoder(actuator_name, actuator_name))
+
+        if add_force_sensor:
+            self.add_sensor(actuator_name + "-frc", ForceSensor(actuator_name + "-frc", actuator_name))
+
+    def add_sensor(self, name: str, sensor: Sensor) -> None:
+        self.sensors[name] = sensor
 
     def add_ground_plane(
         self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float] = (0, 0, 0)
@@ -350,6 +375,16 @@ class Robot:
                     # Move child under parent
                     parent_body.append(child_body)
 
+        if self.actuators:
+            actuator_element = ET.SubElement(model, "actuator")
+            for actuator in self.actuators.values():
+                actuator.to_mjcf(actuator_element)
+
+        if self.sensors:
+            sensor_element = ET.SubElement(model, "sensor")
+            for sensor in self.sensors.values():
+                sensor.to_mjcf(sensor_element)
+
         return ET.tostring(model, pretty_print=True, encoding="unicode")
 
     def save(self, file_path: Optional[str] = None, download_assets: bool = True) -> None:
@@ -407,9 +442,9 @@ class Robot:
             LOGGER.error(f"Error downloading assets: {e}")
 
     @classmethod
-    def from_urdf(cls, filename: str, robot_type: RobotType) -> "Robot":  # noqa: C901
+    def from_urdf(cls, file_name: str, robot_type: RobotType) -> "Robot":  # noqa: C901
         """Load a robot model from a URDF file."""
-        tree: ET.ElementTree = ET.parse(filename)  # noqa: S320
+        tree: ET.ElementTree = ET.parse(file_name)  # noqa: S320
         root: ET.Element = tree.getroot()
 
         name = root.attrib["name"]
@@ -427,9 +462,9 @@ class Robot:
                     if geometry is not None:
                         mesh = geometry.find("mesh")
                         if mesh is not None:
-                            filename = mesh.attrib.get("filename")
-                            if filename and filename not in robot.assets:
-                                robot.assets[filename] = Asset.from_file(filename)
+                            file_name = mesh.attrib.get("filename")
+                            if file_name and file_name not in robot.assets:
+                                robot.assets[file_name] = Asset.from_file(file_name)
 
                 # Process the collision element within the link
                 collision = element.find("collision")
@@ -438,9 +473,9 @@ class Robot:
                     if geometry is not None:
                         mesh = geometry.find("mesh")
                         if mesh is not None:
-                            filename = mesh.attrib.get("filename")
-                            if filename and filename not in robot.assets:
-                                robot.assets[filename] = Asset.from_file(filename)
+                            file_name = mesh.attrib.get("filename")
+                            if file_name and file_name not in robot.assets:
+                                robot.assets[file_name] = Asset.from_file(file_name)
 
             elif element.tag == "joint":
                 joint = set_joint_from_xml(element)
@@ -622,13 +657,13 @@ def get_robot(
 if __name__ == "__main__":
     LOGGER.set_file_name("test.log")
 
-    robot = Robot.from_urdf(filename="E:/onshape-api/playground/ballbot.urdf", robot_type=RobotType.MJCF)
+    robot = Robot.from_urdf(file_name="E:/onshape-api/playground/ballbot.urdf", robot_type=RobotType.MJCF)
     robot.set_robot_position((0, 0, 0.6))
     robot.show_tree()
     robot.save(file_path="E:/onshape-api/playground/ballbot.xml")
 
     # import mujoco
-    # model = mujoco.MjModel.from_xml_path(filename="E:/onshape-api/playground/ballbot.urdf")
+    # model = mujoco.MjModel.from_xml_path(file_name="E:/onshape-api/playground/ballbot.urdf")
     # mujoco.mj_saveLastXML("ballbot-raw-ref.xml", model)
 
     # simulate_robot("test.xml")
