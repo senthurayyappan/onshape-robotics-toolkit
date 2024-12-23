@@ -412,6 +412,11 @@ class Robot:
 
         dissolved_transforms = {}
 
+        combined_mass = 0
+        combined_diaginertia = np.zeros(3)
+        combined_pos = np.zeros(3)
+        combined_euler = np.zeros(3)
+
         # First, process all fixed joints
         for parent_name, child_name, joint_data in self.graph.edges(data="data"):
             if joint_data is not None and joint_data.joint_type == "fixed":
@@ -437,7 +442,32 @@ class Robot:
                     # Transform geometries
                     for element in list(child_body):
                         if element.tag == "inertial":
+                            # Get current inertial properties
+                            current_pos = np.array([float(x) for x in (element.get("pos") or "0 0 0").split()])
+                            current_euler = np.array([float(x) for x in (element.get("euler") or "0 0 0").split()])
+                            current_rot = Rotation.from_euler(MJCF_EULER_SEQ, current_euler, degrees=False)
+
+                            # Get current mass and diaginertia
+                            current_mass = float(element.get("mass", 0))
+                            current_diaginertia = np.array([
+                                float(x) for x in (element.get("diaginertia") or "0 0 0").split()
+                            ])
+
+                            # Transform position and orientation
+                            new_pos = joint_rot.apply(current_pos) + joint_pos
+                            new_rot = joint_rot * current_rot
+
+                            # Convert back to MuJoCo convention
+                            new_euler = new_rot.as_euler(MJCF_EULER_SEQ, degrees=False)
+
+                            # Accumulate inertial properties
+                            combined_mass += current_mass
+                            combined_diaginertia += current_diaginertia
+                            combined_pos += new_pos * current_mass
+                            combined_euler += new_euler * current_mass
+
                             continue
+
                         elif element.tag == "geom":
                             current_pos = np.array([float(x) for x in (element.get("pos") or "0 0 0").split()])
                             current_euler = np.array([float(x) for x in (element.get("euler") or "0 0 0").split()])
@@ -459,6 +489,28 @@ class Robot:
 
                     root_body.remove(child_body)
                     body_elements[child_name] = parent_body
+
+        # Normalize the combined position and orientation by the total mass
+        if combined_mass > 0:
+            combined_pos /= combined_mass
+            combined_euler /= combined_mass
+
+        # Find the inertial element of the parent body
+        parent_inertial = parent_body.find("inertial")
+        if parent_inertial is not None:
+            # Update the existing inertial element
+            parent_inertial.set("mass", str(combined_mass))
+            parent_inertial.set("pos", " ".join(format_number(v) for v in combined_pos))
+            parent_inertial.set("euler", " ".join(format_number(v) for v in combined_euler))
+            parent_inertial.set("diaginertia", " ".join(format_number(v) for v in combined_diaginertia))
+        else:
+            # If no inertial element exists, create one
+            new_inertial = ET.Element("inertial")
+            new_inertial.set("mass", str(combined_mass))
+            new_inertial.set("pos", " ".join(format_number(v) for v in combined_pos))
+            new_inertial.set("euler", " ".join(format_number(v) for v in combined_euler))
+            new_inertial.set("diaginertia", " ".join(format_number(v) for v in combined_diaginertia))
+            parent_body.append(new_inertial)
 
         # Then process revolute joints
         for parent_name, child_name, joint_data in self.graph.edges(data="data"):

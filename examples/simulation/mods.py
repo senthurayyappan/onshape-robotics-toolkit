@@ -68,14 +68,14 @@ def modify_ballbot(ballbot: Robot) -> Robot:
     ball = load_element("ball.xml")
     ballbot.add_custom_element_by_tag(name="ball", parent_tag="worldbody", element=ball)
 
-    # set friction="1.0 0.01 0.001" for Part-2-1, Part-2-2, Part-2-3
-    ballbot.set_element_attributes(element_name="Part-2-1-collision", attributes={"friction": "1.0 0.01 0.001"})
-    ballbot.set_element_attributes(element_name="Part-2-2-collision", attributes={"friction": "1.0 0.01 0.001"})
-    ballbot.set_element_attributes(element_name="Part-2-3-collision", attributes={"friction": "1.0 0.01 0.001"})
+    # # set friction="1.0 0.01 0.001" for Part-2-1, Part-2-2, Part-2-3
+    # ballbot.set_element_attributes(element_name="Part-2-1-collision", attributes={"friction": "0.1 0.05 0.001"})
+    # ballbot.set_element_attributes(element_name="Part-2-2-collision", attributes={"friction": "0.1 0.05 0.001"})
+    # ballbot.set_element_attributes(element_name="Part-2-3-collision", attributes={"friction": "0.1 0.05 0.001"})
 
     # set force range to -1 to 1 for all joints
-    ballbot.set_element_attributes(element_name="Revolute-1", attributes={"actuatorfrcrange": "-1 1"})
-    ballbot.set_element_attributes(element_name="Revolute-2", attributes={"actuatorfrcrange": "-1 1"})
-    ballbot.set_element_attributes(element_name="Revolute-3", attributes={"actuatorfrcrange": "-1 1"})
+    ballbot.set_element_attributes(element_name="Revolute-1", attributes={"actuatorfrcrange": "-3 3"})
+    ballbot.set_element_attributes(element_name="Revolute-2", attributes={"actuatorfrcrange": "-3 3"})
+    ballbot.set_element_attributes(element_name="Revolute-3", attributes={"actuatorfrcrange": "-3 3"})
 
     return ballbot
