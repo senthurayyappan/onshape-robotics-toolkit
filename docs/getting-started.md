@@ -80,7 +80,8 @@ pip install onshape-api
 Here's an example of making a simple GET request to list documents using the `onshape-api` library:
 
 ```python
-import onshape_api as osa
+from onshape_api.connect import Client
+from onshape_api.models.document import Document
 
 # Initialize the client
 client = osa.Client(
@@ -88,12 +89,12 @@ client = osa.Client(
 )
 
 # Create a Document object from a URL
-doc = osa.Document.from_url(
+doc = Document.from_url(
     url="https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812"
 )
 
 # Retrieve the assembly and its JSON representation
-assembly, assembly_json = client.get_assembly(
+assembly = client.get_assembly(
     did=doc.did,
     wtype=doc.wtype,
     wid=doc.wid,

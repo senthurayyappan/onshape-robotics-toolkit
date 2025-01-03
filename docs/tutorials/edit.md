@@ -83,11 +83,13 @@ from onshape_api.parse import (
 assembly = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
 
 # Extract components
-instances, id_to_name_map = get_instances(assembly)
-occurrences = get_occurrences(assembly, id_to_name_map)
-subassemblies = get_subassemblies(assembly, instances)
-parts = get_parts(assembly, client, instances)
-mates, relations = get_mates_and_relations(assembly, subassembly_map=subassemblies, id_to_name_map=id_to_name_map)
+instances, occurrences, id_to_name_map = get_instances(assemblymax_depth=1)
+
+subassemblies, rigid_subassemblies = get_subassemblies(assembly, client, instances)
+parts = get_parts(assembly, rigid_subassemblies, client, instances)
+
+mates, relations = get_mates_and_relations(assembly, subassemblies, rigid_subassemblies, id_to_name_map, parts)
+
 ```
 
 ---
@@ -97,11 +99,15 @@ mates, relations = get_mates_and_relations(assembly, subassembly_map=subassembli
 Generate a graph visualization of the assembly structure:
 
 ```python
-from onshape_api.graph import create_graph, plot_graph
+from onshape_api.graph import create_graph
+from onshape_api.urdf import get_robot
+from onshape_api.models.robot import Robot
 
 # Create and save the assembly graph
 graph, root_node = create_graph(occurrences=occurrences, instances=instances, parts=parts, mates=mates)
-plot_graph(graph, "bike.png")
+
+robot = get_robot(assembly, graph, root_node, parts, mates, relations, client, "test")
+robot.show_graph("bike.png")
 ```
 
 <img src="bike-graph.png" alt="Bike Graph" style="width: 100%;">
@@ -112,14 +118,9 @@ This will save an image of the assembly graph (`bike.png`) in your current worki
 
 ### Step 6: Export the Assembly to a URDF File
 
-Convert the assembly into a URDF file for robotics applications:
+Convert the robot class into a URDF file for robotics applications:
 
 ```python
-from onshape_api.urdf import get_robot
-from onshape_api.models.robot import Robot
-
-# Generate URDF links and joints
-robot = get_robot(assembly, graph, root_node, parts, mates, relations, client, "bike")
 robot.save("bike.urdf")
 ```
 

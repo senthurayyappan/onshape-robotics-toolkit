@@ -1,8 +1,10 @@
 import mujoco
+import mujoco.include
 import mujoco.viewer
 import numpy as np
 import optuna
 from mods import modify_ballbot
+
 from scipy.spatial.transform import Rotation
 from transformations import compute_motor_torques
 
@@ -10,6 +12,7 @@ from onshape_api.connect import Client
 from onshape_api.log import LOGGER, LogLevel
 from onshape_api.models.document import Document
 from onshape_api.robot import Robot, RobotType
+
 
 HEIGHT = 480
 WIDTH = 640
@@ -20,6 +23,7 @@ PHASE = 3
 # Variable bounds (in mm and degrees)
 WHEEL_DIAMETER_BOUNDS = (100, 200)
 ALPHA_BOUNDS = (30, 55)
+
 
 SIMULATION_DURATION = 10  # seconds to run each trial
 MIN_HEIGHT = 0.15  # minimum height before considering failure
@@ -112,7 +116,6 @@ def objective(trial):
             timesteps = 0
             max_timesteps = int(SIMULATION_DURATION / model.opt.timestep)
             total_angle_error = 0
-
             # Reset data for a new trial
             mujoco.mj_resetData(model, data)
 
@@ -171,3 +174,4 @@ if __name__ == "__main__":
     print("  Params:")
     for key, value in study.best_trial.params.items():
         print(f"    {key}: {value}")
+

@@ -358,9 +358,9 @@ def get_parts(
 
     Args:
         assembly: The Onshape assembly object to use for extracting parts.
-        rigid_subassembly_map: Mapping of instance IDs to rigid subassemblies.
+        rigid_subassemblies: Mapping of instance IDs to rigid subassemblies.
         client: The Onshape client object to use for sending API requests.
-        instance_map: Mapping of instance IDs to their corresponding instances.
+        instances: Mapping of instance IDs to their corresponding instances.
 
     Returns:
         A dictionary mapping part IDs to their corresponding part objects.

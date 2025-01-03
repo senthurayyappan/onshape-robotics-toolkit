@@ -153,14 +153,11 @@ class Client:
 
         Args:
             env: Path to the environment file containing the access and secret keys
-            log_file: Path to save the log file
-            log_level: Log level (0-4) for the logger (0=DEBUG, 1=INFO, 2=WARNING, 3=ERROR, 4=CRITICAL)
+            base_url: Base URL for the Onshape API
 
         Examples:
             >>> client = Client(
             ...     env=".env",
-            ...     log_file="./onshape_api",
-            ...     log_level=1
             ... )
         """
 
@@ -873,7 +870,7 @@ class Client:
         body: Optional[dict[str, Any]] = None,
         base_url: Optional[str] = None,
         log_response: bool = True,
-        timeout: int = 30,
+        timeout: int = 50,
     ) -> requests.Response:
         """
         Send a request to the Onshape API.

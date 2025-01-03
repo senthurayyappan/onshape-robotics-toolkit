@@ -125,7 +125,7 @@ class BoxGeometry(BaseGeometry):
         geom.set("size", " ".join(format_number(v) for v in self.size))
 
     @classmethod
-    def from_xml(cls, element) -> "BoxGeometry":
+    def from_xml(cls, element: ET.Element) -> "BoxGeometry":
         """
         Create a box geometry from an XML element.
 
@@ -214,7 +214,7 @@ class CylinderGeometry(BaseGeometry):
         geom.set("size", f"{format_number(self.radius)} {format_number(self.length)}")
 
     @classmethod
-    def from_xml(cls, element) -> "CylinderGeometry":
+    def from_xml(cls, element: ET.Element) -> "CylinderGeometry":
         """
         Create a cylinder geometry from an XML element.
 
@@ -297,7 +297,7 @@ class SphereGeometry(BaseGeometry):
         geom.set("size", format_number(self.radius))
 
     @classmethod
-    def from_xml(cls, element) -> "SphereGeometry":
+    def from_xml(cls, element: ET.Element) -> "SphereGeometry":
         """
         Create a sphere geometry from an XML element.
 
@@ -379,7 +379,7 @@ class MeshGeometry(BaseGeometry):
         geom.set("mesh", self.mesh_name)
 
     @classmethod
-    def from_xml(cls, element) -> "MeshGeometry":
+    def from_xml(cls, element: ET.Element) -> "MeshGeometry":
         """
         Create a mesh geometry from an XML element.
 

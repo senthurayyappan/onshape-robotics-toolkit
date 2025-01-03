@@ -10,6 +10,7 @@ copyright: Maintained by <a href="https://senthurayyappan.com">Senthur Ayyappan<
 nav:
   - Overview: index.md
   - Getting Started: getting-started.md
+  - Developing: developing.md
   - Contributing: contributing.md
   - Tutorials:
       - Exporting to URDF: tutorials/export.md
@@ -23,13 +24,13 @@ nav:
           - Joint: api/joint.md
           - Link: api/link.md
           - Mass: api/mass.md
-          - Robot: api/robot.md
           - Variable: api/variable.md
       - Connect: api/connect.md
       - Graph: api/graph.md
       - Log: api/log.md
       - Mesh: api/mesh.md
       - Parse: api/parse.md
+      - Robot: api/robot.md
       - Urdf: api/urdf.md
       - Utilities: api/utilities.md
 

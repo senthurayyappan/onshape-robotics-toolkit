@@ -145,6 +145,7 @@ class Robot:
         self.rigid_subassemblies: dict[str, RootAssembly] = {}
 
         self.assembly: Optional[Assembly] = None
+        self.model: Optional[ET.Element] = None
 
         # MuJoCo attributes
         self.lights: dict[str, Any] = {}
@@ -363,7 +364,11 @@ class Robot:
             else:
                 LOGGER.warning(f"Joint between {parent} and {child} has no data.")
 
-        return ET.tostring(robot, pretty_print=True, encoding="unicode")
+        return robot
+
+    def get_xml_string(self, element: ET.Element) -> str:
+        """Generate URDF XML from the graph."""
+        return ET.tostring(element, pretty_print=True, encoding="unicode")
 
     def to_mjcf(self) -> str:  # noqa: C901
         """Generate MJCF XML from the graph."""
@@ -652,6 +657,23 @@ class Robot:
             LOGGER.info("All assets downloaded successfully.")
         except Exception as e:
             LOGGER.error(f"Error downloading assets: {e}")
+
+    def add_custom_element(self, parent_name: str, element: ET.Element) -> None:
+        """Add a custom XML element to the robot model."""
+        if self.model is None:
+            self.model = self.create_robot_model()
+
+        if parent_name == "root":
+            self.model.insert(0, element)
+        else:
+            parent = self.model.find(f".//*[@name='{parent_name}']")
+            if parent is None:
+                raise ValueError(f"Parent with name '{parent_name}' not found in the robot model.")
+
+            # Add the custom element under the parent
+            parent.append(element)
+
+        LOGGER.info(f"Custom element added to parent '{parent_name}'.")
 
     @classmethod
     def from_urdf(cls, file_name: str, robot_type: RobotType) -> "Robot":  # noqa: C901
