@@ -63,7 +63,7 @@ def modify_ballbot(ballbot: Robot) -> Robot:
         sensor=Gyro(name="gyro-1", site="imu", noise=0.001, cutoff=34.9),
     )
 
-    ballbot_mesh = ET.Element("mesh", attrib={"file": "meshes/Part-1-1.stl"})
+    ballbot_mesh = ET.Element("mesh", attrib={"name": "Part-1-1", "file": "meshes/ball.stl"})
     ballbot.add_custom_element_by_tag(name="ballbot", parent_tag="asset", element=ballbot_mesh)
     ball = load_element("ball.xml")
     ballbot.add_custom_element_by_tag(name="ball", parent_tag="worldbody", element=ball)

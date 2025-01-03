@@ -198,3 +198,7 @@ tests/**/*.json
 examples/**/*.xml
 
 playground
+
+# dont ignore the stl and xml files within the simulation folder
+!examples/simulation/**/ball.stl
+!examples/simulation/**/ball.xml
