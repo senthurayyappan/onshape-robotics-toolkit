@@ -20,12 +20,12 @@ def compute_motor_torques(Tx, Ty, Tz):
 
     Returns:
     --------
-            Ty
+            Tx
             T1
             |
             |
             |
-            . _ _ _ _ Tx
+            . _ _ _ _ Ty
            / \
           /   \
          /     \
@@ -37,8 +37,8 @@ def compute_motor_torques(Tx, Ty, Tz):
     T3: Motor Torque 3
     """
 
-    T1 = (0.3333) * (Tz - (2.8284 * Ty))
-    T2 = (0.3333) * (Tz + (1.4142 * (Ty + 1.7320 * Tx)))
-    T3 = (0.3333) * (Tz + (1.4142 * (Ty - 1.7320 * Tx)))
+    T1 = (0.3333) * (Tz - (2.8284 * Tx))
+    T2 = (0.3333) * (Tz + (1.4142 * (Tx - 1.7320 * Ty)))
+    T3 = (0.3333) * (Tz + (1.4142 * (Tx + 1.7320 * Ty)))
 
     return T1, T2, T3

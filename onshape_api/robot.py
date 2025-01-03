@@ -8,10 +8,12 @@ Dataclass:
 
 import asyncio
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 import networkx as nx
+import numpy as np
 from lxml import etree as ET
+from scipy.spatial.transform import Rotation
 
 from onshape_api.connect import Asset, Client
 from onshape_api.graph import create_graph, plot_graph
@@ -37,6 +39,7 @@ from onshape_api.models.joint import (
     RevoluteJoint,
 )
 from onshape_api.models.link import Link
+from onshape_api.models.mjcf import Actuator, Encoder, ForceSensor, Light, Sensor
 from onshape_api.parse import (
     MATE_JOINER,
     RELATION_PARENT,
@@ -46,6 +49,20 @@ from onshape_api.parse import (
     get_subassemblies,
 )
 from onshape_api.urdf import get_joint_name, get_robot_joint, get_robot_link, get_topological_mates
+from onshape_api.utilities.helpers import format_number
+
+DEFAULT_COMPILER_ATTRIBUTES = {
+    "angle": "radian",
+    "eulerseq": "xyz",
+    # "meshdir": "meshes",
+}
+
+DEFAULT_OPTION_ATTRIBUTES = {"timestep": "0.001", "gravity": "0 0 -9.81", "iterations": "50", "solver": "PGS"}
+
+URDF_EULER_SEQ = "xyz"  # URDF uses XYZ fixed angles
+MJCF_EULER_SEQ = "XYZ"  # MuJoCo uses XYZ extrinsic rotations, capitalization matters
+
+ACTUATOR_SUFFIX = "-actuator"
 
 
 class RobotType(str, Enum):
@@ -111,7 +128,12 @@ class Robot:
     def __init__(self, name: str, assets: Optional[dict[str, Asset]] = None, robot_type: RobotType = RobotType.URDF):
         self.name: str = name
         self.graph: nx.DiGraph = nx.DiGraph()  # Graph to hold links and joints
-        self.assets: Optional[dict[str, Asset]] = assets
+
+        if assets is None:
+            self.assets: dict[str, Asset] = {}
+        else:
+            self.assets: dict[str, Asset] = assets
+
         self.type: RobotType = robot_type
 
         # Onshape assembly attributes
@@ -125,6 +147,19 @@ class Robot:
         self.assembly: Optional[Assembly] = None
         self.model: Optional[ET.Element] = None
 
+        # MuJoCo attributes
+        self.lights: dict[str, Any] = {}
+        self.cameras: dict[str, Any] = {}
+        self.actuators: dict[str, Any] = {}
+        self.sensors: dict[str, Any] = {}
+        self.custom_elements: dict[str, Any] = {}
+        self.mutated_elements: dict[str, Any] = {}
+
+        self.position: tuple[float, float, float] = (0, 0, 0)
+        self.ground_position: tuple[float, float, float] = (0, 0, 0)
+        self.compiler_attributes: dict[str, str] = DEFAULT_COMPILER_ATTRIBUTES
+        self.option_attributes: dict[str, str] = DEFAULT_OPTION_ATTRIBUTES
+
     def add_link(self, link: Link) -> None:
         """Add a link to the graph."""
         self.graph.add_node(link.name, data=link)
@@ -133,21 +168,199 @@ class Robot:
         """Add a joint to the graph."""
         self.graph.add_edge(joint.parent, joint.child, data=joint)
 
-    def create_robot_model(self) -> ET.Element:
+    def set_robot_position(self, pos: tuple[float, float, float]) -> None:
+        self.position = pos
+
+    def set_ground_position(self, pos: tuple[float, float, float]) -> None:
+        self.ground_position = pos
+
+    def set_compiler_attributes(self, attributes: dict[str, str]) -> None:
+        self.compiler_attributes = attributes
+
+    def set_option_attributes(self, attributes: dict[str, str]) -> None:
+        self.option_attributes = attributes
+
+    def add_light(
+        self,
+        name: str,
+        directional: bool,
+        diffuse: tuple[float, float, float],
+        specular: tuple[float, float, float],
+        pos: tuple[float, float, float],
+        direction: tuple[float, float, float],
+        castshadow: bool,
+    ) -> None:
+        self.lights[name] = Light(
+            directional=directional,
+            diffuse=diffuse,
+            specular=specular,
+            pos=pos,
+            direction=direction,
+            castshadow=castshadow,
+        )
+
+    def add_actuator(
+        self,
+        actuator_name: str,
+        joint_name: str,
+        ctrl_limited: bool,
+        gear: float,
+        add_encoder: bool = True,
+        add_force_sensor: bool = True,
+        ctrl_range: tuple[float, float] = (0, 0),
+    ) -> None:
+        self.actuators[actuator_name] = Actuator(
+            name=actuator_name,
+            joint=joint_name,
+            ctrllimited=ctrl_limited,
+            gear=gear,
+            ctrlrange=ctrl_range,
+        )
+
+        if add_encoder:
+            self.add_sensor(actuator_name + "-enc", Encoder(actuator_name, actuator_name))
+
+        if add_force_sensor:
+            self.add_sensor(actuator_name + "-frc", ForceSensor(actuator_name + "-frc", actuator_name))
+
+    def add_sensor(self, name: str, sensor: Sensor) -> None:
+        self.sensors[name] = sensor
+
+    def add_custom_element_by_tag(
+        self,
+        name: str,
+        parent_tag: str,  # Like 'asset', 'worldbody', etc.
+        element: ET.Element,
+    ) -> None:
+        """
+        Add a custom XML element to the first occurrence of a parent tag.
+
+        Args:
+            name: Name for referencing this custom element
+            parent_tag: Tag name of parent element (e.g. "asset", "worldbody")
+            element: The XML element to add
+
+        Examples:
+            >>> # Add texture to asset section
+            >>> texture = ET.Element("texture", ...)
+            >>> robot.add_custom_element_by_tag(
+            ...     "wood_texture",
+            ...     "asset",
+            ...     texture
+            ... )
+        """
+        self.custom_elements[name] = {"parent": parent_tag, "element": element, "find_by_tag": True}
+
+    def add_custom_element_by_name(
+        self,
+        name: str,
+        parent_name: str,  # Like 'Part-3-1', 'ballbot', etc.
+        element: ET.Element,
+    ) -> None:
+        """
+        Add a custom XML element to a parent element with specific name.
+
+        Args:
+            name: Name for referencing this custom element
+            parent_name: Name attribute of the parent element (e.g. "Part-3-1")
+            element: The XML element to add
+
+        Examples:
+            >>> # Add IMU site to specific body
+            >>> imu_site = ET.Element("site", ...)
+            >>> robot.add_custom_element_by_name(
+            ...     "imu",
+            ...     "Part-3-1",
+            ...     imu_site
+            ... )
+        """
+        self.custom_elements[name] = {"parent": parent_name, "element": element, "find_by_tag": False}
+
+    def set_element_attributes(
+        self,
+        element_name: str,
+        attributes: dict[str, str],
+    ) -> None:
+        """
+        Set or update attributes of an existing XML element.
+
+        Args:
+            element: The element to modify
+            attributes: Dictionary of attribute key-value pairs to set/update
+
+        Examples:
+            >>> # Update existing element attributes
+            >>> robot.set_element_attributes(
+            ...     ground_element,
+            ...     {"size": "3 3 0.001", "friction": "1 0.5 0.5"}
+            ... )
+        """
+        self.mutated_elements[element_name] = attributes
+
+    def add_ground_plane(
+        self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float] = (0, 0, 0)
+    ) -> ET.Element:
+        """
+        Add a ground plane to the root element with associated texture and material.
+            Args:
+            root: The root element to append the ground plane to
+            size: Size of the ground plane (default: 2)
+            orientation: Euler angles for orientation (default: (0, 0, 0))
+            Returns:
+            ET.Element: The ground plane element
+        """
+        # Create ground plane geom element
+        ground_geom = ET.Element(
+            "geom",
+            type="plane",
+            pos=" ".join(map(str, self.ground_position)),
+            euler=" ".join(map(str, orientation)),
+            size=f"{size} {size} 0.001",
+            condim="3",
+            conaffinity="15",
+            material="grid",
+        )
+
+        # Add to custom elements
+        self.add_custom_element_by_tag("ground", "worldbody", ground_geom)
+
+        return ground_geom
+
+    def add_ground_plane_assets(self, root: ET.Element) -> None:
+        # Add texture definition
+        """Add texture and material assets for the ground plane"""
+        # Create texture element
+        checker_texture = ET.Element(
+            "texture",
+            name="checker",
+            type="2d",
+            builtin="checker",
+            rgb1=".1 .2 .3",
+            rgb2=".2 .3 .4",
+            width="300",
+            height="300",
+        )
+        self.add_custom_element_by_tag("checker", "asset", checker_texture)
+
+        # Create material element
+        grid_material = ET.Element("material", name="grid", texture="checker", texrepeat="8 8", reflectance=".2")
+        self.add_custom_element_by_tag("grid", "asset", grid_material)
+
+    def to_urdf(self) -> str:
+        """Generate URDF XML from the graph."""
         robot = ET.Element("robot", name=self.name)
 
         # Add links
         for link_name, link_data in self.graph.nodes(data="data"):
             if link_data is not None:
-                link_data.to_xml(robot)  # Assuming Link has `to_xml`
+                link_data.to_xml(robot)
             else:
                 LOGGER.warning(f"Link {link_name} has no data.")
-                print(link_data)
 
         # Add joints
         for parent, child, joint_data in self.graph.edges(data="data"):
             if joint_data is not None:
-                joint_data.to_xml(robot)  # Assuming Joint has `to_xml`
+                joint_data.to_xml(robot)
             else:
                 LOGGER.warning(f"Joint between {parent} and {child} has no data.")
 
@@ -157,22 +370,261 @@ class Robot:
         """Generate URDF XML from the graph."""
         return ET.tostring(element, pretty_print=True, encoding="unicode")
 
+    def to_mjcf(self) -> str:  # noqa: C901
+        """Generate MJCF XML from the graph."""
+        model = ET.Element("mujoco", model=self.name)
+
+        ET.SubElement(
+            model,
+            "compiler",
+            attrib=self.compiler_attributes,
+        )
+
+        ET.SubElement(
+            model,
+            "option",
+            attrib=self.option_attributes,
+        )
+
+        if self.assets:
+            asset_element = ET.SubElement(model, "asset")
+            for asset in self.assets.values():
+                asset.to_mjcf(asset_element)
+
+            self.add_ground_plane_assets(asset_element)
+        else:
+            # Find or create asset element after default element
+            asset = ET.SubElement(model, "asset")
+            self.add_ground_plane_assets(asset)
+
+        worldbody = ET.SubElement(model, "worldbody")
+        self.add_ground_plane(worldbody)
+
+        if self.lights:
+            for light in self.lights.values():
+                light.to_mjcf(worldbody)
+
+        root_body = ET.SubElement(worldbody, "body", name=self.name, pos=" ".join(map(str, self.position)))
+        ET.SubElement(root_body, "freejoint", name=f"{self.name}_freejoint")
+
+        body_elements = {self.name: root_body}
+
+        for link_name, link_data in self.graph.nodes(data="data"):
+            if link_data is not None:
+                body_elements[link_name] = link_data.to_mjcf(root_body)
+            else:
+                LOGGER.warning(f"Link {link_name} has no data.")
+
+        dissolved_transforms = {}
+
+        combined_mass = 0
+        combined_diaginertia = np.zeros(3)
+        combined_pos = np.zeros(3)
+        combined_euler = np.zeros(3)
+
+        # First, process all fixed joints
+        for parent_name, child_name, joint_data in self.graph.edges(data="data"):
+            if joint_data is not None and joint_data.joint_type == "fixed":
+                parent_body = body_elements.get(parent_name)
+                child_body = body_elements.get(child_name)
+
+                if parent_body is not None and child_body is not None:
+                    LOGGER.debug(f"\nProcessing fixed joint from {parent_name} to {child_name}")
+
+                    # Convert joint transform from URDF convention
+                    joint_pos = np.array(joint_data.origin.xyz)
+                    joint_rot = Rotation.from_euler(URDF_EULER_SEQ, joint_data.origin.rpy)
+
+                    # If parent was dissolved, compose transformations
+                    if parent_name in dissolved_transforms:
+                        parent_pos, parent_rot = dissolved_transforms[parent_name]
+                        # Transform position and rotation
+                        joint_pos = parent_rot.apply(joint_pos) + parent_pos
+                        joint_rot = parent_rot * joint_rot
+
+                    dissolved_transforms[child_name] = (joint_pos, joint_rot)
+
+                    # Transform geometries
+                    for element in list(child_body):
+                        if element.tag == "inertial":
+                            # Get current inertial properties
+                            current_pos = np.array([float(x) for x in (element.get("pos") or "0 0 0").split()])
+                            current_euler = np.array([float(x) for x in (element.get("euler") or "0 0 0").split()])
+                            current_rot = Rotation.from_euler(MJCF_EULER_SEQ, current_euler, degrees=False)
+
+                            # Get current mass and diaginertia
+                            current_mass = float(element.get("mass", 0))
+                            current_diaginertia = np.array([
+                                float(x) for x in (element.get("diaginertia") or "0 0 0").split()
+                            ])
+
+                            # Transform position and orientation
+                            new_pos = joint_rot.apply(current_pos) + joint_pos
+                            new_rot = joint_rot * current_rot
+
+                            # Convert back to MuJoCo convention
+                            new_euler = new_rot.as_euler(MJCF_EULER_SEQ, degrees=False)
+
+                            # Accumulate inertial properties
+                            combined_mass += current_mass
+                            combined_diaginertia += current_diaginertia
+                            combined_pos += new_pos * current_mass
+                            combined_euler += new_euler * current_mass
+
+                            continue
+
+                        elif element.tag == "geom":
+                            current_pos = np.array([float(x) for x in (element.get("pos") or "0 0 0").split()])
+                            current_euler = np.array([float(x) for x in (element.get("euler") or "0 0 0").split()])
+
+                            # Convert current rotation from MuJoCo convention
+                            current_rot = Rotation.from_euler(MJCF_EULER_SEQ, current_euler, degrees=False)
+
+                            # Apply the dissolved transformation
+                            new_pos = joint_rot.apply(current_pos) + joint_pos
+                            new_rot = joint_rot * current_rot  # Order matters for rotation composition
+
+                            # Convert back to MuJoCo convention - explicitly specify intrinsic/extrinsic
+                            new_euler = new_rot.as_euler(MJCF_EULER_SEQ, degrees=False)
+
+                            element.set("pos", " ".join(format_number(v) for v in new_pos))
+                            element.set("euler", " ".join(format_number(v) for v in new_euler))
+
+                        parent_body.append(element)
+
+                    root_body.remove(child_body)
+                    body_elements[child_name] = parent_body
+
+        # Normalize the combined position and orientation by the total mass
+        if combined_mass > 0:
+            combined_pos /= combined_mass
+            combined_euler /= combined_mass
+
+        # Find the inertial element of the parent body
+        parent_inertial = parent_body.find("inertial")
+        if parent_inertial is not None:
+            # Update the existing inertial element
+            parent_inertial.set("mass", str(combined_mass))
+            parent_inertial.set("pos", " ".join(format_number(v) for v in combined_pos))
+            parent_inertial.set("euler", " ".join(format_number(v) for v in combined_euler))
+            parent_inertial.set("diaginertia", " ".join(format_number(v) for v in combined_diaginertia))
+        else:
+            # If no inertial element exists, create one
+            new_inertial = ET.Element("inertial")
+            new_inertial.set("mass", str(combined_mass))
+            new_inertial.set("pos", " ".join(format_number(v) for v in combined_pos))
+            new_inertial.set("euler", " ".join(format_number(v) for v in combined_euler))
+            new_inertial.set("diaginertia", " ".join(format_number(v) for v in combined_diaginertia))
+            parent_body.append(new_inertial)
+
+        # Then process revolute joints
+        for parent_name, child_name, joint_data in self.graph.edges(data="data"):
+            if joint_data is not None and joint_data.joint_type != "fixed":
+                parent_body = body_elements.get(parent_name)
+                child_body = body_elements.get(child_name)
+
+                if parent_body is not None and child_body is not None:
+                    LOGGER.debug(f"\nProcessing revolute joint from {parent_name} to {child_name}")
+
+                    # Get dissolved parent transform
+                    if parent_name in dissolved_transforms:
+                        parent_pos, parent_rot = dissolved_transforms[parent_name]
+                    else:
+                        parent_pos = np.array([0, 0, 0])
+                        parent_rot = Rotation.from_euler(URDF_EULER_SEQ, [0, 0, 0])
+
+                    # Convert joint transform from URDF convention
+                    joint_pos = np.array(joint_data.origin.xyz)
+                    joint_rot = Rotation.from_euler(URDF_EULER_SEQ, joint_data.origin.rpy)
+
+                    # Apply parent's dissolved transformation
+                    final_pos = parent_rot.apply(joint_pos) + parent_pos
+                    final_rot = parent_rot * joint_rot
+
+                    # Convert to MuJoCo convention while maintaining the joint axis orientation
+                    final_euler = final_rot.as_euler(MJCF_EULER_SEQ, degrees=False)
+
+                    LOGGER.debug(f"Joint {parent_name}->{child_name}:")
+                    LOGGER.debug(f"  Original: pos={joint_data.origin.xyz}, rpy={joint_data.origin.rpy}")
+                    LOGGER.debug(f"  Final: pos={final_pos}, euler={final_euler}")
+
+                    # Update child body transformation
+                    child_body.set("pos", " ".join(format_number(v) for v in final_pos))
+                    child_body.set("euler", " ".join(format_number(v) for v in final_euler))
+
+                    # Create joint with zero origin
+                    joint_data.origin.xyz = [0, 0, 0]
+                    joint_data.origin.rpy = [0, 0, 0]
+                    joint_data.to_mjcf(child_body)
+
+                    # Move child under parent
+                    parent_body.append(child_body)
+
+        if self.actuators:
+            actuator_element = ET.SubElement(model, "actuator")
+            for actuator in self.actuators.values():
+                actuator.to_mjcf(actuator_element)
+
+        if self.sensors:
+            sensor_element = ET.SubElement(model, "sensor")
+            for sensor in self.sensors.values():
+                sensor.to_mjcf(sensor_element)
+
+        if self.custom_elements:
+            for element_info in self.custom_elements.values():
+                parent = element_info["parent"]
+                find_by_tag = element_info.get("find_by_tag", False)
+                element = element_info["element"]
+
+                if find_by_tag:
+                    parent_element = model.find(parent)
+                else:
+                    xpath = f".//body[@name='{parent}']"
+                    parent_element = model.find(xpath)
+
+                if parent_element is not None:
+                    # Create new element with proper parent relationship
+                    new_element = ET.SubElement(parent_element, element.tag, element.attrib)
+                    # Copy any children if they exist
+                    for child in element:
+                        new_element.append(ET.fromstring(ET.tostring(child)))  # noqa: S320
+                else:
+                    search_type = "tag" if find_by_tag else "name"
+                    LOGGER.warning(f"Parent element with {search_type} '{parent}' not found in model.")
+
+        for element_name, attributes in self.mutated_elements.items():
+            # Search recursively through all descendants, looking for both body and joint elements
+            elements = model.findall(f".//*[@name='{element_name}']")
+            if elements:
+                element = elements[0]  # Get the first matching element
+                for key, value in attributes.items():
+                    element.set(key, str(value))
+            else:
+                LOGGER.warning(f"Could not find element with name '{element_name}'")
+
+        return ET.tostring(model, pretty_print=True, encoding="unicode")
+
     def save(self, file_path: Optional[str] = None, download_assets: bool = True) -> None:
         """Save the robot model to a URDF file."""
         if download_assets and self.assets:
             asyncio.run(self._download_assets())
 
         if not file_path:
-            file_path = f"{self.name}.urdf"
+            LOGGER.warning("No file path provided. Saving to current directory.")
+            LOGGER.warning("Please keep in mind that the path to the assets will not be updated")
+            file_path = f"{self.name}.{self.type}"
 
-        if self.model is None:
-            self.model = self.create_robot_model()
-
-        # Add XML declaration
         xml_declaration = '<?xml version="1.0" ?>\n'
-        urdf_str = xml_declaration + self.get_xml_string(self.model)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(urdf_str)
+
+        if self.type == RobotType.URDF:
+            urdf_str = xml_declaration + self.to_urdf()
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(urdf_str)
+
+        elif self.type == RobotType.MJCF:
+            mjcf_str = xml_declaration + self.to_mjcf()
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(mjcf_str)
 
         LOGGER.info(f"Robot model saved to {file_path}")
 
@@ -199,7 +651,7 @@ class Robot:
             LOGGER.warning("No assets found for the robot model.")
             return
 
-        tasks = [asset.download() for asset in self.assets.values()]
+        tasks = [asset.download() for asset in self.assets.values() if not asset.is_from_file]
         try:
             await asyncio.gather(*tasks)
             LOGGER.info("All assets downloaded successfully.")
@@ -224,20 +676,43 @@ class Robot:
         LOGGER.info(f"Custom element added to parent '{parent_name}'.")
 
     @classmethod
-    def from_urdf(cls, filename: str) -> "Robot":
+    def from_urdf(cls, file_name: str, robot_type: RobotType) -> "Robot":  # noqa: C901
         """Load a robot model from a URDF file."""
-        tree: ET.ElementTree = ET.parse(filename)  # noqa: S320
+        tree: ET.ElementTree = ET.parse(file_name)  # noqa: S320
         root: ET.Element = tree.getroot()
 
         name = root.attrib["name"]
-        robot = cls(name=name)
+        robot = cls(name=name, robot_type=robot_type)
 
         for element in root:
             if element.tag == "link":
-                link = Link.from_xml(element)  # Assuming Link.from_xml exists
+                link = Link.from_xml(element)
                 robot.add_link(link)
+
+                # Process the visual element within the link
+                visual = element.find("visual")
+                if visual is not None:
+                    geometry = visual.find("geometry")
+                    if geometry is not None:
+                        mesh = geometry.find("mesh")
+                        if mesh is not None:
+                            file_name = mesh.attrib.get("filename")
+                            if file_name and file_name not in robot.assets:
+                                robot.assets[file_name] = Asset.from_file(file_name)
+
+                # Process the collision element within the link
+                collision = element.find("collision")
+                if collision is not None:
+                    geometry = collision.find("geometry")
+                    if geometry is not None:
+                        mesh = geometry.find("mesh")
+                        if mesh is not None:
+                            file_name = mesh.attrib.get("filename")
+                            if file_name and file_name not in robot.assets:
+                                robot.assets[file_name] = Asset.from_file(file_name)
+
             elif element.tag == "joint":
-                joint = set_joint_from_xml(element)  # Assuming set_joint_from_xml exists
+                joint = set_joint_from_xml(element)
                 if joint:
                     robot.add_joint(joint)
 
@@ -245,7 +720,13 @@ class Robot:
 
     @classmethod
     def from_url(
-        cls, name: str, url: str, client: Client, max_depth: int = 0, use_user_defined_root: bool = False
+        cls,
+        name: str,
+        url: str,
+        client: Client,
+        max_depth: int = 0,
+        use_user_defined_root: bool = False,
+        robot_type: RobotType = RobotType.URDF,
     ) -> "Robot":
         """Create a robot model from an Onshape CAD assembly."""
 
@@ -303,7 +784,15 @@ class Robot:
 
         robot.assembly = assembly
 
+        robot.type = robot_type
+
         return robot
+
+
+def load_element(file_name: str) -> ET.Element:
+    tree: ET.ElementTree = ET.parse(file_name)  # noqa: S320
+    root: ET.Element = tree.getroot()
+    return root
 
 
 def get_robot(
@@ -406,23 +895,18 @@ def get_robot(
 
 
 if __name__ == "__main__":
-    LOGGER.set_file_name("robot.log")
+    LOGGER.set_file_name("test.log")
 
-    # robot = Robot(
-    #     name="Test",
-    #     links={
-    #         "link1": Link(name="link1"),
-    #         "link2": Link(name="link2"),
-    #     },
-    #     joints={
-    #         "joint1": FixedJoint(name="joint1", parent="link1", child="link2", origin=Origin.zero_origin()),
-    #     },
-    #     robot_type=RobotType.URDF,
-    # )
+    robot = Robot.from_urdf(file_name="E:/onshape-api/playground/ballbot.urdf", robot_type=RobotType.MJCF)
+    robot.set_robot_position((0, 0, 0.6))
+    robot.show_tree()
+    robot.save(file_path="E:/onshape-api/playground/ballbot.xml")
 
-    # robot.save()
+    # import mujoco
+    # model = mujoco.MjModel.from_xml_path(file_name="E:/onshape-api/playground/ballbot.urdf")
+    # mujoco.mj_saveLastXML("ballbot-raw-ref.xml", model)
 
-    robot = Robot.from_urdf("E:/onshape-api/playground/20240920_umv_mini/20240920_umv_mini/20240920_umv_mini.urdf")
-    # robot.show()
-    plot_graph(robot.graph)
+    # simulate_robot("test.xml")
+
+    # robot = Robot.from_urdf("E:/onshape-api/playground/20240920_umv_mini/20240920_umv_mini/20240920_umv_mini.urdf")
     # robot.save(file_path="E:/onshape-api/playground/test.urdf", download_assets=False)
