@@ -8,6 +8,7 @@ Dataclass:
 
 import asyncio
 from enum import Enum
+import os
 from typing import Any, Optional
 
 import networkx as nx
@@ -15,10 +16,10 @@ import numpy as np
 from lxml import etree as ET
 from scipy.spatial.transform import Rotation
 
-from onshape_api.connect import Asset, Client
-from onshape_api.graph import create_graph, plot_graph
-from onshape_api.log import LOGGER
-from onshape_api.models.assembly import (
+from onshape_robotics_toolkit.connect import Asset, Client
+from onshape_robotics_toolkit.graph import create_graph, plot_graph
+from onshape_robotics_toolkit.log import LOGGER
+from onshape_robotics_toolkit.models.assembly import (
     Assembly,
     MateFeatureData,
     MateRelationFeatureData,
@@ -27,8 +28,8 @@ from onshape_api.models.assembly import (
     RootAssembly,
     SubAssembly,
 )
-from onshape_api.models.document import Document
-from onshape_api.models.joint import (
+from onshape_robotics_toolkit.models.document import Document
+from onshape_robotics_toolkit.models.joint import (
     BaseJoint,
     ContinuousJoint,
     FixedJoint,
@@ -38,9 +39,9 @@ from onshape_api.models.joint import (
     PrismaticJoint,
     RevoluteJoint,
 )
-from onshape_api.models.link import Link
-from onshape_api.models.mjcf import Actuator, Encoder, ForceSensor, Light, Sensor
-from onshape_api.parse import (
+from onshape_robotics_toolkit.models.link import Link
+from onshape_robotics_toolkit.models.mjcf import Actuator, Encoder, ForceSensor, Light, Sensor
+from onshape_robotics_toolkit.parse import (
     MATE_JOINER,
     RELATION_PARENT,
     get_instances,
@@ -48,8 +49,8 @@ from onshape_api.parse import (
     get_parts,
     get_subassemblies,
 )
-from onshape_api.urdf import get_joint_name, get_robot_joint, get_robot_link, get_topological_mates
-from onshape_api.utilities.helpers import format_number
+from onshape_robotics_toolkit.urdf import get_joint_name, get_robot_joint, get_robot_link, get_topological_mates
+from onshape_robotics_toolkit.utilities.helpers import format_number
 
 DEFAULT_COMPILER_ATTRIBUTES = {
     "angle": "radian",
@@ -364,7 +365,7 @@ class Robot:
             else:
                 LOGGER.warning(f"Joint between {parent} and {child} has no data.")
 
-        return robot
+        return ET.tostring(robot, pretty_print=True, encoding="unicode")
 
     def get_xml_string(self, element: ET.Element) -> str:
         """Generate URDF XML from the graph."""
@@ -626,7 +627,7 @@ class Robot:
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(mjcf_str)
 
-        LOGGER.info(f"Robot model saved to {file_path}")
+        LOGGER.info(f"Robot model saved to {os.path.abspath(file_path)}")
 
     def show_tree(self) -> None:
         """Display the robot's graph as a tree structure."""
@@ -897,16 +898,16 @@ def get_robot(
 if __name__ == "__main__":
     LOGGER.set_file_name("test.log")
 
-    robot = Robot.from_urdf(file_name="E:/onshape-api/playground/ballbot.urdf", robot_type=RobotType.MJCF)
+    robot = Robot.from_urdf(file_name="E:/onshape-robotics-toolkit/playground/ballbot.urdf", robot_type=RobotType.MJCF)
     robot.set_robot_position((0, 0, 0.6))
     robot.show_tree()
-    robot.save(file_path="E:/onshape-api/playground/ballbot.xml")
+    robot.save(file_path="E:/onshape-robotics-toolkit/playground/ballbot.xml")
 
     # import mujoco
-    # model = mujoco.MjModel.from_xml_path(file_name="E:/onshape-api/playground/ballbot.urdf")
+    # model = mujoco.MjModel.from_xml_path(file_name="E:/onshape-robotics-toolkit/playground/ballbot.urdf")
     # mujoco.mj_saveLastXML("ballbot-raw-ref.xml", model)
 
     # simulate_robot("test.xml")
 
-    # robot = Robot.from_urdf("E:/onshape-api/playground/20240920_umv_mini/20240920_umv_mini/20240920_umv_mini.urdf")
-    # robot.save(file_path="E:/onshape-api/playground/test.urdf", download_assets=False)
+    # robot = Robot.from_urdf("E:/onshape-robotics-toolkit/playground/20240920_umv_mini/20240920_umv_mini/20240920_umv_mini.urdf")
+    # robot.save(file_path="E:/onshape-robotics-toolkit/playground/test.urdf", download_assets=False)

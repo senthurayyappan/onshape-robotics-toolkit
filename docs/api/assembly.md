@@ -1,1 +1,1 @@
-::: onshape_api.models.assembly
+::: onshape_robotics_toolkit.models.assembly

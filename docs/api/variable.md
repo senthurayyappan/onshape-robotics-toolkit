@@ -1,1 +1,1 @@
-::: onshape_api.models.variable
+::: onshape_robotics_toolkit.models.variable

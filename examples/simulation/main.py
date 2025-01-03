@@ -8,10 +8,10 @@ from mods import modify_ballbot
 from scipy.spatial.transform import Rotation
 from transformations import compute_motor_torques
 
-from onshape_api.connect import Client
-from onshape_api.log import LOGGER, LogLevel
-from onshape_api.models.document import Document
-from onshape_api.robot import Robot, RobotType
+from onshape_robotics_toolkit.connect import Client
+from onshape_robotics_toolkit.log import LOGGER, LogLevel
+from onshape_robotics_toolkit.models.document import Document
+from onshape_robotics_toolkit.robot import Robot, RobotType
 
 
 HEIGHT = 480

@@ -52,9 +52,9 @@ from typing import Union
 import numpy as np
 from pydantic import BaseModel, Field, field_validator
 
-from onshape_api.models.document import Document, DocumentMetaData
-from onshape_api.models.mass import MassProperties
-from onshape_api.utilities.helpers import generate_uid
+from onshape_robotics_toolkit.models.document import Document, DocumentMetaData
+from onshape_robotics_toolkit.models.mass import MassProperties
+from onshape_robotics_toolkit.utilities.helpers import generate_uid
 
 
 class InstanceType(str, Enum):

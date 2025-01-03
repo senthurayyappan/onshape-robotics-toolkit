@@ -1,9 +1,9 @@
 import pytest
 from urls import TEST_URLS
 
-from onshape_api.connect import Client
-from onshape_api.models.document import Document
-from onshape_api.parse import get_instances, get_instances_sync
+from onshape_robotics_toolkit.connect import Client
+from onshape_robotics_toolkit.models.document import Document
+from onshape_robotics_toolkit.parse import get_instances, get_instances_sync
 
 DOCUMENTS = [Document.from_url(url) for url in TEST_URLS]
 

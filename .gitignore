@@ -166,12 +166,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-onshape_api/**/*.urdf
-onshape_api/**/*.stl
-onshape_api/**/*.png
-onshape_api/**/*.prof
-onshape_api/**/*.json
-onshape_api/**/*.xml
+onshape_robotics_toolkit/**/*.urdf
+onshape_robotics_toolkit/**/*.stl
+onshape_robotics_toolkit/**/*.png
+onshape_robotics_toolkit/**/*.prof
+onshape_robotics_toolkit/**/*.json
+onshape_robotics_toolkit/**/*.xml
 
 examples/**/*.urdf
 examples/**/*.stl
@@ -180,8 +180,8 @@ examples/**/*.prof
 examples/**/*.json
 examples/**/*.xml
 
-onshape_api/data/**/*.json
-onshape_api/data/**/*.parquet
+onshape_robotics_toolkit/data/**/*.json
+onshape_robotics_toolkit/data/**/*.parquet
 
 benchmark/**/*.urdf
 benchmark/**/*.stl

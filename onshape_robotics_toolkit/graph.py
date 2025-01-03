@@ -9,8 +9,8 @@ from typing import Optional, Union
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from onshape_api.log import LOGGER
-from onshape_api.models.assembly import (
+from onshape_robotics_toolkit.log import LOGGER
+from onshape_robotics_toolkit.models.assembly import (
     AssemblyInstance,
     InstanceType,
     MateFeatureData,
@@ -18,7 +18,7 @@ from onshape_api.models.assembly import (
     Part,
     PartInstance,
 )
-from onshape_api.parse import MATE_JOINER, SUBASSEMBLY_JOINER
+from onshape_robotics_toolkit.parse import MATE_JOINER, SUBASSEMBLY_JOINER
 
 
 def plot_graph(graph: Union[nx.Graph, nx.DiGraph], file_name: Optional[str] = None) -> None:

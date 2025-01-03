@@ -1,7 +1,7 @@
 from lxml import etree as ET
 
-from onshape_api.models.mjcf import IMU, Gyro
-from onshape_api.robot import Robot, load_element
+from onshape_robotics_toolkit.models.mjcf import IMU, Gyro
+from onshape_robotics_toolkit.robot import Robot, load_element
 
 
 def modify_ballbot(ballbot: Robot) -> Robot:

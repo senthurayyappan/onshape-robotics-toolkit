@@ -1,6 +1,6 @@
 # Exporting an Onshape Assembly to URDF
 
-This tutorial demonstrates a streamlined workflow for converting an Onshape assembly to a URDF file using the `onshape-api` library. Follow these steps to easily generate a URDF file and visualize your assembly's structure.
+This tutorial demonstrates a streamlined workflow for converting an Onshape assembly to a URDF file using the `onshape-robotics-toolkit` library. Follow these steps to easily generate a URDF file and visualize your assembly's structure.
 
 <img src="export-header.gif" alt="Export Header" style="width: 100%;">
 
@@ -10,9 +10,9 @@ This tutorial demonstrates a streamlined workflow for converting an Onshape asse
 
 Before you begin, ensure the following:
 
-- **Install the library**: You have the `onshape-api` library installed.
+- **Install the library**: You have the `onshape-robotics-toolkit` library installed.
   ```bash
-  pip install onshape-api
+  pip install onshape-robotics-toolkit
   ```
 - **API Keys**: Set up your Onshape API keys in a `.env` file. Refer to the [Getting Started](../getting-started.md) guide if needed.
 - **Document URL**: Have the URL of the Onshape assembly you want to export. For this example, we’ll use a quadruped robot assembly.
@@ -26,8 +26,8 @@ Before you begin, ensure the following:
 Start by configuring the logger and initializing the Onshape API client:
 
 ```python
-from onshape_api.connect import Client
-from onshape_api.log import LOGGER, LogLevel
+from onshape_robotics_toolkit.connect import Client
+from onshape_robotics_toolkit.log import LOGGER, LogLevel
 
 LOGGER.set_file_name("quadruped.log")
 LOGGER.set_stream_level(LogLevel.INFO)
@@ -44,7 +44,7 @@ The logger will save logs to `quadruped.log` and display logs at the `INFO` leve
 Use the `Robot` class to load the assembly directly from its Onshape document URL:
 
 ```python
-from onshape_api.robot import Robot
+from onshape_robotics_toolkit.robot import Robot
 
 robot = Robot.from_url(
     name="quadruped",
@@ -64,7 +64,7 @@ This will create a `Robot` object named "quadruped" from the specified Onshape d
 Export the assembly data to a JSON file for easy analysis or integration with other tools:
 
 ```python
-from onshape_api.utilities.helpers import save_model_as_json
+from onshape_robotics_toolkit.utilities.helpers import save_model_as_json
 
 save_model_as_json(robot.assembly, "quadruped.json")
 ```

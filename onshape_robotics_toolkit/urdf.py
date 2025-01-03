@@ -10,17 +10,17 @@ from typing import Optional, Union
 import numpy as np
 from networkx import DiGraph
 
-from onshape_api.connect import Asset, Client
-from onshape_api.log import LOGGER
-from onshape_api.models.assembly import (
+from onshape_robotics_toolkit.connect import Asset, Client
+from onshape_robotics_toolkit.log import LOGGER
+from onshape_robotics_toolkit.models.assembly import (
     MateFeatureData,
     MateRelationFeatureData,
     MateType,
     Part,
 )
-from onshape_api.models.document import WorkspaceType
-from onshape_api.models.geometry import MeshGeometry
-from onshape_api.models.joint import (
+from onshape_robotics_toolkit.models.document import WorkspaceType
+from onshape_robotics_toolkit.models.geometry import MeshGeometry
+from onshape_robotics_toolkit.models.joint import (
     BaseJoint,
     DummyJoint,
     FixedJoint,
@@ -30,7 +30,7 @@ from onshape_api.models.joint import (
     PrismaticJoint,
     RevoluteJoint,
 )
-from onshape_api.models.link import (
+from onshape_robotics_toolkit.models.link import (
     Axis,
     CollisionLink,
     Colors,
@@ -41,8 +41,8 @@ from onshape_api.models.link import (
     Origin,
     VisualLink,
 )
-from onshape_api.parse import CHILD, MATE_JOINER, PARENT
-from onshape_api.utilities.helpers import get_sanitized_name
+from onshape_robotics_toolkit.parse import CHILD, MATE_JOINER, PARENT
+from onshape_robotics_toolkit.utilities.helpers import get_sanitized_name
 
 SCRIPT_DIR = os.path.dirname(__file__)
 

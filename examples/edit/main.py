@@ -1,14 +1,14 @@
-from onshape_api.connect import Client
-from onshape_api.graph import create_graph
-from onshape_api.log import LOGGER, LogLevel
-from onshape_api.models.document import Document
-from onshape_api.parse import (
+from onshape_robotics_toolkit.connect import Client
+from onshape_robotics_toolkit.graph import create_graph
+from onshape_robotics_toolkit.log import LOGGER, LogLevel
+from onshape_robotics_toolkit.models.document import Document
+from onshape_robotics_toolkit.parse import (
     get_instances,
     get_mates_and_relations,
     get_parts,
     get_subassemblies,
 )
-from onshape_api.robot import get_robot
+from onshape_robotics_toolkit.robot import get_robot
 
 if __name__ == "__main__":
     LOGGER.set_file_name("edit.log")

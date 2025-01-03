@@ -1,6 +1,6 @@
-# Getting Started with `onshape-api`
+# Getting Started with `onshape-robotics-toolkit`
 
-Welcome to the `onshape-api` library! This guide will help you set up and start using the library to interact with Onshape's powerful REST API.
+Welcome to the `onshape-robotics-toolkit` library! This guide will help you set up and start using the library to interact with Onshape's powerful REST API.
 
 The Onshape API allows developers to access, manipulate, and extend Onshape's CAD platform programmatically. The API communicates via HTTP requests, returning data in JSON format.
 
@@ -61,27 +61,27 @@ ACCESS_KEY = <your_access_key>
 SECRET_KEY = <your_secret_key>
 ```
 
-The `onshape-api` library will automatically read these keys to authenticate your requests.
+The `onshape-robotics-toolkit` library will automatically read these keys to authenticate your requests.
 
 ---
 
 ## Install the Library
 
-Install the `onshape-api` library via pip:
+Install the `onshape-robotics-toolkit` library via pip:
 
 ```sh
-pip install onshape-api
+pip install onshape-robotics-toolkit
 ```
 
 ---
 
 ## First API Call: Example Usage
 
-Here's an example of making a simple GET request to list documents using the `onshape-api` library:
+Here's an example of making a simple GET request to list documents using the `onshape-robotics-toolkit` library:
 
 ```python
-from onshape_api.connect import Client
-from onshape_api.models.document import Document
+from onshape_robotics_toolkit.connect import Client
+from onshape_robotics_toolkit.models.document import Document
 
 # Initialize the client
 client = osa.Client(
@@ -107,5 +107,5 @@ print(assembly)
 
 ## What's Next?
 
-- Check out more [examples and tutorials](tutorials/edit.md) in the `onshape-api` GitHub repository.
+- Check out more [examples and tutorials](tutorials/edit.md) in the `onshape-robotics-toolkit` GitHub repository.
 - Explore the [Onshape API Documentation](https://onshape-public.github.io/docs/) for detailed API reference.

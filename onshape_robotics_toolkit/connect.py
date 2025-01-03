@@ -31,14 +31,14 @@ import requests
 import stl
 from dotenv import load_dotenv
 
-from onshape_api.log import LOGGER
-from onshape_api.mesh import transform_mesh
-from onshape_api.models.assembly import Assembly, RootAssembly
-from onshape_api.models.document import BASE_URL, Document, DocumentMetaData, generate_url
-from onshape_api.models.element import Element
-from onshape_api.models.mass import MassProperties
-from onshape_api.models.variable import Variable
-from onshape_api.utilities.helpers import get_sanitized_name
+from onshape_robotics_toolkit.log import LOGGER
+from onshape_robotics_toolkit.mesh import transform_mesh
+from onshape_robotics_toolkit.models.assembly import Assembly, RootAssembly
+from onshape_robotics_toolkit.models.document import BASE_URL, Document, DocumentMetaData, generate_url
+from onshape_robotics_toolkit.models.element import Element
+from onshape_robotics_toolkit.models.mass import MassProperties
+from onshape_robotics_toolkit.models.variable import Variable
+from onshape_robotics_toolkit.utilities.helpers import get_sanitized_name
 
 CURRENT_DIR = os.getcwd()
 MESHES_DIR = "meshes"

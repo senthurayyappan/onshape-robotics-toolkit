@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "onshape_api"
+name = "onshape_robotics_toolkit"
 version = "0.0.1"
 description = "A python library to facilitate interaction with Onshape's REST API"
 authors = ["Senthur Ayyappan <senthurayyappan@gmail.com>"]
-repository = "https://github.com/senthurayyappan/onshape-api"
-documentation = "https://senthurayyappan.github.io/onshape-api/"
+repository = "https://github.com/senthurayyappan/onshape-robotics-toolkit"
+documentation = "https://senthurayyappan.github.io/onshape-robotics-toolkit/"
 readme = "README.md"
 packages = [
-  {include = "onshape_api"}
+  {include = "onshape_robotics_toolkit"}
 ]
 
 [tool.poetry.dependencies]
@@ -45,7 +45,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.mypy]
-files = ["onshape_api"]
+files = ["onshape_robotics_toolkit"]
 disallow_untyped_defs = true
 disallow_any_unimported = true
 no_implicit_optional = true
@@ -110,7 +110,7 @@ skip_empty = true
 
 [tool.coverage.run]
 branch = true
-source = ["onshape_api"]
+source = ["onshape_robotics_toolkit"]
 
 
 [tool.ruff.per-file-ignores]

@@ -16,6 +16,6 @@ COPY poetry.lock pyproject.toml /code/
 RUN poetry install --no-interaction --no-ansi --no-root --no-dev
 
 # Copy Python code to the Docker image
-COPY onshape_api /code/onshape_api/
+COPY onshape_robotics_toolkit /code/onshape_robotics_toolkit/
 
-CMD [ "python", "onshape_api/foo.py"]
+CMD [ "python", "onshape_robotics_toolkit/foo.py"]

@@ -1,1 +1,1 @@
-::: onshape_api.models.joint
+::: onshape_robotics_toolkit.models.joint

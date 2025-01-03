@@ -10,9 +10,9 @@ from typing import Optional, Union
 
 import numpy as np
 
-from onshape_api.connect import Client
-from onshape_api.log import LOGGER
-from onshape_api.models.assembly import (
+from onshape_robotics_toolkit.connect import Client
+from onshape_robotics_toolkit.log import LOGGER
+from onshape_robotics_toolkit.models.assembly import (
     Assembly,
     AssemblyFeature,
     AssemblyFeatureType,
@@ -28,8 +28,8 @@ from onshape_api.models.assembly import (
     RootAssembly,
     SubAssembly,
 )
-from onshape_api.models.document import WorkspaceType
-from onshape_api.utilities.helpers import get_sanitized_name
+from onshape_robotics_toolkit.models.document import WorkspaceType
+from onshape_robotics_toolkit.utilities.helpers import get_sanitized_name
 
 os.environ["TCL_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6"
 os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"

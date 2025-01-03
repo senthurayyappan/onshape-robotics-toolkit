@@ -1,21 +1,21 @@
-# onshape-api
+# onshape-robotics-toolkit
 
-`onshape-api` is a feature-rich Python library that significantly extends the capabilities of Onshape's web-based CAD platform. The library provides a comprehensive API for automating robot design tasks, including solid model manipulation, robot assembly management, graph-based visualizations, and exporting CAD assemblies to URDF files for simulation and control. Intended as a resource for the robotics community, this library leverages Onshape's REST API to facilitate advanced workflows that bridge CAD design and robotics applications.
+`onshape-robotics-toolkit` is a feature-rich Python library that significantly extends the capabilities of Onshape's web-based CAD platform. The library provides a comprehensive API for automating robot design tasks, including solid model manipulation, robot assembly management, graph-based visualizations, and exporting CAD assemblies to URDF files for simulation and control. Intended as a resource for the robotics community, this library leverages Onshape's REST API to facilitate advanced workflows that bridge CAD design and robotics applications.
 
 <img src="docs\tutorials\export\export-header.gif" alt="Header" style="width: 100%;">
 
 &nbsp;
-This library was inspired by <a href="https://github.com/Rhoban/onshape-to-robot" target="_blank">onshape-to-robot</a>, a tool renowned for its streamlined approach to URDF generation. While onshape-to-robot library focuses on predefined workflows and design-time considerations, the `onshape-api` library offers greater flexibility. It provides access to nearly all of Onshape's REST API calls, enabling headless manipulation, detailed analysis, and seamless export of CAD assemblies. Users can programmatically edit variable studios, generate graph-based visualizations, and export URDF files tailored to their specific needs—all without being restricted by rigid workflows or naming conventions. By removing these constraints, the `onshape-api` library empowers the robotics and CAD communities to create custom solutions for algorithmic design, optimization, and automation.
+This library was inspired by <a href="https://github.com/Rhoban/onshape-to-robot" target="_blank">onshape-to-robot</a>, a tool renowned for its streamlined approach to URDF generation. While onshape-to-robot library focuses on predefined workflows and design-time considerations, the `onshape-robotics-toolkit` library offers greater flexibility. It provides access to nearly all of Onshape's REST API calls, enabling headless manipulation, detailed analysis, and seamless export of CAD assemblies. Users can programmatically edit variable studios, generate graph-based visualizations, and export URDF files tailored to their specific needs—all without being restricted by rigid workflows or naming conventions. By removing these constraints, the `onshape-robotics-toolkit` library empowers the robotics and CAD communities to create custom solutions for algorithmic design, optimization, and automation.
 
 &nbsp;
 
-# Key Features of `onshape-api`
+# Key Features of `onshape-robotics-toolkit`
 
-The `onshape-api` library is designed for users seeking a scalable, versatile API that empowers innovative robot design and control workflows. By integrating Onshape into algorithmic processes such as design optimization and automation, it unlocks the full potential of Onshape's cloud-based CAD system, fostering creativity and efficiency in robotics and beyond.
+The `onshape-robotics-toolkit` library is designed for users seeking a scalable, versatile API that empowers innovative robot design and control workflows. By integrating Onshape into algorithmic processes such as design optimization and automation, it unlocks the full potential of Onshape's cloud-based CAD system, fostering creativity and efficiency in robotics and beyond.
 
 &nbsp;
 
-| Feature                              | `onshape-api`                        | `onshape-to-robot`                      |
+| Feature                              | `onshape-robotics-toolkit`                        | `onshape-to-robot`                      |
 | ------------------------------------ | ------------------------------------ | --------------------------------------- |
 | **Workflow Flexibility**             | ✅ Open-ended and customizable       | ❌ Predefined and rigid                 |
 | **Design-Time Considerations**       | ✅ None                              | ❌ Requires specific naming conventions |
@@ -36,17 +36,17 @@ Before you begin, ensure you have the following:
 
 ## Installation
 
-You can install `onshape-api` using `pip`, which is the easiest way to install it and is the recommended method for most users.
+You can install `onshape-robotics-toolkit` using `pip`, which is the easiest way to install it and is the recommended method for most users.
 
 ```sh
-pip install onshape-api
+pip install onshape-robotics-toolkit
 ```
 
 If you want to install from source, you'll need to install [`poetry`](https://python-poetry.org/docs/) and [`git`](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) first. Then, you can clone the repository and install the package.
 
 ```sh
 git clone #
-cd onshape-api
+cd onshape-robotics-toolkit
 poetry install
 ```
 

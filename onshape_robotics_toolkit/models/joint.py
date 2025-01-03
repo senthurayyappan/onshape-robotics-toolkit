@@ -31,8 +31,8 @@ from typing import Optional
 
 import lxml.etree as ET
 
-from onshape_api.models.link import Axis, Origin
-from onshape_api.utilities import format_number
+from onshape_robotics_toolkit.models.link import Axis, Origin
+from onshape_robotics_toolkit.utilities import format_number
 
 
 class JointType(str, Enum):

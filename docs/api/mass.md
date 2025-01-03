@@ -1,1 +1,1 @@
-::: onshape_api.models.mass
+::: onshape_robotics_toolkit.models.mass

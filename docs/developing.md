@@ -4,9 +4,9 @@
     <pre class="mermaid">
     sequenceDiagram
         participant User as User
-        participant Client as onshape-api.client
+        participant Client as onshape-robotics-toolkit.client
         participant Onshape as Onshape Server
-        participant Robot as onshape-api.robot
+        participant Robot as onshape-robotics-toolkit.robot
 
         User->>Client: Initialize Client with API Keys
         Client->>Onshape: Authenticate with Access Key & Secret Key

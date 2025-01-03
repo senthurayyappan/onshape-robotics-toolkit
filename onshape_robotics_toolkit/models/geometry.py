@@ -17,7 +17,7 @@ from typing import Optional
 
 import lxml.etree as ET
 
-from onshape_api.utilities import format_number, xml_escape
+from onshape_robotics_toolkit.utilities import format_number, xml_escape
 
 
 class GeometryType(str, Enum):

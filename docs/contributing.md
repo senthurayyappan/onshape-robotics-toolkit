@@ -1,4 +1,4 @@
-# Contributing to `onshape-api`
+# Contributing to `onshape-robotics-toolkit`
 
 Contributions are welcome, and they are greatly appreciated! Every little bit helps :)
 
@@ -8,7 +8,7 @@ Contributions are welcome, and they are greatly appreciated! Every little bit he
 
 ### Report Bugs
 
-Report bugs [here](https://github.com/senthurayyappan/onshape-api/issues)
+Report bugs [here](https://github.com/senthurayyappan/onshape-robotics-toolkit/issues)
 
 If you are reporting a bug, please include:
 
@@ -26,11 +26,11 @@ Look through the GitHub issues for features. Anything tagged with "enhancement" 
 
 ### Write Documentation
 
-`onshape-api` could always use more documentation, whether as part of the official docs, in docstrings, or even on the web in blog posts, articles, and such.
+`onshape-robotics-toolkit` could always use more documentation, whether as part of the official docs, in docstrings, or even on the web in blog posts, articles, and such.
 
 ### Submit Feedback
 
-The best way to send feedback is to file an issue [here](https://github.com/senthurayyappan/onshape-api/issues).
+The best way to send feedback is to file an issue [here](https://github.com/senthurayyappan/onshape-robotics-toolkit/issues).
 
 If you are proposing a new feature:
 
@@ -42,21 +42,21 @@ If you are proposing a new feature:
 
 ## Get Started!
 
-Ready to contribute? Here's how to set up `onshape-api` for local development. Please note this documentation assumes you already have `poetry` and `Git` installed and ready to go.
+Ready to contribute? Here's how to set up `onshape-robotics-toolkit` for local development. Please note this documentation assumes you already have `poetry` and `Git` installed and ready to go.
 
-Fork the `onshape-api` repo on GitHub.
+Fork the `onshape-robotics-toolkit` repo on GitHub.
 
 Clone your fork locally:
 
 ```sh
 cd <directory_in_which_repo_should_be_created>
-git clone git@github.com:YOUR_NAME/onshape-api.git
+git clone git@github.com:YOUR_NAME/onshape-robotics-toolkit.git
 ```
 
 Now we need to install the environment. Navigate into the directory
 
 ```sh
-cd onshape-api
+cd onshape-robotics-toolkit
 ```
 
 Then, install and activate the environment with:

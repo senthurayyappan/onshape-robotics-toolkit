@@ -1,4 +1,4 @@
-In this tutorial, we’ll explore how to edit an Onshape CAD assembly by modifying its variables in the Variable Studio and exporting the resulting assembly to a URDF file using the `onshape-api` Python library.
+In this tutorial, we’ll explore how to edit an Onshape CAD assembly by modifying its variables in the Variable Studio and exporting the resulting assembly to a URDF file using the `onshape-robotics-toolkit` Python library.
 
 <img src="bike-header.gif" alt="Bike Header" style="width: 100%;">
 
@@ -8,9 +8,9 @@ In this tutorial, we’ll explore how to edit an Onshape CAD assembly by modifyi
 
 Before you begin, make sure you have:
 
-- **Installed the `onshape-api` library**:
+- **Installed the `onshape-robotics-toolkit` library**:
   ```bash
-  pip install onshape-api
+  pip install onshape-robotics-toolkit
   ```
 - **API Keys**: Set up your Onshape API keys in a `.env` file as outlined in the [Getting Started](../getting-started.md) guide.
 - **Access to the Onshape Document**: Use a CAD document with a Variable Studio. For this tutorial, we’ll use the following example:
@@ -25,7 +25,7 @@ Before you begin, make sure you have:
 Set up the Onshape API client for authentication and interaction:
 
 ```python
-import onshape_api as osa
+import onshape_robotics_toolkit as osa
 
 # Initialize the client
 client = osa.Client(
@@ -71,7 +71,7 @@ client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
 Fetch the assembly data and parse its components:
 
 ```python
-from onshape_api.parse import (
+from onshape_robotics_toolkit.parse import (
     get_instances,
     get_mates_and_relations,
     get_occurrences,
@@ -99,9 +99,9 @@ mates, relations = get_mates_and_relations(assembly, subassemblies, rigid_subass
 Generate a graph visualization of the assembly structure:
 
 ```python
-from onshape_api.graph import create_graph
-from onshape_api.urdf import get_robot
-from onshape_api.models.robot import Robot
+from onshape_robotics_toolkit.graph import create_graph
+from onshape_robotics_toolkit.urdf import get_robot
+from onshape_robotics_toolkit.models.robot import Robot
 
 # Create and save the assembly graph
 graph, root_node = create_graph(occurrences=occurrences, instances=instances, parts=parts, mates=mates)

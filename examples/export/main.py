@@ -1,7 +1,7 @@
-from onshape_api.connect import Client
-from onshape_api.log import LOGGER, LogLevel
-from onshape_api.robot import Robot
-from onshape_api.utilities.helpers import save_model_as_json
+from onshape_robotics_toolkit.connect import Client
+from onshape_robotics_toolkit.log import LOGGER, LogLevel
+from onshape_robotics_toolkit.robot import Robot
+from onshape_robotics_toolkit.utilities.helpers import save_model_as_json
 
 if __name__ == "__main__":
     LOGGER.set_file_name("ballbot.log")

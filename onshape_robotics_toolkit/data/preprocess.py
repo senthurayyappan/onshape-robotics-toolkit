@@ -8,11 +8,11 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from onshape_api.connect import Client
-from onshape_api.models import Assembly
-from onshape_api.models.document import generate_url
-from onshape_api.models.element import Element, ElementType
-from onshape_api.utilities import LOGGER
+from onshape_robotics_toolkit.connect import Client
+from onshape_robotics_toolkit.models import Assembly
+from onshape_robotics_toolkit.models.document import generate_url
+from onshape_robotics_toolkit.models.element import Element, ElementType
+from onshape_robotics_toolkit.utilities import LOGGER
 
 AUTOMATE_ASSEMBLYID_PATTERN = r"(?P<documentId>\w{24})_(?P<documentMicroversion>\w{24})_(?P<elementId>\w{24})"
 

@@ -23,7 +23,7 @@ import numpy as np
 from PIL import Image
 from pydantic import BaseModel
 
-from onshape_api.log import LOGGER
+from onshape_robotics_toolkit.log import LOGGER
 
 
 class CustomJSONEncoder(json.JSONEncoder):
