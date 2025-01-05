@@ -8,7 +8,7 @@ Contributions are welcome, and they are greatly appreciated! Every little bit he
 
 ### Report Bugs
 
-Report bugs [here](https://github.com/senthurayyappan/onshape-robotics-toolkit/issues)
+Report bugs [here](https://github.com/neurobionics/onshape-robotics-toolkit/issues)
 
 If you are reporting a bug, please include:
 
@@ -30,7 +30,7 @@ Look through the GitHub issues for features. Anything tagged with "enhancement" 
 
 ### Submit Feedback
 
-The best way to send feedback is to file an issue [here](https://github.com/senthurayyappan/onshape-robotics-toolkit/issues).
+The best way to send feedback is to file an issue [here](https://github.com/neurobionics/onshape-robotics-toolkit/issues).
 
 If you are proposing a new feature:
 

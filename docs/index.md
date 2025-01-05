@@ -1,7 +1,7 @@
-<!-- [![Release](https://img.shields.io/github/v/release/senthurayyappan/onshape-robotics-toolkit)](https://img.shields.io/github/v/release/senthurayyappan/onshape-robotics-toolkit)
-[![Build status](https://img.shields.io/github/actions/workflow/status/senthurayyappan/onshape-robotics-toolkit/main.yml?branch=main)](https://github.com/senthurayyappan/onshape-robotics-toolkit/actions/workflows/main.yml?query=branch%3Amain)
-[![Commit activity](https://img.shields.io/github/commit-activity/m/senthurayyappan/onshape-robotics-toolkit)](https://img.shields.io/github/commit-activity/m/senthurayyappan/onshape-robotics-toolkit)
-[![License](https://img.shields.io/github/license/senthurayyappan/onshape-robotics-toolkit)](https://img.shields.io/github/license/senthurayyappan/onshape-robotics-toolkit) -->
+<!-- [![Release](https://img.shields.io/github/v/release/neurobionics/onshape-robotics-toolkit)](https://img.shields.io/github/v/release/neurobionics/onshape-robotics-toolkit)
+[![Build status](https://img.shields.io/github/actions/workflow/status/neurobionics/onshape-robotics-toolkit/main.yml?branch=main)](https://github.com/neurobionics/onshape-robotics-toolkit/actions/workflows/main.yml?query=branch%3Amain)
+[![Commit activity](https://img.shields.io/github/commit-activity/m/neurobionics/onshape-robotics-toolkit)](https://img.shields.io/github/commit-activity/m/neurobionics/onshape-robotics-toolkit)
+[![License](https://img.shields.io/github/license/neurobionics/onshape-robotics-toolkit)](https://img.shields.io/github/license/neurobionics/onshape-robotics-toolkit) -->
 
 # onshape-robotics-toolkit
 

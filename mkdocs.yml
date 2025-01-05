@@ -1,11 +1,11 @@
 site_name: onshape-robotics-toolkit
-repo_url: https://github.com/senthurayyappan/onshape-robotics-toolkit
-site_url: https://senthurayyappan.github.io/onshape-robotics-toolkit
+repo_url: https://github.com/neurobionics/onshape-robotics-toolkit
+site_url: https://neurobionics.github.io/onshape-robotics-toolkit
 site_description: A python library to facilitate interaction with Onshape's REST API
 site_author: Senthur Ayyappan
 edit_uri: edit/main/docs/
-repo_name: senthurayyappan/onshape-robotics-toolkit
-copyright: Maintained by <a href="https://senthurayyappan.com">Senthur Ayyappan</a>.
+repo_name: neurobionics/onshape-robotics-toolkit
+copyright: Maintained by <a href="https://neurobionics.com">Senthur Ayyappan</a>.
 
 nav:
   - Overview: index.md
@@ -75,7 +75,7 @@ theme:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/senthurayyappan/onshape-robotics-toolkit
+      link: https://github.com/neurobionics/onshape-robotics-toolkit
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/onshape-robotics-toolkit
 
