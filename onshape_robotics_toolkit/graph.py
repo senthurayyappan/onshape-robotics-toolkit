@@ -152,9 +152,13 @@ def create_graph(
         instances: Dictionary of instances in the assembly.
         parts: Dictionary of parts in the assembly.
         mates: Dictionary of mates in the assembly.
+        directed: Whether to create a directed graph.
+        use_user_defined_root: Whether to use the user defined root node.
 
     Returns:
-        The graph created from the assembly data.
+        A tuple containing:
+        - The graph created from the assembly data.
+        - The root node of the graph.
 
     Examples:
         >>> occurrences = get_occurrences(assembly)

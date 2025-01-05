@@ -357,6 +357,7 @@ class Client:
             wtype: The type of workspace.
             wid: The unique identifier of the workspace.
             eid: The unique identifier of the assembly.
+            configuration: The configuration of the assembly.
 
         Returns:
             str: Assembly name
@@ -415,7 +416,9 @@ class Client:
             wid: The unique identifier of the workspace.
             eid: The unique identifier of the element.
             configuration: The configuration of the assembly.
+            with_mass_properties: Whether to include mass properties in the assembly data.
             log_response: Log the response from the API request.
+            with_meta_data: Whether to include meta data in the assembly data.
 
         Returns:
             RootAssembly: RootAssembly object containing the root assembly data
@@ -425,7 +428,11 @@ class Client:
             ...     did="a1c1addf75444f54b504f25c",
             ...     wtype="w",
             ...     wid="0d17b8ebb2a4c76be9fff3c7",
-            ...     eid="a86aaf34d2f4353288df8812"
+            ...     eid="a86aaf34d2f4353288df8812",
+            ...     configuration="default",
+            ...     with_mass_properties=True,
+            ...     log_response=False,
+            ...     with_meta_data=True
             ... )
             >>> print(root_assembly)
             RootAssembly(
@@ -603,6 +610,7 @@ class Client:
             wtype: The type of workspace.
             wid: The unique identifier of the workspace.
             eid: The unique identifier of the element.
+            buffer: BinaryIO object to write the STL file to.
             configuration: The configuration of the assembly.
 
         """
@@ -691,11 +699,11 @@ class Client:
 
         Args:
             did: The unique identifier of the document.
+            wtype: The type of workspace.
             wid: The unique identifier of the workspace.
             eid: The unique identifier of the element.
             partID: The unique identifier of the part.
             buffer: BinaryIO object to write the STL file to.
-            wtype: The type of workspace.
 
         Returns:
             BinaryIO: BinaryIO object containing the STL file
@@ -757,9 +765,9 @@ class Client:
 
         Args:
             did: The unique identifier of the document.
+            wtype: The type of workspace.
             wid: The unique identifier of the workspace.
             eid: The unique identifier of the rigid assembly.
-            wtype: The type of workspace.
 
         Returns:
             MassProperties object containing the mass properties of the assembly.
@@ -809,10 +817,10 @@ class Client:
 
         Args:
             did: The unique identifier of the document.
+            wtype: The type of workspace.
             wid: The unique identifier of the workspace.
             eid: The unique identifier of the element.
             partID: The identifier of the part.
-            wtype: The type of workspace.
 
         Returns:
             MassProperties object containing the mass properties of the part.
@@ -883,7 +891,7 @@ class Client:
             body: Body of the request
             base_url: Base URL for the request
             log_response: Log the response from the API request
-
+            timeout: Timeout for the request in seconds
         Returns:
             requests.Response: Response from the Onshape API request
         """
@@ -912,9 +920,40 @@ class Client:
         return res
 
     def _build_url(self, base_url, path, query):
+        """
+        Build the URL for the request.
+
+        Args:
+            base_url: The base URL for the request.
+            path: The path for the request.
+            query: The query string for the request.
+
+        Returns:
+            The URL for the request.
+        """
         return base_url + path + "?" + urlencode(query)
 
-    def _send_request(self, method, url, headers, body, timeout):
+    def _send_request(
+        self,
+        method: HTTP,
+        url: str,
+        headers: dict[str, Any],
+        body: dict[str, Any],
+        timeout: int,
+    ) -> requests.Response:
+        """
+        Send the request to the Onshape API.
+
+        Args:
+            method: The HTTP method for the request.
+            url: The URL for the request.
+            headers: The headers for the request.
+            body: The body for the request.
+            timeout: The timeout for the request in seconds.
+
+        Returns:
+            The response from the Onshape API request.
+        """
         return requests.request(
             method,
             url,
@@ -925,7 +964,25 @@ class Client:
             timeout=timeout,  # Specify an appropriate timeout value in seconds
         )
 
-    def _handle_redirect(self, res, method, headers, log_response=True):
+    def _handle_redirect(
+        self,
+        res: requests.Response,
+        method: HTTP,
+        headers: dict[str, Any],
+        log_response: bool = True,
+    ) -> requests.Response:
+        """
+        Handle a redirect response from the Onshape API.
+
+        Args:
+            res: The response from the Onshape API request.
+            method: The HTTP method for the request.
+            headers: The headers for the request.
+            log_response: Whether to log the response from the API request.
+
+        Returns:
+            The response from the Onshape API request.
+        """
         location = urlparse(res.headers["Location"])
         querystring = parse_qs(location.query)
 
@@ -939,6 +996,12 @@ class Client:
         )
 
     def _log_response(self, res):
+        """
+        Log the response from the Onshape API request.
+
+        Args:
+            res: The response from the Onshape API request.
+        """
         try:
             if not 200 <= res.status_code <= 206:
                 LOGGER.debug(f"Request failed, details: {res.text}")
@@ -947,7 +1010,29 @@ class Client:
         except UnicodeEncodeError as e:
             LOGGER.error(f"UnicodeEncodeError: {e}")
 
-    def _make_auth(self, method, date, nonce, path, query=None, ctype="application/json"):
+    def _make_auth(
+        self,
+        method: HTTP,
+        date: str,
+        nonce: str,
+        path: str,
+        query: Optional[dict[str, Any]] = None,
+        ctype: str = "application/json",
+    ) -> str:
+        """
+        Make the authentication header for the Onshape API request.
+
+        Args:
+            method: The HTTP method for the request.
+            date: The date for the request.
+            nonce: The nonce for the request.
+            path: The path for the request.
+            query: The query string for the request.
+            ctype: The content type for the request.
+
+        Returns:
+            The authentication header for the Onshape API request.
+        """
         if query is None:
             query = {}
         query = urlencode(query)
@@ -967,7 +1052,25 @@ class Client:
 
         return auth
 
-    def _make_headers(self, method, path, query=None, headers=None):
+    def _make_headers(
+        self,
+        method: HTTP,
+        path: str,
+        query: Optional[dict[str, Any]] = None,
+        headers: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """
+        Make the headers for the Onshape API request.
+
+        Args:
+            method: The HTTP method for the request.
+            path: The path for the request.
+            query: The query string for the request.
+            headers: The headers for the request.
+
+        Returns:
+            The headers for the Onshape API request.
+        """
         if headers is None:
             headers = {}
         if query is None:
@@ -994,7 +1097,13 @@ class Client:
         return req_headers
 
     @property
-    def base_url(self):
+    def base_url(self) -> str:
+        """
+        Get the base URL for the Onshape API request.
+
+        Returns:
+            The base URL for the Onshape API request.
+        """
         return self._url
 
 
@@ -1029,6 +1138,7 @@ class Asset:
             file_name: Name of the mesh file.
             is_rigid_assembly: Whether the element is a rigid assembly.
             partID: The unique identifier of the part.
+            is_from_file: Whether the asset is from a file.
         """
         self.did = did
         self.wtype = wtype
@@ -1047,6 +1157,9 @@ class Asset:
     def absolute_path(self) -> str:
         """
         Returns the file path of the mesh file.
+
+        Returns:
+            The file path of the mesh file.
         """
         if self.is_from_file:
             return self._file_path
@@ -1061,12 +1174,28 @@ class Asset:
     def relative_path(self) -> str:
         """
         Returns the relative path of the mesh file.
+
+        Returns:
+            The relative path of the mesh file.
         """
         return os.path.relpath(self.absolute_path, CURRENT_DIR)
 
     async def download(self) -> None:
         """
         Asynchronously download the mesh file from Onshape, transform it, and save it to a file.
+
+        Examples:
+            >>> asset = Asset(
+            ...     did="a1c1addf75444f54b504f25c",
+            ...     wtype="w",
+            ...     wid="0d17b8ebb2a4c76be9fff3c7",
+            ...     eid="a86aaf34d2f4353288df8812",
+            ...     client=client,
+            ...     transform=np.eye(4),
+            ...     file_name="mesh.stl",
+            ...     is_rigid_assembly=True
+            ... )
+            >>> await asset.download()
         """
         LOGGER.info(f"Starting download for {self.file_name}")
         try:
@@ -1105,6 +1234,9 @@ class Asset:
         """
         Returns the XML representation of the asset, which is a mesh file.
 
+        Args:
+            root: The root element of the XML tree.
+
         Examples:
             >>> asset = Asset(
             ...     did="a1c1addf75444f54b504f25c",
@@ -1130,7 +1262,6 @@ class Asset:
 
         Args:
             file_path: Path to the mesh file.
-            client: Onshape API client object.
 
         Returns:
             Asset: Asset object representing the mesh file.

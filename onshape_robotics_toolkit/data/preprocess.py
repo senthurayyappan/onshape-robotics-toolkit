@@ -6,7 +6,6 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 from onshape_robotics_toolkit.connect import Client
 from onshape_robotics_toolkit.models import Assembly
@@ -17,7 +16,16 @@ from onshape_robotics_toolkit.utilities import LOGGER
 AUTOMATE_ASSEMBLYID_PATTERN = r"(?P<documentId>\w{24})_(?P<documentMicroversion>\w{24})_(?P<elementId>\w{24})"
 
 
-def extract_ids(assembly_id):
+def extract_ids(assembly_id: str) -> dict[str, str]:
+    """
+    Extract the documentId, documentMicroversion, and elementId from the assemblyId.
+
+    Args:
+        assembly_id: The assemblyId to extract the ids from.
+
+    Returns:
+        A dictionary with the documentId, documentMicroversion, and elementId.
+    """
     match = re.match(AUTOMATE_ASSEMBLYID_PATTERN, assembly_id)
     if match:
         return match.groupdict()
@@ -25,11 +33,27 @@ def extract_ids(assembly_id):
         return {"documentId": None, "documentMicroversion": None, "elementId": None}
 
 
-def raise_document_not_exist_error(documentId):
+def raise_document_not_exist_error(documentId: str):
+    """
+    Raise an error if the document does not exist.
+
+    Args:
+        documentId: The id of the document.
+    """
     raise ValueError(f"Document does not exist: {documentId}")
 
 
-def get_assembly_data(assembly_id: str, client: Client):
+def get_assembly_data(assembly_id: str, client: Client) -> dict[str, str]:
+    """
+    Get the assembly data from the assemblyId.
+
+    Args:
+        assembly_id: The assemblyId to get the data from.
+        client: The client to use to get the data.
+
+    Returns:
+        A dictionary with the assembly data.
+    """
     try:
         ids = extract_ids(assembly_id)
         document = client.get_document_metadata(ids["documentId"])
@@ -59,6 +83,13 @@ def get_assembly_data(assembly_id: str, client: Client):
 def get_assembly_df_chunk(automate_assembly_df_chunk: pd.DataFrame, client: Client) -> pd.DataFrame:
     """
     Process a chunk of the automate assembly DataFrame.
+
+    Args:
+        automate_assembly_df_chunk: The chunk of the automate assembly DataFrame to process.
+        client: The client to use to get the data.
+
+    Returns:
+        A DataFrame with the assembly data.
     """
     _get_assembly_data = partial(get_assembly_data, client=client)
     assembly_df_chunk = automate_assembly_df_chunk["assemblyId"].progress_apply(_get_assembly_data).apply(pd.Series)
@@ -68,14 +99,21 @@ def get_assembly_df_chunk(automate_assembly_df_chunk: pd.DataFrame, client: Clie
 def get_assembly_df(automate_assembly_df: pd.DataFrame, client: Client, chunk_size: int = 1000) -> pd.DataFrame:
     """
     Process the automate assembly DataFrame in chunks and save checkpoints.
+
+    Args:
+        automate_assembly_df: The automate assembly DataFrame to process.
+        client: The client to use to get the data.
+        chunk_size: The size of the chunks to process.
+
+    Returns:
+        A DataFrame with the assembly data.
     """
-    tqdm.pandas()
     total_rows = len(automate_assembly_df)
     chunks = (total_rows // chunk_size) + 1
 
     assembly_df_list = []
     try:
-        for i in tqdm(range(chunks), desc="Processing chunks"):
+        for i in range(chunks):
             start_idx = i * chunk_size
             end_idx = min((i + 1) * chunk_size, total_rows)
             automate_assembly_df_chunk = automate_assembly_df.iloc[start_idx:end_idx]
@@ -92,7 +130,13 @@ def get_assembly_df(automate_assembly_df: pd.DataFrame, client: Client, chunk_si
     return assembly_df
 
 
-def process_all_checkpoints():
+def process_all_checkpoints() -> pd.DataFrame:
+    """
+    Process all the checkpoints and return the final DataFrame.
+
+    Returns:
+        A DataFrame with the assembly data.
+    """
     assemblies_df = pd.DataFrame()
     MAX_CHECKPOINTS = 256
 
@@ -120,18 +164,45 @@ def process_all_checkpoints():
     assemblies_df.to_parquet("assemblies.parquet", engine="pyarrow")
 
 
-def validate_assembly_json(json_file_path: str):
+def validate_assembly_json(json_file_path: str) -> Assembly:
+    """
+    Validate the assembly JSON file.
+
+    Args:
+        json_file_path: The path to the assembly JSON file.
+
+    Returns:
+        The validated assembly.
+    """
     with open(json_file_path) as json_file:
         assembly_json = json.load(json_file)
 
     return Assembly.model_validate(assembly_json)
 
 
-def get_assembly_url(row):
+def get_assembly_url(row: pd.Series) -> str:
+    """
+    Get the assembly URL from the row.
+
+    Args:
+        row: The row to get the URL from.
+
+    Returns:
+        The assembly URL.
+    """
     return generate_url(row["documentId"], row["wtype"], row["workspaceId"], row["elementId"])
 
 
 def get_automate_assembly_df(path: str = "automate_assemblies.parquet") -> Optional[pd.DataFrame]:
+    """
+    Get the automate assembly DataFrame.
+
+    Args:
+        path: The path to the automate assembly DataFrame.
+
+    Returns:
+        The automate assembly DataFrame.
+    """
     if os.path.exists(path):
         automate_assembly_df = pd.read_parquet("automate_assemblies.parquet", engine="pyarrow")
     else:

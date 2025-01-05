@@ -7,8 +7,8 @@ Dataclass:
 """
 
 import asyncio
-from enum import Enum
 import os
+from enum import Enum
 from typing import Any, Optional
 
 import networkx as nx
@@ -162,23 +162,57 @@ class Robot:
         self.option_attributes: dict[str, str] = DEFAULT_OPTION_ATTRIBUTES
 
     def add_link(self, link: Link) -> None:
-        """Add a link to the graph."""
+        """
+        Add a link to the graph.
+
+        Args:
+            link: The link to add.
+        """
         self.graph.add_node(link.name, data=link)
 
     def add_joint(self, joint: BaseJoint) -> None:
-        """Add a joint to the graph."""
+        """
+        Add a joint to the graph.
+
+        Args:
+            joint: The joint to add.
+        """
         self.graph.add_edge(joint.parent, joint.child, data=joint)
 
     def set_robot_position(self, pos: tuple[float, float, float]) -> None:
+        """
+        Set the position for the robot model.
+
+        Args:
+            pos: The position to set.
+        """
         self.position = pos
 
     def set_ground_position(self, pos: tuple[float, float, float]) -> None:
+        """
+        Set the ground position for the robot model.
+
+        Args:
+            pos: The position to set.
+        """
         self.ground_position = pos
 
     def set_compiler_attributes(self, attributes: dict[str, str]) -> None:
+        """
+        Set the compiler attributes for the robot model.
+
+        Args:
+            attributes: The compiler attributes to set.
+        """
         self.compiler_attributes = attributes
 
     def set_option_attributes(self, attributes: dict[str, str]) -> None:
+        """
+        Set the option attributes for the robot model.
+
+        Args:
+            attributes: The option attributes to set.
+        """
         self.option_attributes = attributes
 
     def add_light(
@@ -191,6 +225,18 @@ class Robot:
         direction: tuple[float, float, float],
         castshadow: bool,
     ) -> None:
+        """
+        Add a light to the robot model.
+
+        Args:
+            name: The name of the light.
+            directional: Whether the light is directional.
+            diffuse: The diffuse color of the light.
+            specular: The specular color of the light.
+            pos: The position of the light.
+            direction: The direction of the light.
+            castshadow: Whether the light casts shadows.
+        """
         self.lights[name] = Light(
             directional=directional,
             diffuse=diffuse,
@@ -210,6 +256,18 @@ class Robot:
         add_force_sensor: bool = True,
         ctrl_range: tuple[float, float] = (0, 0),
     ) -> None:
+        """
+        Add an actuator to the robot model.
+
+        Args:
+            actuator_name: The name of the actuator.
+            joint_name: The name of the joint.
+            ctrl_limited: Whether the actuator is limited.
+            gear: The gear ratio.
+            add_encoder: Whether to add an encoder.
+            add_force_sensor: Whether to add a force sensor.
+            ctrl_range: The control range.
+        """
         self.actuators[actuator_name] = Actuator(
             name=actuator_name,
             joint=joint_name,
@@ -225,6 +283,13 @@ class Robot:
             self.add_sensor(actuator_name + "-frc", ForceSensor(actuator_name + "-frc", actuator_name))
 
     def add_sensor(self, name: str, sensor: Sensor) -> None:
+        """
+        Add a sensor to the robot model.
+
+        Args:
+            name: The name of the sensor.
+            sensor: The sensor to add.
+        """
         self.sensors[name] = sensor
 
     def add_custom_element_by_tag(
@@ -286,7 +351,7 @@ class Robot:
         Set or update attributes of an existing XML element.
 
         Args:
-            element: The element to modify
+            element_name: The name of the element to modify
             attributes: Dictionary of attribute key-value pairs to set/update
 
         Examples:
@@ -303,11 +368,12 @@ class Robot:
     ) -> ET.Element:
         """
         Add a ground plane to the root element with associated texture and material.
-            Args:
-            root: The root element to append the ground plane to
+        Args:
+            root: The root element to append the ground plane to (e.g. "asset", "worldbody")
             size: Size of the ground plane (default: 2)
             orientation: Euler angles for orientation (default: (0, 0, 0))
-            Returns:
+
+        Returns:
             ET.Element: The ground plane element
         """
         # Create ground plane geom element
@@ -328,8 +394,11 @@ class Robot:
         return ground_geom
 
     def add_ground_plane_assets(self, root: ET.Element) -> None:
-        # Add texture definition
-        """Add texture and material assets for the ground plane"""
+        """Add texture and material assets for the ground plane
+
+        Args:
+            root: The root element to append the ground plane to (e.g. "asset", "worldbody")
+        """
         # Create texture element
         checker_texture = ET.Element(
             "texture",
@@ -348,7 +417,12 @@ class Robot:
         self.add_custom_element_by_tag("grid", "asset", grid_material)
 
     def to_urdf(self) -> str:
-        """Generate URDF XML from the graph."""
+        """
+        Generate URDF XML from the graph.
+
+        Returns:
+            The URDF XML string.
+        """
         robot = ET.Element("robot", name=self.name)
 
         # Add links
@@ -368,11 +442,23 @@ class Robot:
         return ET.tostring(robot, pretty_print=True, encoding="unicode")
 
     def get_xml_string(self, element: ET.Element) -> str:
-        """Generate URDF XML from the graph."""
+        """
+        Get the XML string from an element.
+
+        Args:
+            element: The element to get the XML string from.
+
+        Returns:
+            The XML string.
+        """
         return ET.tostring(element, pretty_print=True, encoding="unicode")
 
     def to_mjcf(self) -> str:  # noqa: C901
-        """Generate MJCF XML from the graph."""
+        """Generate MJCF XML from the graph.
+
+        Returns:
+            The MJCF XML string.
+        """
         model = ET.Element("mujoco", model=self.name)
 
         ET.SubElement(
@@ -606,7 +692,12 @@ class Robot:
         return ET.tostring(model, pretty_print=True, encoding="unicode")
 
     def save(self, file_path: Optional[str] = None, download_assets: bool = True) -> None:
-        """Save the robot model to a URDF file."""
+        """Save the robot model to a URDF file.
+
+        Args:
+            file_path: The path to the file to save the robot model.
+            download_assets: Whether to download the assets.
+        """
         if download_assets and self.assets:
             asyncio.run(self._download_assets())
 
@@ -643,7 +734,12 @@ class Robot:
             print_tree(root)
 
     def show_graph(self, file_name: Optional[str] = None) -> None:
-        """Display the robot's graph as a directed graph."""
+        """
+        Display the robot's graph as a directed graph.
+
+        Args:
+            file_name: The path to the file to save the graph.
+        """
         plot_graph(self.graph, file_name=file_name)
 
     async def _download_assets(self) -> None:
@@ -660,7 +756,12 @@ class Robot:
             LOGGER.error(f"Error downloading assets: {e}")
 
     def add_custom_element(self, parent_name: str, element: ET.Element) -> None:
-        """Add a custom XML element to the robot model."""
+        """Add a custom XML element to the robot model.
+
+        Args:
+            parent_name: The name of the parent element.
+            element: The custom XML element to add.
+        """
         if self.model is None:
             self.model = self.create_robot_model()
 
@@ -678,7 +779,15 @@ class Robot:
 
     @classmethod
     def from_urdf(cls, file_name: str, robot_type: RobotType) -> "Robot":  # noqa: C901
-        """Load a robot model from a URDF file."""
+        """Load a robot model from a URDF file.
+
+        Args:
+            file_name: The path to the URDF file.
+            robot_type: The type of the robot.
+
+        Returns:
+            The robot model.
+        """
         tree: ET.ElementTree = ET.parse(file_name)  # noqa: S320
         root: ET.Element = tree.getroot()
 
@@ -729,7 +838,20 @@ class Robot:
         use_user_defined_root: bool = False,
         robot_type: RobotType = RobotType.URDF,
     ) -> "Robot":
-        """Create a robot model from an Onshape CAD assembly."""
+        """
+        Load a robot model from an Onshape CAD assembly.
+
+        Args:
+            name: The name of the robot.
+            url: The URL of the Onshape CAD assembly.
+            client: The Onshape client object.
+            max_depth: The maximum depth to process the assembly.
+            use_user_defined_root: Whether to use the user-defined root.
+            robot_type: The type of the robot.
+
+        Returns:
+            The robot model.
+        """
 
         document = Document.from_url(url=url)
         client.set_base_url(document.base_url)
@@ -791,6 +913,15 @@ class Robot:
 
 
 def load_element(file_name: str) -> ET.Element:
+    """
+    Load an XML element from a file.
+
+    Args:
+        file_name: The path to the file.
+
+    Returns:
+        The root element of the XML file.
+    """
     tree: ET.ElementTree = ET.parse(file_name)  # noqa: S320
     root: ET.Element = tree.getroot()
     return root

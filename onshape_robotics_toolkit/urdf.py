@@ -48,6 +48,16 @@ SCRIPT_DIR = os.path.dirname(__file__)
 
 
 def get_joint_name(mate_id: str, mates: dict[str, MateFeatureData]) -> str:
+    """
+    Get the name of the joint from the mate id.
+
+    Args:
+        mate_id: The id of the mate.
+        mates: The dictionary of mates in the assembly.
+
+    Returns:
+        The name of the joint.
+    """
     reverse_mates = {mate.id: key for key, mate in mates.items()}
     return reverse_mates.get(mate_id)
 
@@ -176,20 +186,27 @@ def get_robot_joint(
         child: The name of the child link.
         mate: The Onshape mate feature object.
         stl_to_parent_tf: The transformation matrix from the STL origin to the parent link origin.
+        mimic: The mimic joint object.
+        is_rigid_assembly: Whether the assembly is a rigid assembly.
 
     Returns:
-        Joint object that represents the URDF joint.
+        tuple[list[BaseJoint], Optional[list[Link]]]: The generated joint object and the links.
 
     Examples:
         >>> get_robot_joint("root", "link1", mate, np.eye(4))
-        RevoluteJoint(
-            name='base_link_to_link1',
-            parent='root',
-            child='link1',
-            origin=Origin(...),
-            limits=JointLimits(...),
-            axis=Axis(...),
-            dynamics=JointDynamics(...)
+        (
+            [
+                RevoluteJoint(
+                    name='base_link_to_link1',
+                    parent='root',
+                    child='link1',
+                    origin=Origin(...),
+                    limits=JointLimits(...),
+                    axis=Axis(...),
+                    dynamics=JointDynamics(...)
+                )
+            ],
+            None
         )
 
     """
@@ -334,16 +351,22 @@ def get_topological_mates(
     Args:
         graph: The graph representation of the assembly.
         mates: The dictionary of mates in the assembly.
+        relations: The dictionary of relations in the assembly.
 
     Returns:
-        dict[str, MateFeatureData]: The topological mates.
+        tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]: The topological mates and relations.
 
     Examples:
         >>> get_topological_mates(graph, mates)
-        {
-            'link1-MATE-body': MateFeatureData(...),
-            'subassembly1-SUB-link2-MATE-body': MateFeatureData(...),
-        }
+        (
+            {
+                'link1-MATE-body': MateFeatureData(...),
+                'subassembly1-SUB-link2-MATE-body': MateFeatureData(...),
+            },
+            {
+                'link1-MATE-body-REL-subassembly1-SUB-link2-MATE-body': MateRelationFeatureData(...),
+            }
+        )
     """
     topological_mates: dict[str, MateFeatureData] = {}
     topological_relations: dict[str, MateRelationFeatureData] = relations or {}

@@ -56,6 +56,15 @@ async def traverse_instances_async(
 ) -> None:
     """
     Asynchronously traverse the assembly structure to get instances.
+
+    Args:
+        root: The root assembly or subassembly to traverse.
+        prefix: The prefix for the instance ID.
+        current_depth: The current depth in the assembly hierarchy.
+        max_depth: The maximum depth to traverse.
+        assembly: The assembly object to traverse.
+        id_to_name_map: A dictionary mapping instance IDs to their sanitized names.
+        instance_map: A dictionary mapping instance IDs to their corresponding instances.
     """
     isRigid = False
     if current_depth >= max_depth:
@@ -91,6 +100,15 @@ def get_instances(
 ) -> tuple[dict[str, Union[PartInstance, AssemblyInstance]], dict[str, Occurrence], dict[str, str]]:
     """
     Optimized synchronous wrapper for `get_instances`.
+
+    Args:
+        assembly: The assembly object to traverse.
+        max_depth: The maximum depth to traverse.
+
+    Returns:
+        A tuple containing:
+        - A dictionary mapping instance IDs to their corresponding instances.
+        - A dictionary mapping instance IDs to their sanitized names.
     """
     instance_map: dict[str, Union[PartInstance, AssemblyInstance]] = {}
     id_to_name_map: dict[str, str] = {}
@@ -117,7 +135,7 @@ def get_instances_sync(
 
     Args:
         assembly: The Onshape assembly object to use for extracting instances.
-        max_depth: Maximum depth to traverse in the assembly hierarchy. Default is 5
+        max_depth: Maximum depth to traverse in the assembly hierarchy. Default is 0
 
     Returns:
         A tuple containing:
@@ -192,6 +210,14 @@ def get_instances_sync(
 def get_occurrences(assembly: Assembly, id_to_name_map: dict[str, str], max_depth: int = 0) -> dict[str, Occurrence]:
     """
     Optimized occurrences fetching using comprehensions.
+
+    Args:
+        assembly: The assembly object to traverse.
+        id_to_name_map: A dictionary mapping instance IDs to their sanitized names.
+        max_depth: The maximum depth to traverse. Default is 0
+
+    Returns:
+        A dictionary mapping occurrence paths to their corresponding occurrences.
     """
     return {
         SUBASSEMBLY_JOINER.join([
@@ -207,6 +233,12 @@ async def fetch_rigid_subassemblies_async(
 ):
     """
     Fetch rigid subassemblies asynchronously.
+
+    Args:
+        subassembly: The subassembly to fetch.
+        key: The instance key to fetch.
+        client: The client object to use for fetching the subassembly.
+        rigid_subassembly_map: A dictionary to store the fetched subassemblies.
     """
     try:
         rigid_subassembly_map[key] = await asyncio.to_thread(
@@ -229,6 +261,16 @@ async def get_subassemblies_async(
 ) -> tuple[dict[str, SubAssembly], dict[str, RootAssembly]]:
     """
     Asynchronously fetch subassemblies.
+
+    Args:
+        assembly: The assembly object to traverse.
+        client: The client object to use for fetching the subassemblies.
+        instance_map: A dictionary mapping instance IDs to their corresponding instances.
+
+    Returns:
+        A tuple containing:
+        - A dictionary mapping instance IDs to their corresponding subassemblies.
+        - A dictionary mapping instance IDs to their corresponding rigid subassemblies.
     """
     subassembly_map: dict[str, SubAssembly] = {}
     rigid_subassembly_map: dict[str, RootAssembly] = {}
@@ -273,6 +315,16 @@ def get_subassemblies(
 ) -> tuple[dict[str, SubAssembly], dict[str, RootAssembly]]:
     """
     Synchronous wrapper for `get_subassemblies_async`.
+
+    Args:
+        assembly: The assembly object to traverse.
+        client: The client object to use for fetching the subassemblies.
+        instances: A dictionary mapping instance IDs to their corresponding instances.
+
+    Returns:
+        A tuple containing:
+        - A dictionary mapping instance IDs to their corresponding subassemblies.
+        - A dictionary mapping instance IDs to their corresponding rigid subassemblies.
     """
     return asyncio.run(get_subassemblies_async(assembly, client, instances))
 
@@ -291,8 +343,8 @@ async def _fetch_mass_properties_async(
         part: The part for which to fetch mass properties.
         key: The instance key associated with the part.
         client: The Onshape client object.
-        rigid_subassembly_map: Mapping of instance IDs to rigid subassemblies.
-        part_map: The dictionary to store fetched parts.
+        rigid_subassemblies: Mapping of instance IDs to rigid subassemblies.
+        parts: The dictionary to store fetched parts.
     """
     if key.split(SUBASSEMBLY_JOINER)[0] not in rigid_subassemblies:
         try:
@@ -322,9 +374,9 @@ async def _get_parts_async(
 
     Args:
         assembly: The Onshape assembly object to use for extracting parts.
-        rigid_subassembly_map: Mapping of instance IDs to rigid subassemblies.
+        rigid_subassemblies: Mapping of instance IDs to rigid subassemblies.
         client: The Onshape client object.
-        instance_map: Mapping of instance IDs to their corresponding instances.
+        instances: Mapping of instance IDs to their corresponding instances.
 
     Returns:
         A dictionary mapping part IDs to their corresponding part objects.
@@ -419,6 +471,14 @@ async def build_rigid_subassembly_occurrence_map(
 ) -> dict[str, dict[str, Occurrence]]:
     """
     Asynchronously build a map of rigid subassembly occurrences.
+
+    Args:
+        rigid_subassemblies: Mapping of instance IDs to rigid subassemblies.
+        id_to_name_map: A dictionary mapping instance IDs to their sanitized names.
+        parts: A dictionary mapping instance IDs to their corresponding parts.
+
+    Returns:
+        A dictionary mapping occurrence paths to their corresponding occurrences.
     """
     occurrence_map: dict[str, dict[str, Occurrence]] = {}
     for assembly_key, rigid_subassembly in rigid_subassemblies.items():
@@ -461,6 +521,19 @@ async def process_features_async(  # noqa: C901
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
     Process assembly features asynchronously.
+
+    Args:
+        features: The assembly features to process.
+        parts: A dictionary mapping instance IDs to their corresponding parts.
+        id_to_name_map: A dictionary mapping instance IDs to their sanitized names.
+        rigid_subassembly_occurrence_map: A dictionary mapping occurrence paths to their corresponding occurrences.
+        rigid_subassemblies: Mapping of instance IDs to rigid subassemblies.
+        subassembly_prefix: The prefix for the subassembly.
+
+    Returns:
+        A tuple containing:
+        - A dictionary mapping occurrence paths to their corresponding mates.
+        - A dictionary mapping occurrence paths to their corresponding relations.
     """
     mates_map: dict[str, MateFeatureData] = {}
     relations_map: dict[str, MateRelationFeatureData] = {}
@@ -533,6 +606,18 @@ async def get_mates_and_relations_async(
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
     Asynchronously get mates and relations.
+
+    Args:
+        assembly: The assembly object to traverse.
+        subassemblies: A dictionary mapping instance IDs to their corresponding subassemblies.
+        rigid_subassemblies: Mapping of instance IDs to rigid subassemblies.
+        id_to_name_map: A dictionary mapping instance IDs to their sanitized names.
+        parts: A dictionary mapping instance IDs to their corresponding parts.
+
+    Returns:
+        A tuple containing:
+        - A dictionary mapping occurrence paths to their corresponding mates.
+        - A dictionary mapping occurrence paths to their corresponding relations.
     """
     rigid_subassembly_occurrence_map = await build_rigid_subassembly_occurrence_map(
         rigid_subassemblies, id_to_name_map, parts
@@ -566,6 +651,18 @@ def get_mates_and_relations(
 ) -> tuple[dict[str, MateFeatureData], dict[str, MateRelationFeatureData]]:
     """
     Synchronous wrapper for `get_mates_and_relations_async`.
+
+    Args:
+        assembly: The assembly object to traverse.
+        subassemblies: A dictionary mapping instance IDs to their corresponding subassemblies.
+        rigid_subassemblies: Mapping of instance IDs to rigid subassemblies.
+        id_to_name_map: A dictionary mapping instance IDs to their sanitized names.
+        parts: A dictionary mapping instance IDs to their corresponding parts.
+
+    Returns:
+        A tuple containing:
+        - A dictionary mapping occurrence paths to their corresponding mates.
+        - A dictionary mapping occurrence paths to their corresponding relations.
     """
     return asyncio.run(
         get_mates_and_relations_async(assembly, subassemblies, rigid_subassemblies, id_to_name_map, parts)
