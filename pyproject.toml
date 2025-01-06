@@ -2,7 +2,7 @@
 name = "onshape_robotics_toolkit"
 version = "0.0.1"
 description = "A python library to facilitate interaction with Onshape's REST API"
-authors = ["Senthur Ayyappan <neurobionics@gmail.com>"]
+authors = ["Senthur Ayyappan <senthurayyappan@gmail.com>"]
 repository = "https://github.com/neurobionics/onshape-robotics-toolkit"
 documentation = "https://neurobionics.github.io/onshape-robotics-toolkit/"
 readme = "README.md"

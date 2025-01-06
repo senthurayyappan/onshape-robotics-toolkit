@@ -258,12 +258,20 @@ class Client:
 
         # /documents/d/{did}/{wvm}/{wvmid}/elements
         request_path = "/api/documents/d/" + did + "/" + wtype + "/" + wid + "/elements"
-        _elements_json = self.request(
+        response = self.request(
             HTTP.GET,
             request_path,
-        ).json()
+        )
 
-        return {element["name"]: Element.model_validate(element) for element in _elements_json}
+        if response.status_code == 404:
+            LOGGER.error(f"Elements not found for document: {did}")
+            return {}
+
+        elif response.status_code == 403:
+            LOGGER.error(f"Access forbidden for document: {did}")
+            return {}
+
+        return {element["name"]: Element.model_validate(element) for element in response.json()}
 
     def get_variables(self, did: str, wid: str, eid: str) -> dict[str, Variable]:
         """
