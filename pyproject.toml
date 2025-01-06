@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "onshape_robotics_toolkit"
+name = "onshape-robotics-toolkit"
 version = "0.0.1"
 description = "A python library to facilitate interaction with Onshape's REST API"
 authors = ["Senthur Ayyappan <senthurayyappan@gmail.com>"]
