@@ -24,7 +24,13 @@ from lxml import etree as ET
 from scipy.spatial.transform import Rotation
 from scipy.spatial.transform import Rotation as R
 
-from onshape_robotics_toolkit.models.geometry import BaseGeometry, BoxGeometry, CylinderGeometry, MeshGeometry, SphereGeometry
+from onshape_robotics_toolkit.models.geometry import (
+    BaseGeometry,
+    BoxGeometry,
+    CylinderGeometry,
+    MeshGeometry,
+    SphereGeometry,
+)
 from onshape_robotics_toolkit.utilities import format_number
 
 

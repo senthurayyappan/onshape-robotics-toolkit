@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "onshape-robotics-toolkit"
-version = "0.1.0"
+version = "0.1.1"
 description = "A python library to facilitate interaction with Onshape's REST API"
 authors = ["Senthur Ayyappan <senthurayyappan@gmail.com>"]
 repository = "https://github.com/neurobionics/onshape-robotics-toolkit"
@@ -34,6 +34,7 @@ mypy = "^1.5.1"
 pre-commit = "^3.4.0"
 tox = "^4.11.1"
 pymdown-extensions = "^10.12"
+types-lxml = "^2024.12.13"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.4.2"

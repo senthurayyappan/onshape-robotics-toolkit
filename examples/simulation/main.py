@@ -4,7 +4,6 @@ import mujoco.viewer
 import numpy as np
 import optuna
 from mods import modify_ballbot
-
 from scipy.spatial.transform import Rotation
 from transformations import compute_motor_torques
 
@@ -12,7 +11,6 @@ from onshape_robotics_toolkit.connect import Client
 from onshape_robotics_toolkit.log import LOGGER, LogLevel
 from onshape_robotics_toolkit.models.document import Document
 from onshape_robotics_toolkit.robot import Robot, RobotType
-
 
 HEIGHT = 480
 WIDTH = 640
@@ -174,4 +172,3 @@ if __name__ == "__main__":
     print("  Params:")
     for key, value in study.best_trial.params.items():
         print(f"    {key}: {value}")
-

@@ -1040,5 +1040,6 @@ if __name__ == "__main__":
 
     # simulate_robot("test.xml")
 
-    # robot = Robot.from_urdf("E:/onshape-robotics-toolkit/playground/20240920_umv_mini/20240920_umv_mini/20240920_umv_mini.urdf")
+    # robot = Robot.from_urdf("E:/onshape-robotics-toolkit/playground/20240920_umv_mini/"
+    #                        "20240920_umv_mini/20240920_umv_mini.urdf")
     # robot.save(file_path="E:/onshape-robotics-toolkit/playground/test.urdf", download_assets=False)

@@ -15,7 +15,7 @@ The `onshape-robotics-toolkit` library is designed for users seeking a scalable,
 
 &nbsp;
 
-| Feature                              | `onshape-robotics-toolkit`                        | `onshape-to-robot`                      |
+| Feature                              | `onshape-robotics-toolkit`           | `onshape-to-robot`                      |
 | ------------------------------------ | ------------------------------------ | --------------------------------------- |
 | **Workflow Flexibility**             | ✅ Open-ended and customizable       | ❌ Predefined and rigid                 |
 | **Design-Time Considerations**       | ✅ None                              | ❌ Requires specific naming conventions |
