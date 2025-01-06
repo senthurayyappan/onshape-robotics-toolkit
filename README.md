@@ -1,6 +1,6 @@
 # onshape-robotics-toolkit
 
-`onshape-robotics-toolkit` is a feature-rich Python library that significantly extends the capabilities of Onshape's web-based CAD platform. The library provides a comprehensive API for automating robot design tasks, including solid model manipulation, robot assembly management, graph-based visualizations, and exporting CAD assemblies to URDF files for simulation and control. Intended as a resource for the robotics community, this library leverages Onshape's REST API to facilitate advanced workflows that bridge CAD design and robotics applications.
+The `onshape-robotics-toolkit` is a feature-rich Python library that significantly extends the capabilities of Onshape's web-based CAD platform. The library provides a comprehensive API for automating robot design tasks, including solid model manipulation, robot assembly management, graph-based visualizations, and exporting CAD assemblies to URDF files for simulation and control. Intended as a resource for the robotics community, this library leverages Onshape's REST API to facilitate advanced workflows that bridge CAD design and robotics applications.
 
 <img src="docs\tutorials\export\export-header.gif" alt="Header" style="width: 100%;">
 
@@ -49,6 +49,10 @@ git clone https://github.com/neurobionics/onshape-robotics-toolkit.git
 cd onshape-robotics-toolkit
 poetry install
 ```
+
+## Acknowledgements
+
+This repository was developed to facilitate an internal project at the AI Institute, and was supported by Senthur Ayyappan, Ben Bokser, Daniel Gonzalez, Surya Singh, Sangbae Kim, Stellian Coros, and Elliott Rouse.
 
 ## Contributing
 
