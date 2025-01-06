@@ -52,7 +52,7 @@ poetry install
 
 ## Acknowledgements
 
-This repository was developed to facilitate an internal project at the AI Institute, and was supported by Senthur Ayyappan, Ben Bokser, Daniel Gonzalez, Surya Singh, Sangbae Kim, Stelian Coros, and Elliott Rouse.
+This repository was created to facilitate an internal project at the AI Institute; it was developed by Senthur Ayyappan and Elliott Rouse. We'd also like to ackowledge considerable support and guidance from Ben Bokser, Daniel Gonzalez, Surya Singh, Sangbae Kim, and Stelian Coros at the AI Institute.
 
 ## Contributing
 
