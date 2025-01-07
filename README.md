@@ -50,6 +50,10 @@ cd onshape-robotics-toolkit
 poetry install
 ```
 
+## Documentation
+
+The documentation is available at [https://neurobionics.github.io/onshape-robotics-toolkit/](https://neurobionics.github.io/onshape-robotics-toolkit/). It is generated using `mkdocs` and `mkdocs-material` and hosted on GitHub Pages.
+
 ## Acknowledgements
 
 This repository was created to facilitate an internal project at the AI Institute; it was developed by [Senthur Ayyappan](https://senthurayyappan.github.io/) and [Elliott Rouse](https://neurobionics.robotics.umich.edu/). We'd also like to acknowledge considerable support and guidance from Ben Bokser, Daniel Gonzalez, Surya Singh, Sangbae Kim, and Stelian Coros at the AI Institute.
