@@ -1,5 +1,11 @@
 # onshape-robotics-toolkit
 
+[![Python Version](https://img.shields.io/pypi/pyversions/onshape-robotics-toolkit)](https://pypi.org/project/onshape-robotics-toolkit/)
+[![License](https://img.shields.io/github/license/neurobionics/onshape-robotics-toolkit)](https://github.com/neurobionics/onshape-robotics-toolkit/blob/main/LICENSE)
+[![DOI](https://zenodo.org/badge/865051944.svg)](https://doi.org/10.5281/zenodo.14617407)
+[![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/neurobionics/onshape-robotics-toolkit/blob/main/.pre-commit-config.yaml)
+[![Docs](https://img.shields.io/badge/docs-mkdocs-blue)](https://neurobionics.github.io/onshape-robotics-toolkit/)
+
 The `onshape-robotics-toolkit` is a feature-rich Python library that significantly extends the capabilities of Onshape's web-based CAD platform. The library provides a comprehensive API for automating robot design tasks, including solid model manipulation, robot assembly management, graph-based visualizations, and exporting CAD assemblies to URDF files for simulation and control. Intended as a resource for the robotics community, this library leverages Onshape's REST API to facilitate advanced workflows that bridge CAD design and robotics applications.
 
 <img src="docs\tutorials\export\export-header.gif" alt="Header" style="width: 100%;">
@@ -56,15 +62,15 @@ The documentation is available at [https://neurobionics.github.io/onshape-roboti
 
 ## Acknowledgements
 
-This repository was created to facilitate an internal project at the AI Institute; it was developed by [Senthur Ayyappan](https://senthurayyappan.github.io/) and [Elliott Rouse](https://neurobionics.robotics.umich.edu/). We'd also like to acknowledge considerable support and guidance from Ben Bokser, Daniel Gonzalez, Surya Singh, Sangbae Kim, and Stelian Coros at the AI Institute.
+This repository was created to facilitate an internal project at [the AI Institute](https://theaiinstitute.com/); it was developed by [Senthur Ayyappan](https://senthurayyappan.github.io/) and [Elliott Rouse](https://neurobionics.robotics.umich.edu/). We'd also like to acknowledge considerable support and guidance from Ben Bokser, Daniel Gonzalez, Surya Singh, Sangbae Kim, and Stelian Coros at the AI Institute.
 
 ## Contributing
 
-If you're interested in contributing to the project, please read the [contributing guidelines](contributing.md) to get started. All contributions are welcome!
+If you're interested in contributing to the project, please read the [contributing guidelines](https://github.com/neurobionics/onshape-robotics-toolkit/blob/main/CONTRIBUTING.md) to get started. All contributions are welcome!
 
 ## License
 
-This project is licensed under the Apache 2.0 License. For more information, please refer to the [license](#) file.
+This project is licensed under the Apache 2.0 License. For more information, please refer to the [license](https://github.com/neurobionics/onshape-robotics-toolkit/blob/main/LICENSE) file.
 
 ## References
 
