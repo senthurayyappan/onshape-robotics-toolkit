@@ -131,25 +131,25 @@ class Variable(BaseModel):
 
         return value
 
-    @field_validator("expression")
-    def validate_expression(cls, value: str) -> str:
-        """
-        Validate the variable expression to ensure it is not empty and in the correct format.
+    # @field_validator("expression")
+    # def validate_expression(cls, value: str) -> str:
+    #     """
+    #     Validate the variable expression to ensure it is not empty and in the correct format.
 
-        Args:
-            value (str): The variable expression to validate.
+    #     Args:
+    #         value (str): The variable expression to validate.
 
-        Returns:
-            str: The validated variable expression.
+    #     Returns:
+    #         str: The validated variable expression.
 
-        Raises:
-            ValueError: If the variable expression is empty or not in the correct format.
-        """
-        if not value:
-            raise ValueError("Variable expression cannot be empty")
+    #     Raises:
+    #         ValueError: If the variable expression is empty or not in the correct format.
+    #     """
+    #     if not value:
+    #         raise ValueError("Variable expression cannot be empty")
 
-        # ensure that there is a space between the value and the unit
-        if not value.split(" ")[1]:
-            raise ValueError("Invalid expression format, must be in the form of 'value unit' e.g. '15 deg'")
+    #     # ensure that there is a space between the value and the unit
+    #     if not value.split(" ")[1]:
+    #         raise ValueError("Invalid expression format, must be in the form of 'value unit' e.g. '15 deg'")
 
-        return value
+    #     return value
