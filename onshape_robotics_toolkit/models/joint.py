@@ -417,8 +417,8 @@ class RevoluteJoint(BaseJoint):
         <Element 'joint' at 0x7f8b3c0b4c70>
     """
 
-    limits: JointLimits
     axis: Axis
+    limits: JointLimits | None = None
     dynamics: JointDynamics | None = None
     mimic: JointMimic | None = None
 
@@ -474,7 +474,8 @@ class RevoluteJoint(BaseJoint):
         joint.set("pos", " ".join(map(str, self.origin.xyz)))
 
         self.axis.to_mjcf(joint)
-        joint.set("range", " ".join(map(str, [self.limits.lower, self.limits.upper])))
+        if self.limits:
+            joint.set("range", " ".join(map(str, [self.limits.lower, self.limits.upper])))
 
         if self.dynamics:
             joint.set("damping", str(self.dynamics.damping))

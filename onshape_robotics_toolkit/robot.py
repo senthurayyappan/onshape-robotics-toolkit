@@ -58,7 +58,7 @@ DEFAULT_COMPILER_ATTRIBUTES = {
     # "meshdir": "meshes",
 }
 
-DEFAULT_OPTION_ATTRIBUTES = {"timestep": "0.001", "gravity": "0 0 -9.81", "iterations": "50", "solver": "PGS"}
+DEFAULT_OPTION_ATTRIBUTES = {"timestep": "0.001", "gravity": "0 0 -9.81", "iterations": "50"}
 
 URDF_EULER_SEQ = "xyz"  # URDF uses XYZ fixed angles
 MJCF_EULER_SEQ = "XYZ"  # MuJoCo uses XYZ extrinsic rotations, capitalization matters
@@ -250,11 +250,11 @@ class Robot:
         self,
         actuator_name: str,
         joint_name: str,
-        ctrl_limited: bool,
-        gear: float,
+        ctrl_limited: bool = False,
         add_encoder: bool = True,
         add_force_sensor: bool = True,
         ctrl_range: tuple[float, float] = (0, 0),
+        gear: float = 1.0,
     ) -> None:
         """
         Add an actuator to the robot model.
@@ -664,7 +664,7 @@ class Robot:
                 element = element_info["element"]
 
                 if find_by_tag:
-                    parent_element = model.find(parent)
+                    parent_element = model if parent == "mujoco" else model.find(parent)
                 else:
                     xpath = f".//body[@name='{parent}']"
                     parent_element = model.find(xpath)

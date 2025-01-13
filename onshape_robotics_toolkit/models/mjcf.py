@@ -106,8 +106,8 @@ class Actuator:
 
     name: str
     joint: str
-    ctrllimited: bool
-    gear: float
+    ctrllimited: bool = False
+    gear: float = 1.0
     ctrlrange: tuple[float, float] = (0, 0)
 
     def to_mjcf(self, root: ET.Element) -> None:

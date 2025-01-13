@@ -27,24 +27,24 @@ def modify_ballbot(ballbot: Robot) -> Robot:
     ballbot.add_actuator(
         actuator_name="motor-1",
         joint_name="Revolute-1",
-        ctrl_limited=False,
-        gear=70,
+        ctrl_limited=True,
+        ctrl_range=(-3, 3),
         add_encoder=True,
         add_force_sensor=True,
     )
     ballbot.add_actuator(
         actuator_name="motor-2",
         joint_name="Revolute-2",
-        ctrl_limited=False,
-        gear=70,
+        ctrl_limited=True,
+        ctrl_range=(-3, 3),
         add_encoder=True,
         add_force_sensor=True,
     )
     ballbot.add_actuator(
         actuator_name="motor-3",
         joint_name="Revolute-3",
-        ctrl_limited=False,
-        gear=70,
+        ctrl_limited=True,
+        ctrl_range=(-3, 3),
         add_encoder=True,
         add_force_sensor=True,
     )
@@ -63,6 +63,24 @@ def modify_ballbot(ballbot: Robot) -> Robot:
         sensor=Gyro(name="gyro-1", site="imu", noise=0.001, cutoff=34.9),
     )
 
+    contact = ET.Element("contact")
+    pair_1 = ET.SubElement(contact, "pair")
+    pair_1.set("geom1", "Part-2-3-collision")
+    pair_1.set("geom2", "Part-1-1-collision")
+    pair_1.set("friction", "0.3 0.3 0.005 0.9 0.9")
+
+    pair_2 = ET.SubElement(contact, "pair")
+    pair_2.set("geom1", "Part-2-2-collision")
+    pair_2.set("geom2", "Part-1-1-collision")
+    pair_2.set("friction", "0.3 0.3 0.005 0.9 0.9")
+
+    pair_3 = ET.SubElement(contact, "pair")
+    pair_3.set("geom1", "Part-2-1-collision")
+    pair_3.set("geom2", "Part-1-1-collision")
+    pair_3.set("friction", "0.3 0.3 0.005 0.9 0.9")
+
+    ballbot.add_custom_element_by_tag(name="contact", parent_tag="mujoco", element=contact)
+
     ballbot_mesh = ET.Element("mesh", attrib={"name": "Part-1-1", "file": "meshes/ball.stl"})
     ballbot.add_custom_element_by_tag(name="ballbot", parent_tag="asset", element=ballbot_mesh)
     ball = load_element("ball.xml")
@@ -73,9 +91,8 @@ def modify_ballbot(ballbot: Robot) -> Robot:
     # ballbot.set_element_attributes(element_name="Part-2-2-collision", attributes={"friction": "0.1 0.05 0.001"})
     # ballbot.set_element_attributes(element_name="Part-2-3-collision", attributes={"friction": "0.1 0.05 0.001"})
 
-    # set force range to -1 to 1 for all joints
-    ballbot.set_element_attributes(element_name="Revolute-1", attributes={"actuatorfrcrange": "-3 3"})
-    ballbot.set_element_attributes(element_name="Revolute-2", attributes={"actuatorfrcrange": "-3 3"})
-    ballbot.set_element_attributes(element_name="Revolute-3", attributes={"actuatorfrcrange": "-3 3"})
+    ballbot.set_element_attributes(element_name="Revolute-1", attributes={"axis": "0 0 1", "damping": "0.05"})
+    ballbot.set_element_attributes(element_name="Revolute-2", attributes={"axis": "0 0 1", "damping": "0.05"})
+    ballbot.set_element_attributes(element_name="Revolute-3", attributes={"axis": "0 0 1", "damping": "0.05"})
 
     return ballbot

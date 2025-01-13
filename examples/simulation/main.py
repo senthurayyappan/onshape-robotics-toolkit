@@ -16,81 +16,80 @@ HEIGHT = 480
 WIDTH = 640
 
 FREQUENCY = 200
+dt = 1 / FREQUENCY
 PHASE = 3
 
 # Variable bounds (in mm and degrees)
-WHEEL_DIAMETER_BOUNDS = (100, 200)
+WHEEL_DIAMETER_BOUNDS = (100, 120)
+SPACER_HEIGHT_BOUNDS = (65, 120)
 ALPHA_BOUNDS = (30, 55)
-
 
 SIMULATION_DURATION = 10  # seconds to run each trial
 MIN_HEIGHT = 0.15  # minimum height before considering failure
 
 # PID parameters for roll, pitch, and yaw
-KP = 2
-KI = 0.0
-KD = 0.0
+KP = 160.0
+KI = 10.0
+KD = 2.0
 
-# Initialize integral and previous error for PID
-integral_roll = 0
-integral_pitch = 0
+integral_error_x = 0.0
+integral_error_y = 0.0
+previous_error_x = 0.0
+previous_error_y = 0.0
 
-prev_error_roll = 0
-prev_error_pitch = 0
-
-
-def get_theta(data):
-    rot = Rotation.from_quat(data.sensor("imu").data)
-    theta = rot.as_euler("xyz", degrees=False)
+def get_theta(data, degrees=False):
+    rot = Rotation.from_quat(data.qpos[3:7], scalar_first=True)
+    theta = rot.as_euler("XYZ", degrees=degrees)
     return theta[0], theta[1], theta[2]
 
+def control(data, alpha):
+    global integral_error_x, integral_error_y, previous_error_x, previous_error_y
 
-def control(data, roll_sp=0, pitch_sp=0, yaw_sp=0):
-    global integral_roll, integral_pitch
-    global prev_error_roll, prev_error_pitch
-
-    roll, pitch, yaw = get_theta(data)
-    roll = roll - np.pi
-
-    # swap roll and pitch
-    roll, pitch = pitch, roll
+    # Get current orientation
+    theta = get_theta(data)
 
     # Calculate errors
-    error_roll = roll_sp - roll
-    error_pitch = pitch_sp - pitch
+    error_x = 0.0 - theta[0]
+    error_y = 0.0 - theta[1]
 
-    # Update integrals
-    integral_roll += error_roll
-    integral_pitch += error_pitch
+    # Update integral errors
+    integral_error_x += error_x * dt
+    integral_error_y += error_y * dt
 
-    # Calculate derivatives
-    derivative_roll = error_roll - prev_error_roll
-    derivative_pitch = error_pitch - prev_error_pitch
+    # Calculate derivative errors
+    derivative_error_x = (error_x - previous_error_x) / dt
+    derivative_error_y = (error_y - previous_error_y) / dt
 
-    # PID control for each axis
-    tx = KP * error_roll + KI * integral_roll + KD * derivative_roll
-    ty = -1 * (KP * error_pitch + KI * integral_pitch + KD * derivative_pitch)
+    # PID control calculations
+    tx = KP * error_x + KI * integral_error_x + KD * derivative_error_x
+    ty = KP * error_y + KI * integral_error_y + KD * derivative_error_y
     tz = 0.0
 
-    # Compute motor torques
-    t1, t2, t3 = compute_motor_torques(tx, ty, tz)
+    # Saturate the torque values to be within [-3, 3] Nm
+    tx = np.clip(tx, -3.0, 3.0)
+    ty = np.clip(ty, -3.0, 3.0)
+    tz = np.clip(tz, -3.0, 3.0)
 
-    # Apply control signals
+    # Update previous errors
+    previous_error_x = error_x
+    previous_error_y = error_y
+
+    # Compute motor torques
+    t1, t2, t3 = compute_motor_torques(np.deg2rad(alpha), tx, ty, tz)
     data.ctrl[0] = t1
     data.ctrl[1] = t2
     data.ctrl[2] = t3
 
-    # Update previous errors
-    prev_error_roll = error_roll
-    prev_error_pitch = error_pitch
-
 
 def objective(trial):
+    # reset global PID error values
     wheel_diameter = trial.suggest_float("wheel_diameter", WHEEL_DIAMETER_BOUNDS[0], WHEEL_DIAMETER_BOUNDS[1])
+    spacer_height = trial.suggest_float("spacer_height", SPACER_HEIGHT_BOUNDS[0], SPACER_HEIGHT_BOUNDS[1])
     alpha = trial.suggest_float("alpha", ALPHA_BOUNDS[0], ALPHA_BOUNDS[1])
 
     variables["wheel_diameter"].expression = f"{wheel_diameter:.1f} mm"
     variables["alpha"].expression = f"{alpha:.1f} deg"
+    variables["spacer_height"].expression = f"{spacer_height:.1f} mm"
     client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
 
     ballbot: Robot = Robot.from_url(
@@ -114,12 +113,21 @@ def objective(trial):
             timesteps = 0
             max_timesteps = int(SIMULATION_DURATION / model.opt.timestep)
             total_angle_error = 0
+            # reset global PID error values
+            global integral_error_x, integral_error_y, previous_error_x, previous_error_y
+            integral_error_x = 0.0
+            integral_error_y = 0.0
+            previous_error_x = 0.0
+            previous_error_y = 0.0
+
             # Reset data for a new trial
             mujoco.mj_resetData(model, data)
 
             while timesteps < max_timesteps and viewer.is_running():
                 mujoco.mj_step(model, data)
-                control(data)
+
+                if data.time > 0.3:
+                    control(data, alpha)
 
                 if data.body("ballbot").xpos[2] < MIN_HEIGHT:
                     print("Ballbot fell below minimum height, ending trial.")
