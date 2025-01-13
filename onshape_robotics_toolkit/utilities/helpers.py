@@ -17,6 +17,7 @@ import random
 import re
 from xml.sax.saxutils import escape
 
+import dotenv
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,6 +37,20 @@ class CustomJSONEncoder(json.JSONEncoder):
             return list(obj)  # Convert set to list
         return super().default(obj)
 
+def load_key_from_environment(key_to_load: str) -> str:
+    key = os.getenv(key_to_load)
+
+    if not key:
+        raise ValueError(f"Missing environment variable: {key_to_load}")
+    return key
+
+def load_key_from_dotenv(env: str, key_to_load: str) -> str:
+    if not os.path.isfile(env):
+        raise FileNotFoundError(f"'{env}' file not found")
+    key = dotenv.get_key(env, key_to_load)
+    if not key:
+        raise ValueError(f"Missing dotenv variable: {key_to_load}")
+    return key
 
 def save_model_as_json(model: BaseModel, file_path: str, indent: int = 4) -> None:
     """
