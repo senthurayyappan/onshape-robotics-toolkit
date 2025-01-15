@@ -364,7 +364,7 @@ class Robot:
         self.mutated_elements[element_name] = attributes
 
     def add_ground_plane(
-        self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float] = (0, 0, 0)
+        self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float] = (0, 0, 0), name: str = "floor"
     ) -> ET.Element:
         """
         Add a ground plane to the root element with associated texture and material.
@@ -372,13 +372,14 @@ class Robot:
             root: The root element to append the ground plane to (e.g. "asset", "worldbody")
             size: Size of the ground plane (default: 2)
             orientation: Euler angles for orientation (default: (0, 0, 0))
-
+            name: Name of the ground plane (default: "floor")
         Returns:
             ET.Element: The ground plane element
         """
         # Create ground plane geom element
         ground_geom = ET.Element(
             "geom",
+            name=name,
             type="plane",
             pos=" ".join(map(str, self.ground_position)),
             euler=" ".join(map(str, orientation)),
@@ -389,7 +390,7 @@ class Robot:
         )
 
         # Add to custom elements
-        self.add_custom_element_by_tag("ground", "worldbody", ground_geom)
+        self.add_custom_element_by_tag(name, "worldbody", ground_geom)
 
         return ground_geom
 

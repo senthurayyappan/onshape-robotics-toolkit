@@ -28,7 +28,7 @@ def modify_ballbot(ballbot: Robot) -> Robot:
         actuator_name="motor-1",
         joint_name="Revolute-1",
         ctrl_limited=True,
-        ctrl_range=(-3, 3),
+        ctrl_range=(-50, 50),
         add_encoder=True,
         add_force_sensor=True,
     )
@@ -36,7 +36,7 @@ def modify_ballbot(ballbot: Robot) -> Robot:
         actuator_name="motor-2",
         joint_name="Revolute-2",
         ctrl_limited=True,
-        ctrl_range=(-3, 3),
+        ctrl_range=(-50, 50),
         add_encoder=True,
         add_force_sensor=True,
     )
@@ -44,7 +44,7 @@ def modify_ballbot(ballbot: Robot) -> Robot:
         actuator_name="motor-3",
         joint_name="Revolute-3",
         ctrl_limited=True,
-        ctrl_range=(-3, 3),
+        ctrl_range=(-50, 50),
         add_encoder=True,
         add_force_sensor=True,
     )
@@ -56,28 +56,48 @@ def modify_ballbot(ballbot: Robot) -> Robot:
     # Add sensor
     ballbot.add_sensor(
         name="imu",
-        sensor=IMU(name="imu", objtype="site", objname="imu", noise=0.001),
+        sensor=IMU(name="imu", objtype="site", objname="imu"),
     )
     ballbot.add_sensor(
         name="gyro-1",
-        sensor=Gyro(name="gyro-1", site="imu", noise=0.001, cutoff=34.9),
+        sensor=Gyro(name="gyro-1", site="imu"),
     )
 
     contact = ET.Element("contact")
     pair_1 = ET.SubElement(contact, "pair")
     pair_1.set("geom1", "Part-2-3-collision")
     pair_1.set("geom2", "Part-1-1-collision")
-    pair_1.set("friction", "0.3 0.3 0.005 0.9 0.9")
+    pair_1.set("friction", "1.75 2.5 0.001 0.001 0.001")
 
     pair_2 = ET.SubElement(contact, "pair")
     pair_2.set("geom1", "Part-2-2-collision")
     pair_2.set("geom2", "Part-1-1-collision")
-    pair_2.set("friction", "0.3 0.3 0.005 0.9 0.9")
+    pair_2.set("friction", "1.75 2.5 0.001 0.001 0.001")
 
     pair_3 = ET.SubElement(contact, "pair")
     pair_3.set("geom1", "Part-2-1-collision")
     pair_3.set("geom2", "Part-1-1-collision")
-    pair_3.set("friction", "0.3 0.3 0.005 0.9 0.9")
+    pair_3.set("friction", "1.75 2.5 0.001 0.001 0.001")
+
+    pair_4 = ET.SubElement(contact, "pair")
+    pair_4.set("geom1", "Part-2-3-collision")
+    pair_4.set("geom2", "floor")
+    pair_4.set("friction", "0.01 0.9 0.001 0.001 0.001")
+
+    pair_5 = ET.SubElement(contact, "pair")
+    pair_5.set("geom1", "Part-2-2-collision")
+    pair_5.set("geom2", "floor")
+    pair_5.set("friction", "0.01 0.9 0.001 0.001 0.001")
+
+    pair_6 = ET.SubElement(contact, "pair")
+    pair_6.set("geom1", "Part-2-1-collision")
+    pair_6.set("geom2", "floor")
+    pair_6.set("friction", "0.01 0.9 0.001 0.001 0.001")
+
+    pair_7 = ET.SubElement(contact, "pair")
+    pair_7.set("geom1", "Part-1-1-collision")
+    pair_7.set("geom2", "floor")
+    pair_7.set("friction", "1 10 3 10 10")
 
     ballbot.add_custom_element_by_tag(name="contact", parent_tag="mujoco", element=contact)
 
