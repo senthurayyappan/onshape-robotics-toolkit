@@ -278,15 +278,15 @@ def make_unique_name(name: str, existing_names: set[str]) -> str:
     return f"{name}-{count}"
 
 
-def get_sanitized_name(name: str, replace_with: str = "-") -> str:
+def get_sanitized_name(name: str, replace_with: str = "_") -> str:
     """
-    Sanitize a name by removing special characters, preserving "-" and "_", and
-    replacing spaces with a specified character. Ensures no consecutive replacement
-    characters in the result.
+    Sanitize a name by removing special characters, preserving only the specified
+    replacement character, and replacing spaces with it. Ensures no consecutive
+    replacement characters in the result.
 
     Args:
         name: Name to sanitize
-        replace_with: Character to replace spaces with (default is '-')
+        replace_with: Character to replace spaces and other special characters with (default is '_')
 
     Returns:
         Sanitized name
@@ -305,7 +305,7 @@ def get_sanitized_name(name: str, replace_with: str = "-") -> str:
     if replace_with not in "-_":
         raise ValueError("replace_with must be either '-' or '_'")
 
-    sanitized_name = "".join(char if char.isalnum() or char in "-_ " else "" for char in name)
+    sanitized_name = "".join(char if char.isalnum() or char in "_ " else "" for char in name)
     sanitized_name = sanitized_name.replace(" ", replace_with)
     sanitized_name = re.sub(f"{re.escape(replace_with)}{{2,}}", replace_with, sanitized_name)
 
@@ -333,4 +333,4 @@ def save_gif(frames, filename="sim.gif", framerate=60):
 
 
 if __name__ == "__main__":
-    LOGGER.info(get_sanitized_name(input("Enter a name: ")))
+    LOGGER.info(get_sanitized_name(get_sanitized_name("Part 3 <1>")))

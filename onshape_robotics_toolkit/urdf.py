@@ -140,7 +140,7 @@ def get_robot_link(
     _link = Link(
         name=name,
         visual=VisualLink(
-            name=f"{name}-visual",
+            name=f"{name}_visual",
             origin=_origin,
             geometry=MeshGeometry(_mesh_path),
             material=Material.from_color(name=f"{name}-material", color=random.SystemRandom().choice(list(Colors))),
@@ -161,7 +161,7 @@ def get_robot_link(
             ),
         ),
         collision=CollisionLink(
-            name=f"{name}-collision",
+            name=f"{name}_collision",
             origin=_origin,
             geometry=MeshGeometry(_mesh_path),
         ),
@@ -269,7 +269,7 @@ def get_robot_joint(
 
     elif mate.mateType == MateType.BALL:
         dummy_x = Link(
-            name=f"{parent}-{get_sanitized_name(mate.name)}-x",
+            name=f"{parent}_{get_sanitized_name(mate.name)}_x",
             inertial=InertialLink(
                 mass=0.0,
                 inertia=Inertia.zero_inertia(),
@@ -277,7 +277,7 @@ def get_robot_joint(
             ),
         )
         dummy_y = Link(
-            name=f"{parent}-{get_sanitized_name(mate.name)}-y",
+            name=f"{parent}_{get_sanitized_name(mate.name)}_y",
             inertial=InertialLink(
                 mass=0.0,
                 inertia=Inertia.zero_inertia(),
@@ -289,7 +289,7 @@ def get_robot_joint(
 
         return [
             RevoluteJoint(
-                name=sanitized_name + "-x",
+                name=sanitized_name + "_x",
                 parent=parent,
                 child=dummy_x.name,
                 origin=origin,
@@ -304,7 +304,7 @@ def get_robot_joint(
                 mimic=mimic,
             ),
             RevoluteJoint(
-                name=sanitized_name + "-y",
+                name=sanitized_name + "_y",
                 parent=dummy_x.name,
                 child=dummy_y.name,
                 origin=Origin.zero_origin(),
@@ -319,7 +319,7 @@ def get_robot_joint(
                 mimic=mimic,
             ),
             RevoluteJoint(
-                name=sanitized_name + "-z",
+                name=sanitized_name + "_z",
                 parent=dummy_y.name,
                 child=child,
                 origin=Origin.zero_origin(),

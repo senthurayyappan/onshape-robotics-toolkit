@@ -34,7 +34,7 @@ from onshape_robotics_toolkit.utilities.helpers import get_sanitized_name
 os.environ["TCL_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tcl8.6"
 os.environ["TK_LIBRARY"] = "C:\\Users\\imsen\\AppData\\Local\\Programs\\Python\\Python313\\tcl\\tk8.6"
 
-SUBASSEMBLY_JOINER = "-SUB-"
+SUBASSEMBLY_JOINER = "_SUB_"
 MATE_JOINER = "_to_"
 
 CHILD = 0

@@ -1,9 +1,12 @@
+import os
+
 import mujoco
 import mujoco.include
 import mujoco.viewer
 import numpy as np
 import optuna
 from mods import modify_ballbot
+from mujoco.usd import exporter
 from optuna.pruners import MedianPruner
 from scipy.spatial.transform import Rotation
 from transformations import compute_motor_torques
@@ -17,6 +20,7 @@ HEIGHT = 480
 WIDTH = 640
 
 FREQUENCY = 200
+USD_FRAME_RATE = 30
 dt = 1 / FREQUENCY
 PHASE = 3
 
@@ -147,6 +151,12 @@ def objective(trial):
     mujoco.mj_resetData(model, data)
 
     viewer = mujoco.viewer.launch_passive(model, data)
+
+    usd_exporter = exporter.USDExporter(
+        model=model,
+        output_directory=f"scenes/trial_{trial.number}",
+    )
+
     try:
         timesteps = 0
         max_timesteps = int(SIMULATION_DURATION / model.opt.timestep)
@@ -172,6 +182,9 @@ def objective(trial):
         while timesteps < max_timesteps and viewer.is_running():
             i += 1
             mujoco.mj_step(model, data)
+
+            if usd_exporter.frame_count < data.time * USD_FRAME_RATE:
+                usd_exporter.update_scene(data=data)
 
             if data.time > 0.3:
                 control(data, alpha)
@@ -207,8 +220,10 @@ def objective(trial):
     except Exception as e:
         LOGGER.info(f"An error occurred: {e}")
         return float("inf")
+
     finally:
         viewer.close()
+        usd_exporter.save_scene(filetype="usd")
 
     return objective_value
 
