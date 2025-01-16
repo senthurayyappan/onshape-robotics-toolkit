@@ -18,8 +18,8 @@ from onshape_robotics_toolkit.log import LOGGER, LogLevel
 from onshape_robotics_toolkit.models.document import Document
 from onshape_robotics_toolkit.robot import Robot, RobotType
 
-N_DESIGN_TRAILS = 25
-N_PID_TRAILS = 50
+N_DESIGN_TRAILS = 5
+N_PID_TRAILS = 10
 
 HEIGHT = 480
 WIDTH = 640
@@ -33,10 +33,11 @@ WHEEL_DIAMETER_BOUNDS = (100, 120)
 SPACER_HEIGHT_BOUNDS = (75, 120)
 ALPHA_BOUNDS = (30, 55)
 
-SIMULATION_DURATION = 20  # seconds to run each trial
+SIMULATION_DURATION = 200  # seconds to run each trial
 VIBRATION_PENALTY = 1e-3
 
-PERTURBATION_INCREASE = 0.1 # Amount of Newtons to increase perturbation by each time
+TARGET_VALUE = 28.0
+PERTURBATION_INCREASE = 0.75 # Amount of Newtons to increase perturbation by each time
 PERTURBATION_START = 5 # Time delay before perturbations begin
 PERTURBATION_REST = 7.5 # Time delay between perturbations
 
@@ -156,7 +157,7 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
     kp = trial.suggest_float('kp', low=2, high=25.0, step=0.1)
     ki = trial.suggest_float('ki', low=0.0, high=15.0, step=0.1)
     kd = trial.suggest_float('kd', low=0.0, high=1.0, step=0.001)
-    ff = trial.suggest_float('ff', low=0.01, high=1.0, step=0.05)
+    ff = trial.suggest_float('ff', low=0.01, high=1.01, step=0.05)
 
     LOGGER.info(f"KP: {kp}, KI: {ki}, KD: {kd}, FF: {ff}")
 
@@ -192,9 +193,6 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
     roll_pid.reset()
     pitch_pid.reset()
 
-    # Initialize vibration accumulator
-    vibration_accumulator = 0.0
-
     # Run the simulation
     j = 0
 
@@ -214,21 +212,18 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
         if data.qpos[2] < MIN_HEIGHT:
             break
 
-        # Accumulate vibration metric (e.g., sum of squared angular velocities)
-        if data.qpos[2] < MAX_HEIGHT: # only accumulate vibration till the bot is on the ball
-            dtheta = get_dtheta(data)  # Returns (dtheta_x, dtheta_y, dtheta_z)
-            vibration_accumulator += dtheta[0]**2 + dtheta[1]**2
-
         viewer.sync()
 
     # Combine performance metric with vibration penalty
     time_on_ball = data.time # TODO: Make this more accurate with contact detection
-    vibrations = vibration_accumulator / data.time # Normalizing by trial time to not penalize longer trials
 
     usd_exporter.save_scene(filetype="usd")
 
-    return time_on_ball, vibrations
+    return time_on_ball
 
+def stop_when_target_reached(study, trial):
+    if trial.value is not None and trial.value >= TARGET_VALUE:
+        study.stop()
 
 def find_best_design_variables(trial):
     # reset global PID error values
@@ -271,38 +266,22 @@ def find_best_design_variables(trial):
         },
         usd_output_dir=f"scenes/trial_{trial.number}/pid",
     )
-    pid_study = optuna.create_study(directions=["maximize", "minimize"], sampler=NSGAIISampler())
-    pid_study.optimize(this_pid_study, n_trials=N_PID_TRAILS)
+    pid_study = optuna.create_study(directions=["maximize"])
+    pid_study.optimize(this_pid_study, n_trials=N_PID_TRAILS, callbacks=[stop_when_target_reached])
     viewer.close()
 
-    # Print the best parameters
-    best_trial = None
-    best_score = float('-inf')
-
-    for trial in pid_study.best_trials:
-        time_on_ball, vibrations = trial.values
-        score = time_on_ball - VIBRATION_PENALTY * vibrations
-
-        if score > best_score:
-            best_score = score
-            best_trial = trial
-
-    if best_trial is None:
+    if pid_study.best_params is None:
         LOGGER.error("No best trial found")
         kp = KP
         ki = KI
         kd = KD
         ff = FF
     else:
-        print("Chosen single best trial according to custom scoring:")
-        print("  Score:", best_score)
-        print("  Params:", best_trial.params)
-        print("  Objective values (time, vibrations):", best_trial.values)
-
-        kp = best_trial.params["kp"]
-        ki = best_trial.params["ki"]
-        kd = best_trial.params["kd"]
-        ff = best_trial.params["ff"]
+        LOGGER.info(f"Best PID params: {pid_study.best_params}")
+        kp = pid_study.best_params["kp"]
+        ki = pid_study.best_params["ki"]
+        kd = pid_study.best_params["kd"]
+        ff = pid_study.best_params["ff"]
 
     best_roll_pid = PIDController(
         kp=kp,
@@ -397,7 +376,7 @@ if __name__ == "__main__":
 
     LOGGER.info("\nOptimization finished!")
     LOGGER.info("Best trial:")
-    LOGGER.info(f"  Value: {-study.best_trial.value}")
+    LOGGER.info(f"  Value: {study.best_trial.value}")
     LOGGER.info("  Params:")
     for key, value in study.best_trial.params.items():
         LOGGER.info(f"    {key}: {value}")
