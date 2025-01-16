@@ -9,7 +9,6 @@ import optuna
 from controllers import PIDController
 from mods import modify_ballbot
 from mujoco.usd import exporter
-from optuna.pruners import MedianPruner
 from optuna.samplers import NSGAIISampler
 from scipy.spatial.transform import Rotation
 from transformations import compute_motor_torques
@@ -18,6 +17,9 @@ from onshape_robotics_toolkit.connect import Client
 from onshape_robotics_toolkit.log import LOGGER, LogLevel
 from onshape_robotics_toolkit.models.document import Document
 from onshape_robotics_toolkit.robot import Robot, RobotType
+
+N_DESIGN_TRAILS = 25
+N_PID_TRAILS = 50
 
 HEIGHT = 480
 WIDTH = 640
@@ -45,8 +47,9 @@ MAX_HEIGHT = 0.35 # maximum height before considering failure
 KP = 13.4
 KI = 5.4
 KD = 2.4
+FF = 0.2
 
-MAX_PID_TRIALS = 10
+DERIVATIVE_FILTER_ALPHA = 0.2
 
 TORQUE_LIMIT_HIGH = 5.0
 TORQUE_LIMIT_LOW = -5.0
@@ -155,7 +158,7 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
     kd = trial.suggest_float('kd', low=0.0, high=1.0, step=0.001)
     ff = trial.suggest_float('ff', low=0.01, high=1.0, step=0.05)
 
-    LOGGER.info(f"KP: {kp}, KI: {ki}, KD: {kd}")
+    LOGGER.info(f"KP: {kp}, KI: {ki}, KD: {kd}, FF: {ff}")
 
     usd_exporter = exporter.USDExporter(
         model=model,
@@ -171,7 +174,7 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
         min_output=TORQUE_LIMIT_LOW,
         max_output=TORQUE_LIMIT_HIGH,
         feed_forward_offset=ff,
-        derivative_filter_alpha=0.2,
+        derivative_filter_alpha=DERIVATIVE_FILTER_ALPHA,
     )
     pitch_pid = PIDController(
         kp=kp,
@@ -181,7 +184,7 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
         min_output=TORQUE_LIMIT_LOW,
         max_output=TORQUE_LIMIT_HIGH,
         feed_forward_offset=ff,
-        derivative_filter_alpha=0.2,
+        derivative_filter_alpha=DERIVATIVE_FILTER_ALPHA,
     )
 
     # Reset the simulation
@@ -194,7 +197,6 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
 
     # Run the simulation
     j = 0
-    dt = 1.0 / FREQUENCY
 
     while data.time < SIMULATION_DURATION and viewer.is_running():
         mujoco.mj_step(model, data)
@@ -270,7 +272,7 @@ def find_best_design_variables(trial):
         usd_output_dir=f"scenes/trial_{trial.number}/pid",
     )
     pid_study = optuna.create_study(directions=["maximize", "minimize"], sampler=NSGAIISampler())
-    pid_study.optimize(this_pid_study, n_trials=MAX_PID_TRIALS)
+    pid_study.optimize(this_pid_study, n_trials=N_PID_TRAILS)
     viewer.close()
 
     # Print the best parameters
@@ -290,7 +292,7 @@ def find_best_design_variables(trial):
         kp = KP
         ki = KI
         kd = KD
-        ff = 0.2
+        ff = FF
     else:
         print("Chosen single best trial according to custom scoring:")
         print("  Score:", best_score)
@@ -310,7 +312,7 @@ def find_best_design_variables(trial):
         min_output=TORQUE_LIMIT_LOW,
         max_output=TORQUE_LIMIT_HIGH,
         feed_forward_offset=ff,
-        derivative_filter_alpha=0.2,
+        derivative_filter_alpha=DERIVATIVE_FILTER_ALPHA,
     )
     best_pitch_pid = PIDController(
         kp=kp,
@@ -320,7 +322,7 @@ def find_best_design_variables(trial):
         min_output=TORQUE_LIMIT_LOW,
         max_output=TORQUE_LIMIT_HIGH,
         feed_forward_offset=ff,
-        derivative_filter_alpha=0.2,
+        derivative_filter_alpha=DERIVATIVE_FILTER_ALPHA,
     )
 
     mujoco.mj_resetData(model, data)
@@ -343,7 +345,16 @@ def find_best_design_variables(trial):
             usd_exporter.update_scene(data=data)
 
         if data.time > 0.3:
-            control(data, best_roll_pid, best_pitch_pid, {"alpha": alpha, "wheel_diameter": wheel_diameter, "spacer_height": spacer_height})
+            control(
+                data,
+                best_roll_pid,
+                best_pitch_pid,
+                {
+                    "alpha": alpha,
+                    "wheel_diameter": wheel_diameter,
+                    "spacer_height": spacer_height,
+                },
+            )
 
         if data.time > PERTURBATION_START + j * PERTURBATION_REST:
             j += 1
@@ -361,7 +372,7 @@ def find_best_design_variables(trial):
         viewer.sync()
 
     avg_angle_error = total_angle_error / data.time
-    objective_value = -data.time * 0.5 + avg_angle_error * 10
+    objective_value = data.time * 0.5 - avg_angle_error * 10
 
     viewer.close()
     usd_exporter.save_scene(filetype="usd")
@@ -381,8 +392,8 @@ if __name__ == "__main__":
     elements = client.get_elements(doc.did, doc.wtype, doc.wid)
     variables = client.get_variables(doc.did, doc.wid, elements["variables"].id)
 
-    study = optuna.create_study(direction="minimize")
-    study.optimize(find_best_design_variables, n_trials=5)
+    study = optuna.create_study(direction="maximize")
+    study.optimize(find_best_design_variables, n_trials=N_DESIGN_TRAILS)
 
     LOGGER.info("\nOptimization finished!")
     LOGGER.info("Best trial:")
