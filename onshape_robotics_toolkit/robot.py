@@ -364,7 +364,7 @@ class Robot:
         self.mutated_elements[element_name] = attributes
 
     def add_ground_plane(
-        self, root: ET.Element, size: int = 2, orientation: tuple[float, float, float] = (0, 0, 0), name: str = "floor"
+        self, root: ET.Element, size: int = 4, orientation: tuple[float, float, float] = (0, 0, 0), name: str = "floor"
     ) -> ET.Element:
         """
         Add a ground plane to the root element with associated texture and material.

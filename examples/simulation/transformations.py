@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def transform_w2b(m1, m2, m3):
     """
     Returns Ball (Phi) attributes
@@ -13,11 +12,12 @@ def transform_w2b(m1, m2, m3):
     return x, y, z
 
 
-def compute_motor_torques(alpha, Tx, Ty, Tz):
+def compute_motor_torques(alpha, Tx, Ty, Tz, beta=0.0):
     """
     Parameters:
     ----------
-    alpha: angle of the ball
+    alpha: angle of the motors
+    beta: yaw angle of the bot
     Tx: Torque along x-axis
     Ty: Torque along y-axis
     Tz: Torque along z-axis
@@ -41,8 +41,8 @@ def compute_motor_torques(alpha, Tx, Ty, Tz):
     T3: Motor Torque 3
     """
 
-    T1 = (0.3333) * (Tz + ((2/np.cos(alpha)) * Tx))
-    T2 = (0.3333) * (Tz + ((1/np.cos(alpha)) * (1.7320 * Ty - Tx)))
-    T3 = (0.3333) * (Tz - ((1/np.cos(alpha)) * (Tx + 1.7320 * Ty)))
+    T1 = (0.3333) * (Tz + ((2/np.cos(alpha)) * (Tx * np.cos(beta) - Ty * np.sin(beta))))
+    T2 = (0.3333) * (Tz + ((1/np.cos(alpha)) * (np.sin(beta) * (1.7320 * Tx + Ty) + np.cos(beta) * (1.7320 * Ty - Tx)))) 
+    T3 = (0.3333) * (Tz + ((1/np.cos(alpha)) * (np.sin(beta) * (-1.7320 * Tx + Ty) - np.cos(beta) * (1.7320 * Ty + Tx))))
 
     return T1, T2, T3
