@@ -189,6 +189,7 @@ benchmark/**/*.png
 benchmark/**/*.prof
 benchmark/**/*.json
 examples/**/*.xml
+examples/simulation/scenes
 
 tests/**/*.urdf
 tests/**/*.stl

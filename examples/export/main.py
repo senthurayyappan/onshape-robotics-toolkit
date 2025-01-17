@@ -18,5 +18,5 @@ if __name__ == "__main__":
 
     save_model_as_json(robot.assembly, "quadruped.json")
 
-    robot.show_graph(file_name="quadruped.png")
+    # robot.show_graph(file_name="quadruped.png")
     robot.save()
