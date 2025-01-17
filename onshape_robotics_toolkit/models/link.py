@@ -433,7 +433,7 @@ class Inertia:
             Inertia(ixx=0.0, iyy=0.0, izz=0.0, ixy=0.0, ixz=0.0, iyz=0.0)
         """
         return cls(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-    
+
     @property
     def to_matrix(self) -> np.array:
         return np.array([
@@ -741,7 +741,7 @@ class VisualLink:
         <Element 'visual' at 0x7f8b3c0b4c70>
     """
 
-    name: str
+    name: Union[str, None]
     origin: Origin
     geometry: BaseGeometry
     material: Material
@@ -780,7 +780,8 @@ class VisualLink:
             <Element 'visual' at 0x7f8b3c0b4c70>
         """
         visual = ET.Element("visual") if root is None else ET.SubElement(root, "visual")
-        visual.set("name", self.name)
+        if self.name:
+            visual.set("name", self.name)
         self.origin.to_xml(visual)
         self.geometry.to_xml(visual)
         self.material.to_xml(visual)
@@ -802,7 +803,8 @@ class VisualLink:
             <Element 'visual' at 0x7f8b3c0b4c70>
         """
         visual = root if root.tag == "geom" else ET.SubElement(root, "geom")
-        visual.set("name", self.name)
+        if self.name:
+            visual.set("name", self.name)
         # TODO: Parent body uses visual origin, these share the same?
         self.origin.to_mjcf(visual)
 
@@ -834,7 +836,6 @@ class VisualLink:
             VisualLink(name='visual', origin=None, geometry=None, material=None)
         """
         name = xml.get("name")
-
         origin_element = xml.find("origin")
         origin = Origin.from_xml(origin_element) if origin_element is not None else None
 
@@ -864,7 +865,7 @@ class CollisionLink:
         <Element 'collision' at 0x7f8b3c0b4c70>
     """
 
-    name: str
+    name: Union[str, None]
     origin: Origin
     geometry: BaseGeometry
 
@@ -904,7 +905,8 @@ class CollisionLink:
             <Element 'collision' at 0x7f8b3c0b4c70>
         """
         collision = ET.Element("collision") if root is None else ET.SubElement(root, "collision")
-        collision.set("name", self.name)
+        if self.name:
+            collision.set("name", self.name)
         self.origin.to_xml(collision)
         self.geometry.to_xml(collision)
         return collision
@@ -938,7 +940,8 @@ class CollisionLink:
             <Element 'collision' at 0x7f8b3c0b4c70>
         """
         collision = root if root.tag == "geom" else ET.SubElement(root, "geom")
-        collision.set("name", self.name)
+        if self.name:
+            collision.set("name", self.name)
         collision.set("contype", "1")
         collision.set("conaffinity", "1")
         self.origin.to_mjcf(collision)
