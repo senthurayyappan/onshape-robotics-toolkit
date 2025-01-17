@@ -636,21 +636,20 @@ class InertialLink:
             Then we put the components into the resultant Inertial Link
             An analysis (on 100k runs) suggests that this is 3× faster than a direct approach on the tensor elements likely because numpy's libraries are optimized for matrix operations.
             Ref: https://chatgpt.com/share/6781b6ac-772c-8006-b1a9-7f2dc3e3ef4d
-            
         """
         # Extract the rotation matrix R and translation vector d from T
         R = tf_matrix[:3, :3]  # Top-left 3x3 block is the rotation matrix
         p = tf_matrix[:3, 3]   # Top-right 3x1 block is the translation vector
-        
+
         # Unpack the inertia tensor components
         # Example is ixx=1.0, iyy=2.0, izz=3.0, ixy=0.0, ixz=0.0, iyz=0.
 
         # Construct the original inertia matrix
-        I = self.inertia.to_matrix()
+        inertia_matrix = self.inertia.to_matrix
 
         # Rotate the inertia matrix
-        I_rot = R @ I @ R.T
-    
+        I_rot = R @ inertia_matrix @ R.T
+
         # Compute the parallel axis theorem adjustment
         parallel_axis_adjustment = self.mass * (np.dot(p, p) * np.eye(3) - np.outer(p, p))
 
