@@ -278,7 +278,7 @@ def make_unique_name(name: str, existing_names: set[str]) -> str:
     return f"{name}-{count}"
 
 
-def get_sanitized_name(name: str, replace_with: str = "_", remove_onshape_tags: bool = True) -> str:
+def get_sanitized_name(name: str, replace_with: str = "_", remove_onshape_tags: bool = False) -> str:
     """
     Sanitize a name by removing special characters, preserving only the specified
     replacement character, and replacing spaces with it. Ensures no consecutive
@@ -289,17 +289,17 @@ def get_sanitized_name(name: str, replace_with: str = "_", remove_onshape_tags: 
     Args:
         name (str): Name to sanitize.
         replace_with (str): Character to replace spaces and other special characters with (default is '_').
-        remove_onshape_tags (bool): If True, removes a trailing " <n>" tag where n is a number. Default is True.
+        remove_onshape_tags (bool): If True, removes a trailing " <n>" tag where n is a number. Default is False.
 
     Returns:
         str: Sanitized name.
 
     Examples:
         >>> get_sanitized_name("wheel1 <3>")
-        "wheel1"
-
-        >>> get_sanitized_name("wheel1 <3>", remove_onshape_tags=False)
         "wheel1_3"
+
+        >>> get_sanitized_name("wheel1 <3>", remove_onshape_tags=True)
+        "wheel1"
 
         >>> get_sanitized_name("wheel1 <3>", replace_with='-', remove_onshape_tags=False)
         "wheel1-3"
