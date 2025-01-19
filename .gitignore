@@ -190,6 +190,8 @@ benchmark/**/*.prof
 benchmark/**/*.json
 examples/**/*.xml
 examples/simulation/scenes
+examples/simulation/**/*.csv
+examples/simulation/**/*.html
 
 tests/**/*.urdf
 tests/**/*.stl

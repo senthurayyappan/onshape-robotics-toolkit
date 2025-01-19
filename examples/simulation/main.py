@@ -1,3 +1,4 @@
+import json
 import os
 from functools import partial
 
@@ -18,8 +19,10 @@ from onshape_robotics_toolkit.log import LOGGER, LogLevel
 from onshape_robotics_toolkit.models.document import Document
 from onshape_robotics_toolkit.robot import Robot, RobotType
 
-N_DESIGN_TRAILS = 50
-N_PID_TRAILS = 200
+import plotly
+
+N_DESIGN_TRAILS = 10
+N_PID_TRAILS = 5
 
 HEIGHT = 480
 WIDTH = 640
@@ -162,7 +165,7 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
 
     usd_exporter = exporter.USDExporter(
         model=model,
-        output_directory=usd_output_dir + f"_{trial.number}",
+        output_directory=os.path.join(usd_output_dir, f"pid_{trial.number}"),
     )
 
     # Initialize the PID controllers with the suggested gains
@@ -256,7 +259,6 @@ def find_best_design_variables(trial):
     viewer.close()
 
     # find the best PID parameters
-    # setup a partial function to pass in the model and data
     this_pid_study = partial(
         find_best_pid_params,
         model=model,
@@ -268,7 +270,7 @@ def find_best_design_variables(trial):
             "alpha": alpha,
             "plate_thickness": plate_thickness,
         },
-        usd_output_dir=f"scenes/trial_{trial.number}/pid",
+        usd_output_dir=os.path.join(output_dir, "scenes", f"trial_{trial.number}"),
     )
     pid_study = optuna.create_study(directions=["maximize"])
     pid_study.optimize(this_pid_study, n_trials=N_PID_TRAILS, callbacks=[stop_when_target_reached])
@@ -312,7 +314,7 @@ def find_best_design_variables(trial):
 
     usd_exporter = exporter.USDExporter(
         model=model,
-        output_directory=f"scenes/trial_{trial.number}",
+        output_directory=os.path.join(output_dir, "scenes", f"trial_{trial.number}"),
     )
 
     total_angle_error = 0
@@ -359,7 +361,6 @@ def find_best_design_variables(trial):
         if viewer.is_running():
             viewer.close()
 
-    avg_angle_error = total_angle_error / data.time
     objective_value = data.time
 
     viewer.close()
@@ -369,7 +370,13 @@ def find_best_design_variables(trial):
 
 
 if __name__ == "__main__":
-    LOGGER.set_file_name("sim.log")
+    run_name = input("Enter run name: ")
+    # Create output directory for this run
+    output_dir = f"{run_name}"
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "scenes"), exist_ok=True)  # Create scenes subdirectory
+    # Update log file path
+    LOGGER.set_file_name(f"{output_dir}/{run_name}.log")
     LOGGER.set_stream_level(LogLevel.INFO)
 
     client = Client()
@@ -389,3 +396,26 @@ if __name__ == "__main__":
     LOGGER.info("  Params:")
     for key, value in study.best_trial.params.items():
         LOGGER.info(f"    {key}: {value}")
+
+    # Save outputs in the run directory
+    with open(f"{output_dir}/best_params.json", "w") as f:
+        json.dump(study.best_trial.params, f)
+
+    study.trials_dataframe().to_csv(f"{output_dir}/data.csv")
+
+    # Save visualization plots
+    contour_plot = optuna.visualization.plot_contour(study)
+    plotly.io.write_html(contour_plot, f"{output_dir}/contour.html")
+
+    optimization_history_plot = optuna.visualization.plot_optimization_history(study)
+    plotly.io.write_html(optimization_history_plot, f"{output_dir}/optimization_history.html")
+
+    hyperparameter_importance_plot = optuna.visualization.plot_param_importances(study)
+    plotly.io.write_html(hyperparameter_importance_plot, f"{output_dir}/hyperparameter_importance.html")
+
+    timeline_plot = optuna.visualization.plot_timeline(study)
+    plotly.io.write_html(timeline_plot, f"{output_dir}/timeline.html")
+
+    parallel_coordinate_plot = optuna.visualization.plot_parallel_coordinate(study)
+    plotly.io.write_html(parallel_coordinate_plot, f"{output_dir}/parallel_coordinate.html")
+

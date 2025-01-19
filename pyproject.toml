@@ -26,6 +26,8 @@ mujoco = {extras = ["usd"], version = "^3.2.7"}
 lxml = "^5.3.0"
 optuna = "^4.1.0"
 requests = "^2.32.3"
+plotly = "^5.24.1"
+scikit-learn = "^1.6.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
