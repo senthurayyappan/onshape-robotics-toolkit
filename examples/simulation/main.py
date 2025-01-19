@@ -19,8 +19,10 @@ from onshape_robotics_toolkit.log import LOGGER, LogLevel
 from onshape_robotics_toolkit.models.document import Document
 from onshape_robotics_toolkit.robot import Robot, RobotType
 
-N_DESIGN_TRAILS = 50
-N_PID_TRAILS = 150
+N_DESIGN_TRAILS = 2
+N_PID_TRAILS = 3
+
+USE_MUJOCO_VIEWER = True
 
 HEIGHT = 480
 WIDTH = 640
@@ -31,7 +33,7 @@ dt = 1 / FREQUENCY
 
 # Variable bounds (in mm and degrees)
 WHEEL_DIAMETER_BOUNDS = (100, 200)
-SPACER_HEIGHT_BOUNDS = (75, 250)
+SPACER_HEIGHT_BOUNDS = (75, 200)
 ALPHA_BOUNDS = (30, 55)
 PLATE_BOUNDS = (1, 30)
 
@@ -39,12 +41,12 @@ SIMULATION_DURATION = 200  # seconds to run each trial
 VIBRATION_PENALTY = 1e-3
 
 TARGET_VALUE = 100.0 # Exit control optimation if balanced for this long
-PERTURBATION_INCREASE = 0.25 # Amount of Newtons to increase perturbation by each time
+PERTURBATION_INCREASE = 0.125 # Amount of Newtons to increase perturbation by each time
 PERTURBATION_START = 5 # Time delay before perturbations begin
 PERTURBATION_REST = 7.5 # Time delay between perturbations
 
-MIN_HEIGHT = 0.15  # minimum height before considering failure
-MAX_HEIGHT = 0.35 # maximum height before considering failure
+MAX_ANGLE = np.deg2rad(60)
+MAX_DISTANCE_FROM_BALL = 0.3 # meters
 
 # PID parameters for roll, pitch, and yaw
 KP = 13.4
@@ -54,8 +56,8 @@ FF = 0.2
 
 DERIVATIVE_FILTER_ALPHA = 0.2
 
-TORQUE_LIMIT_HIGH = 5.0
-TORQUE_LIMIT_LOW = -5.0
+TORQUE_LIMIT_HIGH = 10.0
+TORQUE_LIMIT_LOW = -10.0
 
 def get_theta(data, degrees=False):
     rot = Rotation.from_quat(data.qpos[3:7], scalar_first=True)
@@ -122,6 +124,19 @@ def apply_wheel_torque(data, torque):
 
 def get_wheel_torque(data):
     return data.qfrc_smooth[6], data.qfrc_smooth[7], data.qfrc_smooth[8]
+
+def exit_condition(data):
+    _roll, _pitch, _yaw = get_theta(data)
+
+    angle_condition = _roll > MAX_ANGLE or _pitch > MAX_ANGLE
+
+    ball_pos = get_ball_pos(data)
+    bot_pos = get_bot_pos(data)
+    distance_between_ball_and_bot = np.linalg.norm(np.array(ball_pos) - np.array(bot_pos))
+
+    distance_condition = distance_between_ball_and_bot > MAX_DISTANCE_FROM_BALL
+
+    return angle_condition or distance_condition
 
 
 def control(data, roll_pid, pitch_pid, variables: dict[str, float]):
@@ -210,7 +225,7 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
             j += 1
             apply_perturbation(data, j)
 
-        if data.qpos[2] < MIN_HEIGHT:
+        if exit_condition(data):
             break
 
         viewer.sync()
@@ -254,7 +269,9 @@ def find_best_design_variables(trial):
     data = mujoco.MjData(model)
     viewer = mujoco.viewer.launch_passive(model, data)
     mujoco.mj_resetData(model, data)
-    viewer.close()
+
+    if not USE_MUJOCO_VIEWER:
+        viewer.close()
 
     # find the best PID parameters
     this_pid_study = partial(
@@ -321,12 +338,13 @@ def find_best_design_variables(trial):
         output_directory=os.path.join(output_dir, "scenes", f"trial_{trial.number}"),
     )
 
-    total_angle_error = 0
     j = 0
     viewer = mujoco.viewer.launch_passive(model, data)
     # Reset data for a new trial
     mujoco.mj_resetData(model, data)
-    viewer.close()
+
+    if not USE_MUJOCO_VIEWER:
+        viewer.close()
 
     #while data.time < SIMULATION_DURATION and viewer.is_running():
     while data.time < SIMULATION_DURATION:
@@ -352,18 +370,14 @@ def find_best_design_variables(trial):
             j += 1
             apply_perturbation(data, j)
 
-        if data.body("ballbot").xpos[2] < MIN_HEIGHT:
-            LOGGER.info("Ballbot fell below minimum height, ending trial.")
+        if exit_condition(data):
             break
 
-        if data.qpos[2] < MAX_HEIGHT:
-            roll, pitch, yaw = get_theta(data)
-            angle_error = np.sqrt(roll**2 + pitch**2 + yaw**2)
-            total_angle_error += angle_error
 
-        #viewer.sync()
-        if viewer.is_running():
-            viewer.close()
+        if USE_MUJOCO_VIEWER:
+            viewer.sync()
+        elif viewer.is_running():
+                viewer.close()
 
     objective_value = data.time
 
@@ -385,7 +399,7 @@ if __name__ == "__main__":
 
     client = Client()
     doc = Document.from_url(
-        url="https://cad.onshape.com/documents/3a2986509d7fb01c702e8777/w/f1d24a845d320aa654868a90/e/1f70844c54c3ce8edba39060"
+        url="https://cad.onshape.com/documents/01d73bbd0f243938a11fbb7c/w/20c6ecfe7711055ba2420fdc/e/833959fcd6ba649195a1e94c"
     )
 
     elements = client.get_elements(doc.did, doc.wtype, doc.wid)
