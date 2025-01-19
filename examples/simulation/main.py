@@ -18,8 +18,8 @@ from onshape_robotics_toolkit.log import LOGGER, LogLevel
 from onshape_robotics_toolkit.models.document import Document
 from onshape_robotics_toolkit.robot import Robot, RobotType
 
-N_DESIGN_TRAILS = 5
-N_PID_TRAILS = 10
+N_DESIGN_TRAILS = 50
+N_PID_TRAILS = 200
 
 HEIGHT = 480
 WIDTH = 640
@@ -29,15 +29,16 @@ USD_FRAME_RATE = 30
 dt = 1 / FREQUENCY
 
 # Variable bounds (in mm and degrees)
-WHEEL_DIAMETER_BOUNDS = (100, 120)
-SPACER_HEIGHT_BOUNDS = (75, 120)
+WHEEL_DIAMETER_BOUNDS = (100, 200)
+SPACER_HEIGHT_BOUNDS = (75, 250)
 ALPHA_BOUNDS = (30, 55)
+PLATE_BOUNDS = (1, 30)
 
 SIMULATION_DURATION = 200  # seconds to run each trial
 VIBRATION_PENALTY = 1e-3
 
-TARGET_VALUE = 28.0
-PERTURBATION_INCREASE = 0.75 # Amount of Newtons to increase perturbation by each time
+TARGET_VALUE = 100.0 # Exit control optimation if balanced for this long
+PERTURBATION_INCREASE = 0.25 # Amount of Newtons to increase perturbation by each time
 PERTURBATION_START = 5 # Time delay before perturbations begin
 PERTURBATION_REST = 7.5 # Time delay between perturbations
 
@@ -54,8 +55,6 @@ DERIVATIVE_FILTER_ALPHA = 0.2
 
 TORQUE_LIMIT_HIGH = 5.0
 TORQUE_LIMIT_LOW = -5.0
-
-TORQUE_OFFSET = 0.25
 
 def get_theta(data, degrees=False):
     rot = Rotation.from_quat(data.qpos[3:7], scalar_first=True)
@@ -196,7 +195,8 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
     # Run the simulation
     j = 0
 
-    while data.time < SIMULATION_DURATION and viewer.is_running():
+    #while data.time < SIMULATION_DURATION and viewer.is_running():
+    while data.time < SIMULATION_DURATION:
         mujoco.mj_step(model, data)
 
         if usd_exporter.frame_count < data.time * USD_FRAME_RATE:
@@ -230,10 +230,12 @@ def find_best_design_variables(trial):
     wheel_diameter = trial.suggest_float("wheel_diameter", WHEEL_DIAMETER_BOUNDS[0], WHEEL_DIAMETER_BOUNDS[1])
     spacer_height = trial.suggest_float("spacer_height", SPACER_HEIGHT_BOUNDS[0], SPACER_HEIGHT_BOUNDS[1])
     alpha = trial.suggest_float("alpha", ALPHA_BOUNDS[0], ALPHA_BOUNDS[1])
+    plate_thickness = trial.suggest_float("plate_thickness", PLATE_BOUNDS[0], PLATE_BOUNDS[1])
 
     variables["wheel_diameter"].expression = f"{wheel_diameter:.1f} mm"
     variables["alpha"].expression = f"{alpha:.1f} deg"
     variables["spacer_height"].expression = f"{spacer_height:.1f} mm"
+    variables["plate_thickness"].expression = f"{plate_thickness:.1f} mm"
     client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
 
     ballbot: Robot = Robot.from_url(
@@ -251,6 +253,7 @@ def find_best_design_variables(trial):
     data = mujoco.MjData(model)
     viewer = mujoco.viewer.launch_passive(model, data)
     mujoco.mj_resetData(model, data)
+    viewer.close()
 
     # find the best PID parameters
     # setup a partial function to pass in the model and data
@@ -263,6 +266,7 @@ def find_best_design_variables(trial):
             "wheel_diameter": wheel_diameter,
             "spacer_height": spacer_height,
             "alpha": alpha,
+            "plate_thickness": plate_thickness,
         },
         usd_output_dir=f"scenes/trial_{trial.number}/pid",
     )
@@ -316,8 +320,10 @@ def find_best_design_variables(trial):
     viewer = mujoco.viewer.launch_passive(model, data)
     # Reset data for a new trial
     mujoco.mj_resetData(model, data)
+    viewer.close()
 
-    while data.time < SIMULATION_DURATION and viewer.is_running():
+    #while data.time < SIMULATION_DURATION and viewer.is_running():
+    while data.time < SIMULATION_DURATION:
         mujoco.mj_step(model, data)
 
         if usd_exporter.frame_count < data.time * USD_FRAME_RATE:
@@ -332,6 +338,7 @@ def find_best_design_variables(trial):
                     "alpha": alpha,
                     "wheel_diameter": wheel_diameter,
                     "spacer_height": spacer_height,
+                    "plate_thickness": plate_thickness,
                 },
             )
 
@@ -348,10 +355,12 @@ def find_best_design_variables(trial):
             angle_error = np.sqrt(roll**2 + pitch**2 + yaw**2)
             total_angle_error += angle_error
 
-        viewer.sync()
+        #viewer.sync()
+        if viewer.is_running():
+            viewer.close()
 
     avg_angle_error = total_angle_error / data.time
-    objective_value = data.time * 0.5 - avg_angle_error * 10
+    objective_value = data.time
 
     viewer.close()
     usd_exporter.save_scene(filetype="usd")
