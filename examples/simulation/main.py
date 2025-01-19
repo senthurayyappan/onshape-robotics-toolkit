@@ -289,6 +289,12 @@ def find_best_design_variables(trial):
         kd = pid_study.best_params["kd"]
         ff = pid_study.best_params["ff"]
 
+    # Store PID values in trial user attributes
+    trial.set_user_attr("kp", kp)
+    trial.set_user_attr("ki", ki)
+    trial.set_user_attr("kd", kd)
+    trial.set_user_attr("ff", ff)
+
     best_roll_pid = PIDController(
         kp=kp,
         ki=ki,
@@ -396,10 +402,25 @@ if __name__ == "__main__":
     LOGGER.info("  Params:")
     for key, value in study.best_trial.params.items():
         LOGGER.info(f"    {key}: {value}")
+    LOGGER.info("  PID values:")
+    LOGGER.info(f"    kp: {study.best_trial.user_attrs['kp']}")
+    LOGGER.info(f"    ki: {study.best_trial.user_attrs['ki']}")
+    LOGGER.info(f"    kd: {study.best_trial.user_attrs['kd']}")
+    LOGGER.info(f"    ff: {study.best_trial.user_attrs['ff']}")
 
     # Save outputs in the run directory
     with open(f"{output_dir}/best_params.json", "w") as f:
-        json.dump(study.best_trial.params, f)
+        # Combine design parameters and PID values
+        all_params = {
+            **study.best_trial.params,
+            "pid": {
+                "kp": study.best_trial.user_attrs['kp'],
+                "ki": study.best_trial.user_attrs['ki'],
+                "kd": study.best_trial.user_attrs['kd'],
+                "ff": study.best_trial.user_attrs['ff']
+            }
+        }
+        json.dump(all_params, f)
 
     study.trials_dataframe().to_csv(f"{output_dir}/data.csv")
 
