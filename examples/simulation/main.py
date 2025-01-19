@@ -7,10 +7,10 @@ import mujoco.include
 import mujoco.viewer
 import numpy as np
 import optuna
+import plotly
 from controllers import PIDController
 from mods import modify_ballbot
 from mujoco.usd import exporter
-from optuna.samplers import NSGAIISampler
 from scipy.spatial.transform import Rotation
 from transformations import compute_motor_torques
 
@@ -19,10 +19,8 @@ from onshape_robotics_toolkit.log import LOGGER, LogLevel
 from onshape_robotics_toolkit.models.document import Document
 from onshape_robotics_toolkit.robot import Robot, RobotType
 
-import plotly
-
-N_DESIGN_TRAILS = 10
-N_PID_TRAILS = 5
+N_DESIGN_TRAILS = 50
+N_PID_TRAILS = 150
 
 HEIGHT = 480
 WIDTH = 640
