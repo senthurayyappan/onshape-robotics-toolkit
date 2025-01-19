@@ -19,10 +19,10 @@ from onshape_robotics_toolkit.log import LOGGER, LogLevel
 from onshape_robotics_toolkit.models.document import Document
 from onshape_robotics_toolkit.robot import Robot, RobotType
 
-N_DESIGN_TRAILS = 2
-N_PID_TRAILS = 3
+N_DESIGN_TRAILS = 50
+N_PID_TRAILS = 150
 
-USE_MUJOCO_VIEWER = True
+USE_MUJOCO_VIEWER = False
 
 HEIGHT = 480
 WIDTH = 640
