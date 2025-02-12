@@ -11,7 +11,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"
+python = ">=3.10,<3.13"
 python-dotenv = "^1.0.1"
 pydantic = "^2.9.2"
 scipy = "^1.14.1"
@@ -22,10 +22,12 @@ pandas = "^2.2.3"
 pyarrow = "^18.0.0"
 regex = "^2024.9.11"
 tqdm = "^4.67.0"
-mujoco = "^3.2.6"
+mujoco = {extras = ["usd"], version = "^3.2.7"}
 lxml = "^5.3.0"
 optuna = "^4.1.0"
 requests = "^2.32.3"
+plotly = "^5.24.1"
+scikit-learn = "^1.6.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"

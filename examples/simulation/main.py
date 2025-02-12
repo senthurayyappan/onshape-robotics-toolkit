@@ -1,10 +1,16 @@
+import json
+import os
+from functools import partial
+
 import mujoco
 import mujoco.include
 import mujoco.viewer
 import numpy as np
 import optuna
+import plotly
+from controllers import PIDController
 from mods import modify_ballbot
-from optuna.pruners import MedianPruner
+from mujoco.usd import exporter
 from scipy.spatial.transform import Rotation
 from transformations import compute_motor_torques
 
@@ -13,122 +19,239 @@ from onshape_robotics_toolkit.log import LOGGER, LogLevel
 from onshape_robotics_toolkit.models.document import Document
 from onshape_robotics_toolkit.robot import Robot, RobotType
 
+N_DESIGN_TRAILS = 50
+N_PID_TRAILS = 150
+
+USE_MUJOCO_VIEWER = False
+
 HEIGHT = 480
 WIDTH = 640
 
 FREQUENCY = 200
+USD_FRAME_RATE = 30
 dt = 1 / FREQUENCY
-PHASE = 3
 
 # Variable bounds (in mm and degrees)
-WHEEL_DIAMETER_BOUNDS = (100, 120)
-SPACER_HEIGHT_BOUNDS = (75, 120)
+WHEEL_DIAMETER_BOUNDS = (100, 200)
+SPACER_HEIGHT_BOUNDS = (75, 200)
 ALPHA_BOUNDS = (30, 55)
+PLATE_BOUNDS = (1, 30)
 
-SIMULATION_DURATION = 20  # seconds to run each trial
+SIMULATION_DURATION = 200  # seconds to run each trial
+VIBRATION_PENALTY = 1e-3
 
-PERTURBATION_INCREASE = 0.2 # Amount of Newtons to increase perturbation by each time
-PERTURBATION_REST = 10 # Time delay between perturbations - begins after 5 seconds
+TARGET_VALUE = 100.0 # Exit control optimation if balanced for this long
+PERTURBATION_INCREASE = 0.125 # Amount of Newtons to increase perturbation by each time
+PERTURBATION_START = 5 # Time delay before perturbations begin
+PERTURBATION_REST = 7.5 # Time delay between perturbations
 
-MIN_HEIGHT = 0.15  # minimum height before considering failure
+MAX_ANGLE = np.deg2rad(60)
+MAX_DISTANCE_FROM_BALL = 0.3 # meters
 
 # PID parameters for roll, pitch, and yaw
-KP = 12.0
-KI = 6.0
-KD = 0.05
+KP = 13.4
+KI = 5.4
+KD = 2.4
+FF = 0.2
 
-TORQUE_LIMIT_HIGH = 5.0
-TORQUE_LIMIT_LOW = -5.0
+DERIVATIVE_FILTER_ALPHA = 0.2
 
-TORQUE_OFFSET = 0.25
-
-integral_error_x = 0.0
-integral_error_y = 0.0
-integral_error_z = 0.0
-previous_error_x = 0.0
-previous_error_y = 0.0
-previous_error_z = 0.0
-
-def apply_ball_force(data, force):
-    data.qfrc_applied[9:12] = force
+TORQUE_LIMIT_HIGH = 10.0
+TORQUE_LIMIT_LOW = -10.0
 
 def get_theta(data, degrees=False):
     rot = Rotation.from_quat(data.qpos[3:7], scalar_first=True)
     theta = rot.as_euler("XYZ", degrees=degrees)
     return theta[0], theta[1], theta[2]
 
-def control(data, alpha):
+def get_psi(data):
+    return data.qpos[7], data.qpos[8], data.qpos[9]
 
-    global integral_error_x, integral_error_y, integral_error_z, previous_error_x, previous_error_y, previous_error_z
+def get_phi(data, degrees=False):
+    rot = Rotation.from_quat(data.qpos[13:17], scalar_first=True)
+    phi = rot.as_euler("XYZ", degrees=degrees)
+    return phi[0], phi[1], phi[2]
 
+def get_bot_pos(data):
+    return data.qpos[0], data.qpos[1], data.qpos[2]
+
+def get_ball_pos(data):
+    return data.qpos[10], data.qpos[11], data.qpos[12]
+
+def get_bot_vel(data):
+    return data.qvel[0], data.qvel[1], data.qvel[2]
+
+def get_dtheta(data):
+    return data.qvel[3], data.qvel[4], data.qvel[5]
+
+def get_dpsi(data):
+    return data.qvel[6], data.qvel[7], data.qvel[8]
+
+def get_ball_vel(data):
+    return data.qvel[9], data.qvel[10], data.qvel[11]
+
+def get_dphi(data):
+    return data.qvel[12], data.qvel[13], data.qvel[14]
+
+def get_states(data):
+    theta = get_theta(data)
+    phi = get_phi(data)
+
+    dtheta = get_dtheta(data)
+    dphi = get_dphi(data)
+
+    return np.array([
+        phi[0],
+        theta[0],
+        dphi[0],
+        dtheta[0],
+    ]), np.array([
+        phi[1],
+        theta[1],
+        dphi[1],
+        dtheta[1],
+    ])
+
+
+def apply_ball_torque(data, torque):
+    data.qfrc_applied[12:15] = torque
+
+def apply_ball_force(data, force):
+    data.qfrc_applied[9:12] = force
+
+def apply_wheel_torque(data, torque):
+    data.qfrc_applied[6:9] = torque
+
+def get_wheel_torque(data):
+    return data.qfrc_smooth[6], data.qfrc_smooth[7], data.qfrc_smooth[8]
+
+def exit_condition(data):
+    _roll, _pitch, _yaw = get_theta(data)
+
+    angle_condition = _roll > MAX_ANGLE or _pitch > MAX_ANGLE
+
+    ball_pos = get_ball_pos(data)
+    bot_pos = get_bot_pos(data)
+    distance_between_ball_and_bot = np.linalg.norm(np.array(ball_pos) - np.array(bot_pos))
+
+    distance_condition = distance_between_ball_and_bot > MAX_DISTANCE_FROM_BALL
+
+    return angle_condition or distance_condition
+
+
+def control(data, roll_pid, pitch_pid, variables: dict[str, float]):
     # Get current orientation
     theta = get_theta(data)
 
     # Calculate errors
     error_x = 0.0 - theta[0]
     error_y = 0.0 - theta[1]
-    error_z = 0.0 - theta[2]
 
-    # Update integral errors
-    integral_error_x += error_x * dt
-    integral_error_y += error_y * dt
-    integral_error_z += error_z * dt
-
-    # Calculate derivative errors
-    derivative_error_x = (error_x - previous_error_x) / dt
-    derivative_error_y = (error_y - previous_error_y) / dt
-    derivative_error_z = (error_z - previous_error_z) / dt
-
-    # Individual terms
-    Px_term = KP * error_x
-    Ix_term = KI * integral_error_x
-    Dx_term = KD * derivative_error_x
-    Py_term = KP * error_y
-    Iy_term = KI * integral_error_y
-    Dy_term = KD * derivative_error_y
-    Pz_term = KP * error_z
-    Iz_term = KI * integral_error_z
-    Dz_term = KD * derivative_error_z
-
-    # PID control calculations
-    tx = Px_term + Ix_term + Dx_term
-    ty = Py_term + Iy_term + Dy_term
-    tz = -(Pz_term + Iz_term + Dz_term)  # EJR thinks this should be negative
-
-    # Adding offset torque to increase sensitivity around zero
-    tx = tx + TORQUE_OFFSET * np.sign(tx)
-    ty = ty + TORQUE_OFFSET * np.sign(ty)
-    #tz = tz + TORQUE_OFFSET * np.sign(tz)
-
-    # Saturate the torque values to be within [TORQUE_LIMIT_LOW, TORQUE_LIMIT_HIGH] Nm
-    # XML file specifies actuators with limits at [-50 50]
-    tx = np.clip(tx, TORQUE_LIMIT_LOW, TORQUE_LIMIT_HIGH)
-    ty = np.clip(ty, TORQUE_LIMIT_LOW, TORQUE_LIMIT_HIGH)
-    tz = np.clip(tz, TORQUE_LIMIT_LOW, TORQUE_LIMIT_HIGH)
-    #tz = 0.0 # Commenting out the removal of z-axis control for now
-
-    # Update previous errors
-    previous_error_x = error_x
-    previous_error_y = error_y
-    previous_error_z = error_z
+    tx = roll_pid.update(error_x)
+    ty = pitch_pid.update(error_y)
+    tz = 0.0
 
     # Compute motor torques
-    t1, t2, t3 = compute_motor_torques(np.deg2rad(alpha), tx, ty, tz)
+    t1, t2, t3 = compute_motor_torques(np.deg2rad(variables["alpha"]), tx, ty, tz, theta[2])
 
     data.ctrl[0] = t1
     data.ctrl[1] = t2
     data.ctrl[2] = t3
 
+def apply_perturbation(data, count):
+    direction = np.random.rand(3)
+    direction[2] = 0 # Only apply force in the x-y plane
 
-def objective(trial):
+    force = direction * count * PERTURBATION_INCREASE
+    LOGGER.info(f"Applying perturbation {count}: {force}")
+    apply_ball_force(data, force)
+
+
+def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
+    # Suggest values for the PID gains
+    kp = trial.suggest_float('kp', low=2, high=25.0, step=0.1)
+    ki = trial.suggest_float('ki', low=0.0, high=15.0, step=0.1)
+    kd = trial.suggest_float('kd', low=0.0, high=1.0, step=0.001)
+    ff = trial.suggest_float('ff', low=0.01, high=1.01, step=0.05)
+
+    LOGGER.info(f"KP: {kp}, KI: {ki}, KD: {kd}, FF: {ff}")
+
+    usd_exporter = exporter.USDExporter(
+        model=model,
+        output_directory=os.path.join(usd_output_dir, f"pid_{trial.number}"),
+    )
+
+    # Initialize the PID controllers with the suggested gains
+    roll_pid = PIDController(
+        kp=kp,
+        ki=ki,
+        kd=kd,
+        dt=1.0/FREQUENCY,
+        min_output=TORQUE_LIMIT_LOW,
+        max_output=TORQUE_LIMIT_HIGH,
+        feed_forward_offset=ff,
+        derivative_filter_alpha=DERIVATIVE_FILTER_ALPHA,
+    )
+    pitch_pid = PIDController(
+        kp=kp,
+        ki=ki,
+        kd=kd,
+        dt=1.0/FREQUENCY,
+        min_output=TORQUE_LIMIT_LOW,
+        max_output=TORQUE_LIMIT_HIGH,
+        feed_forward_offset=ff,
+        derivative_filter_alpha=DERIVATIVE_FILTER_ALPHA,
+    )
+
+    # Reset the simulation
+    mujoco.mj_resetData(model, data)
+    roll_pid.reset()
+    pitch_pid.reset()
+
+    # Run the simulation
+    j = 0
+
+    #while data.time < SIMULATION_DURATION and viewer.is_running():
+    while data.time < SIMULATION_DURATION:
+        mujoco.mj_step(model, data)
+
+        if usd_exporter.frame_count < data.time * USD_FRAME_RATE:
+            usd_exporter.update_scene(data=data)
+
+        if data.time > 0.3:
+            control(data, roll_pid, pitch_pid, variables)
+
+        if data.time > PERTURBATION_START + j * PERTURBATION_REST:
+            j += 1
+            apply_perturbation(data, j)
+
+        if exit_condition(data):
+            break
+
+        viewer.sync()
+
+    # Combine performance metric with vibration penalty
+    time_on_ball = data.time # TODO: Make this more accurate with contact detection
+
+    usd_exporter.save_scene(filetype="usd")
+
+    return time_on_ball
+
+def stop_when_target_reached(study, trial):
+    if trial.value is not None and trial.value >= TARGET_VALUE:
+        study.stop()
+
+def find_best_design_variables(trial):
     # reset global PID error values
     wheel_diameter = trial.suggest_float("wheel_diameter", WHEEL_DIAMETER_BOUNDS[0], WHEEL_DIAMETER_BOUNDS[1])
     spacer_height = trial.suggest_float("spacer_height", SPACER_HEIGHT_BOUNDS[0], SPACER_HEIGHT_BOUNDS[1])
     alpha = trial.suggest_float("alpha", ALPHA_BOUNDS[0], ALPHA_BOUNDS[1])
+    plate_thickness = trial.suggest_float("plate_thickness", PLATE_BOUNDS[0], PLATE_BOUNDS[1])
 
     variables["wheel_diameter"].expression = f"{wheel_diameter:.1f} mm"
     variables["alpha"].expression = f"{alpha:.1f} deg"
     variables["spacer_height"].expression = f"{spacer_height:.1f} mm"
+    variables["plate_thickness"].expression = f"{plate_thickness:.1f} mm"
     client.set_variables(doc.did, doc.wid, elements["variables"].id, variables)
 
     ballbot: Robot = Robot.from_url(
@@ -144,94 +267,188 @@ def objective(trial):
 
     model = mujoco.MjModel.from_xml_path(filename="ballbot.xml")
     data = mujoco.MjData(model)
+    viewer = mujoco.viewer.launch_passive(model, data)
     mujoco.mj_resetData(model, data)
 
-    viewer = mujoco.viewer.launch_passive(model, data)
-    try:
-        timesteps = 0
-        max_timesteps = int(SIMULATION_DURATION / model.opt.timestep)
-        total_angle_error = 0
-
-        i = 0
-        j = 0.0
-        direction = [0, 0, 0]
-
-        # reset global PID error values
-        global integral_error_x, integral_error_y, integral_error_z
-        global previous_error_x, previous_error_y, previous_error_z
-        integral_error_x = 0.0
-        integral_error_y = 0.0
-        integral_error_z = 0.0
-        previous_error_x = 0.0
-        previous_error_y = 0.0
-        previous_error_z = 0.0
-
-        # Reset data for a new trial
-        mujoco.mj_resetData(model, data)
-
-        while timesteps < max_timesteps and viewer.is_running():
-            i += 1
-            mujoco.mj_step(model, data)
-
-            if data.time > 0.3:
-                control(data, alpha)
-
-            if data.time > 5 and i % (FREQUENCY*PERTURBATION_REST) == 0:
-                j += 1
-                LOGGER.info("Applying perturbation...")
-                direction = np.random.rand(3)
-                direction[2] = 0
-                force = direction * j * PERTURBATION_INCREASE
-                apply_ball_force(data, force)
-
-
-            if data.body("ballbot").xpos[2] < MIN_HEIGHT:
-                LOGGER.info("Ballbot fell below minimum height, ending trial.")
-                break
-
-            roll, pitch, yaw = get_theta(data)
-            angle_error = np.sqrt(roll**2 + pitch**2 + yaw**2)
-            total_angle_error += angle_error
-
-            timesteps += 1
-
-            viewer.sync()
-
-        if timesteps == 0:
-            LOGGER.info("No timesteps executed, returning infinity.")
-            return float("inf")
-
-        avg_angle_error = total_angle_error / timesteps
-        objective_value = -timesteps * 0.5 + avg_angle_error * 10
-
-    except Exception as e:
-        LOGGER.info(f"An error occurred: {e}")
-        return float("inf")
-    finally:
+    if not USE_MUJOCO_VIEWER:
         viewer.close()
+
+    # find the best PID parameters
+    this_pid_study = partial(
+        find_best_pid_params,
+        model=model,
+        data=data,
+        viewer=viewer,
+        variables={
+            "wheel_diameter": wheel_diameter,
+            "spacer_height": spacer_height,
+            "alpha": alpha,
+            "plate_thickness": plate_thickness,
+        },
+        usd_output_dir=os.path.join(output_dir, "scenes", f"trial_{trial.number}"),
+    )
+    pid_study = optuna.create_study(directions=["maximize"])
+    pid_study.optimize(this_pid_study, n_trials=N_PID_TRAILS, callbacks=[stop_when_target_reached])
+    viewer.close()
+
+    if pid_study.best_params is None:
+        LOGGER.error("No best trial found")
+        kp = KP
+        ki = KI
+        kd = KD
+        ff = FF
+    else:
+        LOGGER.info(f"Best PID params: {pid_study.best_params}")
+        kp = pid_study.best_params["kp"]
+        ki = pid_study.best_params["ki"]
+        kd = pid_study.best_params["kd"]
+        ff = pid_study.best_params["ff"]
+
+    # Store PID values in trial user attributes
+    trial.set_user_attr("kp", kp)
+    trial.set_user_attr("ki", ki)
+    trial.set_user_attr("kd", kd)
+    trial.set_user_attr("ff", ff)
+
+    best_roll_pid = PIDController(
+        kp=kp,
+        ki=ki,
+        kd=kd,
+        dt=1.0/FREQUENCY,
+        min_output=TORQUE_LIMIT_LOW,
+        max_output=TORQUE_LIMIT_HIGH,
+        feed_forward_offset=ff,
+        derivative_filter_alpha=DERIVATIVE_FILTER_ALPHA,
+    )
+    best_pitch_pid = PIDController(
+        kp=kp,
+        ki=ki,
+        kd=kd,
+        dt=1.0/FREQUENCY,
+        min_output=TORQUE_LIMIT_LOW,
+        max_output=TORQUE_LIMIT_HIGH,
+        feed_forward_offset=ff,
+        derivative_filter_alpha=DERIVATIVE_FILTER_ALPHA,
+    )
+
+    mujoco.mj_resetData(model, data)
+
+    usd_exporter = exporter.USDExporter(
+        model=model,
+        output_directory=os.path.join(output_dir, "scenes", f"trial_{trial.number}"),
+    )
+
+    j = 0
+    viewer = mujoco.viewer.launch_passive(model, data)
+    # Reset data for a new trial
+    mujoco.mj_resetData(model, data)
+
+    if not USE_MUJOCO_VIEWER:
+        viewer.close()
+
+    #while data.time < SIMULATION_DURATION and viewer.is_running():
+    while data.time < SIMULATION_DURATION:
+        mujoco.mj_step(model, data)
+
+        if usd_exporter.frame_count < data.time * USD_FRAME_RATE:
+            usd_exporter.update_scene(data=data)
+
+        if data.time > 0.3:
+            control(
+                data,
+                best_roll_pid,
+                best_pitch_pid,
+                {
+                    "alpha": alpha,
+                    "wheel_diameter": wheel_diameter,
+                    "spacer_height": spacer_height,
+                    "plate_thickness": plate_thickness,
+                },
+            )
+
+        if data.time > PERTURBATION_START + j * PERTURBATION_REST:
+            j += 1
+            apply_perturbation(data, j)
+
+        if exit_condition(data):
+            break
+
+
+        if USE_MUJOCO_VIEWER:
+            viewer.sync()
+        elif viewer.is_running():
+                viewer.close()
+
+    objective_value = data.time
+
+    viewer.close()
+    usd_exporter.save_scene(filetype="usd")
 
     return objective_value
 
 
 if __name__ == "__main__":
-    LOGGER.set_file_name("sim.log")
+    run_name = input("Enter run name: ")
+    # Create output directory for this run
+    output_dir = f"{run_name}"
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "scenes"), exist_ok=True)  # Create scenes subdirectory
+    # Update log file path
+    LOGGER.set_file_name(f"{output_dir}/{run_name}.log")
     LOGGER.set_stream_level(LogLevel.INFO)
 
     client = Client()
     doc = Document.from_url(
-        url="https://cad.onshape.com/documents/3a2986509d7fb01c702e8777/w/f1d24a845d320aa654868a90/e/1f70844c54c3ce8edba39060"
+        url="https://cad.onshape.com/documents/01d73bbd0f243938a11fbb7c/w/20c6ecfe7711055ba2420fdc/e/833959fcd6ba649195a1e94c"
     )
 
     elements = client.get_elements(doc.did, doc.wtype, doc.wid)
     variables = client.get_variables(doc.did, doc.wid, elements["variables"].id)
 
-    pruner = MedianPruner(n_startup_trials=5, n_warmup_steps=10)
-    study = optuna.create_study(direction="minimize", pruner=pruner)
-    study.optimize(objective, n_trials=20)
+    study = optuna.create_study(direction="maximize")
+    study.optimize(find_best_design_variables, n_trials=N_DESIGN_TRAILS)
 
     LOGGER.info("\nOptimization finished!")
     LOGGER.info("Best trial:")
-    LOGGER.info(f"  Value: {-study.best_trial.value}")
+    LOGGER.info(f"  Value: {study.best_trial.value}")
     LOGGER.info("  Params:")
     for key, value in study.best_trial.params.items():
         LOGGER.info(f"    {key}: {value}")
+    LOGGER.info("  PID values:")
+    LOGGER.info(f"    kp: {study.best_trial.user_attrs['kp']}")
+    LOGGER.info(f"    ki: {study.best_trial.user_attrs['ki']}")
+    LOGGER.info(f"    kd: {study.best_trial.user_attrs['kd']}")
+    LOGGER.info(f"    ff: {study.best_trial.user_attrs['ff']}")
+
+    # Save outputs in the run directory
+    with open(f"{output_dir}/best_params.json", "w") as f:
+        # Combine design parameters and PID values
+        all_params = {
+            **study.best_trial.params,
+            "pid": {
+                "kp": study.best_trial.user_attrs['kp'],
+                "ki": study.best_trial.user_attrs['ki'],
+                "kd": study.best_trial.user_attrs['kd'],
+                "ff": study.best_trial.user_attrs['ff']
+            }
+        }
+        json.dump(all_params, f)
+
+    study.trials_dataframe().to_csv(f"{output_dir}/data.csv")
+
+    # Save visualization plots
+    contour_plot = optuna.visualization.plot_contour(study)
+    plotly.io.write_html(contour_plot, f"{output_dir}/contour.html")
+
+    optimization_history_plot = optuna.visualization.plot_optimization_history(study)
+    plotly.io.write_html(optimization_history_plot, f"{output_dir}/optimization_history.html")
+
+    hyperparameter_importance_plot = optuna.visualization.plot_param_importances(study)
+    plotly.io.write_html(hyperparameter_importance_plot, f"{output_dir}/hyperparameter_importance.html")
+
+    timeline_plot = optuna.visualization.plot_timeline(study)
+    plotly.io.write_html(timeline_plot, f"{output_dir}/timeline.html")
+
+    parallel_coordinate_plot = optuna.visualization.plot_parallel_coordinate(study)
+    plotly.io.write_html(parallel_coordinate_plot, f"{output_dir}/parallel_coordinate.html")
+

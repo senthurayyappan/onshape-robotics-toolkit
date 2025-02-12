@@ -298,7 +298,6 @@ def get_sanitized_name(name: str, replace_with: str = "_", remove_onshape_tags: 
     Sanitize a name by removing special characters, preserving only the specified
     replacement character, and replacing spaces with it. Ensures no consecutive
     replacement characters in the result.
-
     Optionally preserves a trailing " <n>" tag where n is a number.
 
     Args:
@@ -362,3 +361,4 @@ def save_gif(frames, filename="sim.gif", framerate=60):
 
 if __name__ == "__main__":
     LOGGER.info(get_sanitized_name("Part 3 <1>", remove_onshape_tags=True))
+    
