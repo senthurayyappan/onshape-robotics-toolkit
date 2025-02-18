@@ -15,7 +15,7 @@ if __name__ == "__main__":
     LOGGER.set_stream_level(LogLevel.INFO)
 
     client = Client(
-        env="./.env",
+        env=".env",
     )
     doc = Document.from_url(
         url="https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812"
