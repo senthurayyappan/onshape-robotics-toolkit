@@ -15,7 +15,7 @@ Before you begin, ensure the following:
   pip install onshape-robotics-toolkit
   ```
 - **API Keys**: Set up your Onshape API keys in a `.env` file. Refer to the [Getting Started](../getting-started.md) guide if needed.
-- **Document URL**: Have the URL of the Onshape assembly you want to export. For this example, we’ll use a quadruped robot assembly.
+- **Document URL**: Have the URL of the Onshape assembly you want to export. For this example, we'll use a quadruped robot assembly.
 
 ---
 
@@ -32,7 +32,7 @@ from onshape_robotics_toolkit.log import LOGGER, LogLevel
 LOGGER.set_file_name("quadruped.log")
 LOGGER.set_stream_level(LogLevel.INFO)
 
-client = Client(env="./.env")
+client = Client(env=".env")
 ```
 
 The logger will save logs to `quadruped.log` and display logs at the `INFO` level in the console.
@@ -73,9 +73,9 @@ This will save the assembly details into a file named `quadruped.json` in the cu
 
 ---
 
-### Step 4: Visualize the Assembly Graph
+### Step 4: Visualize the Assembly Graph (Optional)
 
-Generate and save a graphical representation of the assembly’s structure:
+Generate and save a graphical representation of the assembly's structure:
 
 ```python
 robot.show_graph(file_name="quadruped.png")
@@ -99,10 +99,10 @@ This saves the robot object to disk as a URDF file named `quadruped.robot`.
 
 ## Result
 
-After running the script, you’ll find the following files in your working directory:
+After running the script, you'll find the following files in your working directory:
 
 1. **Assembly JSON File** (`quadruped.json`): Contains the complete assembly details.
 2. **Assembly Graph** (`quadruped.png`): A visual representation of the assembly’s structure.
 3. **Robot URDF File** (`quadruped.urdf`): A URDF file for simulation.
 
-These files can be used for further analysis, simulation, or into other workflows.
+These files can be used for further analysis, simulation, or integration into other workflows.

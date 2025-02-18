@@ -57,8 +57,8 @@ Access to the Onshape API requires authentication using API keys. Follow these s
 Create a `.env` file in the root directory of your project to securely store your API keys:
 
 ```plaintext
-ACCESS_KEY = <your_access_key>
-SECRET_KEY = <your_secret_key>
+ONSHAPE_ACCESS_KEY = <your_access_key>
+ONSHAPE_SECRET_KEY = <your_secret_key>
 ```
 
 The `onshape-robotics-toolkit` library will automatically read these keys to authenticate your requests.

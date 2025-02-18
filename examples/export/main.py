@@ -4,7 +4,7 @@ from onshape_robotics_toolkit.robot import Robot
 from onshape_robotics_toolkit.utilities.helpers import save_model_as_json
 
 if __name__ == "__main__":
-    LOGGER.set_file_name("ballbot.log")
+    LOGGER.set_file_name("quadruped.log")
     LOGGER.set_stream_level(LogLevel.INFO)
     client = Client(env=".env")
 
@@ -18,5 +18,5 @@ if __name__ == "__main__":
 
     save_model_as_json(robot.assembly, "quadruped.json")
 
-    # robot.show_graph(file_name="quadruped.png")
+    robot.show_graph(file_name="quadruped.png")
     robot.save()

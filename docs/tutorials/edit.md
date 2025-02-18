@@ -1,4 +1,6 @@
-In this tutorial, we’ll explore how to edit an Onshape CAD assembly by modifying its variables in the Variable Studio and exporting the resulting assembly to a URDF file using the `onshape-robotics-toolkit` Python library.
+In this tutorial, we'll explore how to edit an Onshape CAD assembly by modifying its variables in the Variable Studio and exporting the resulting assembly to a URDF file using the `onshape-robotics-toolkit` Python library.
+
+> 💡 The complete source code for this tutorial can be found in [`examples/edit/main.py`](../../examples/edit/main.py).
 
 <img src="bike-header.gif" alt="Bike Header" style="width: 100%;">
 
@@ -13,7 +15,7 @@ Before you begin, make sure you have:
   pip install onshape-robotics-toolkit
   ```
 - **API Keys**: Set up your Onshape API keys in a `.env` file as outlined in the [Getting Started](../getting-started.md) guide.
-- **Access to the Onshape Document**: Use a CAD document with a Variable Studio. For this tutorial, we’ll use the following example:
+- **Access to the Onshape Document**: Use a CAD document with a Variable Studio. For this tutorial, we'll use the following example:
   <a href="https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812" target="_blank">Example CAD Document</a>.
 
 ---
@@ -25,11 +27,16 @@ Before you begin, make sure you have:
 Set up the Onshape API client for authentication and interaction:
 
 ```python
-import onshape_robotics_toolkit as osa
+from onshape_robotics_toolkit.connect import Client
+from onshape_robotics_toolkit.log import LOGGER, LogLevel
+
+# Set up logging
+LOGGER.set_file_name("edit.log")
+LOGGER.set_stream_level(LogLevel.INFO)
 
 # Initialize the client
-client = osa.Client(
-    env="./.env"
+client = Client(
+    env=".env"
 )
 ```
 
@@ -40,7 +47,9 @@ client = osa.Client(
 Use the CAD document URL to create a `Document` object and fetch its variables:
 
 ```python
-doc = osa.Document.from_url(
+from onshape_robotics_toolkit.models.document import Document
+
+doc = Document.from_url(
     url="https://cad.onshape.com/documents/a1c1addf75444f54b504f25c/w/0d17b8ebb2a4c76be9fff3c7/e/a86aaf34d2f4353288df8812"
 )
 
@@ -56,7 +65,7 @@ variables = client.get_variables(doc.did, doc.wid, elements["variables"].id)
 Edit the variables to adjust the CAD assembly dimensions. For example, modify the wheel diameter, wheel thickness, and fork angle:
 
 ```python
-variables["wheelDiameter"].expression = "300 mm"
+variables["wheelDiameter"].expression = "180 mm"
 variables["wheelThickness"].expression = "71 mm"
 variables["forkAngle"].expression = "20 deg"
 
@@ -83,13 +92,12 @@ from onshape_robotics_toolkit.parse import (
 assembly = client.get_assembly(doc.did, doc.wtype, doc.wid, elements["assembly"].id)
 
 # Extract components
-instances, occurrences, id_to_name_map = get_instances(assemblymax_depth=1)
+instances, occurrences, id_to_name_map = get_instances(assembly, max_depth=1)
 
 subassemblies, rigid_subassemblies = get_subassemblies(assembly, client, instances)
 parts = get_parts(assembly, rigid_subassemblies, client, instances)
 
 mates, relations = get_mates_and_relations(assembly, subassemblies, rigid_subassemblies, id_to_name_map, parts)
-
 ```
 
 ---
@@ -100,13 +108,12 @@ Generate a graph visualization of the assembly structure:
 
 ```python
 from onshape_robotics_toolkit.graph import create_graph
-from onshape_robotics_toolkit.urdf import get_robot
-from onshape_robotics_toolkit.models.robot import Robot
+from onshape_robotics_toolkit.robot import get_robot
 
-# Create and save the assembly graph
+# Create and visualize the assembly graph
 graph, root_node = create_graph(occurrences=occurrences, instances=instances, parts=parts, mates=mates)
-
 robot = get_robot(assembly, graph, root_node, parts, mates, relations, client, "test")
+robot.show_tree()
 robot.show_graph("bike.png")
 ```
 
@@ -121,7 +128,7 @@ This will save an image of the assembly graph (`bike.png`) in your current worki
 Convert the robot class into a URDF file for robotics applications:
 
 ```python
-robot.save("bike.urdf")
+robot.save()
 ```
 
 <img src="bike-urdf.gif" alt="Bike URDF" style="width: 100%;">
