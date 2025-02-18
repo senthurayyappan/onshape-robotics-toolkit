@@ -92,7 +92,7 @@ def modify_ballbot(ballbot: Robot) -> Robot:
 
     ballbot.add_custom_element_by_tag(name="contact", parent_tag="mujoco", element=contact)
 
-    ballbot_mesh = ET.Element("mesh", attrib={"name": "Part_1_1", "file": "meshes/ball.stl"})
+    ballbot_mesh = ET.Element("mesh", attrib={"name": "Part_1_1", "file": "meshes\\ball.stl"})
     ballbot.add_custom_element_by_tag(name="ballbot", parent_tag="asset", element=ballbot_mesh)
     ball = load_element("ball.xml")
     ballbot.add_custom_element_by_tag(name="ball", parent_tag="worldbody", element=ball)

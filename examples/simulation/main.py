@@ -19,8 +19,8 @@ from onshape_robotics_toolkit.log import LOGGER, LogLevel
 from onshape_robotics_toolkit.models.document import Document
 from onshape_robotics_toolkit.robot import Robot, RobotType
 
-N_DESIGN_TRAILS = 50
-N_PID_TRAILS = 150
+N_DESIGN_TRAILS = 100
+N_PID_TRAILS = 50
 
 USE_MUJOCO_VIEWER = False
 
@@ -28,22 +28,25 @@ HEIGHT = 480
 WIDTH = 640
 
 FREQUENCY = 200
-USD_FRAME_RATE = 30
+USD_FRAME_RATE = 25
 dt = 1 / FREQUENCY
 
 # Variable bounds (in mm and degrees)
-WHEEL_DIAMETER_BOUNDS = (100, 200)
-SPACER_HEIGHT_BOUNDS = (75, 200)
-ALPHA_BOUNDS = (30, 55)
+WHEEL_DIAMETER_BOUNDS = (100, 150)
+SPACER_HEIGHT_BOUNDS = (75, 150)
+ALPHA_BOUNDS = (35, 50)
 PLATE_BOUNDS = (1, 30)
 
-SIMULATION_DURATION = 200  # seconds to run each trial
+LAMBDA_WEIGHT = 100.0
+BETA_WEIGHT = 25.0
+
+SIMULATION_DURATION = 120  # seconds to run each trial
 VIBRATION_PENALTY = 1e-3
 
-TARGET_VALUE = 100.0 # Exit control optimation if balanced for this long
+TARGET_VALUE = 50.0 # Exit control optimation if balanced for this long
 PERTURBATION_INCREASE = 0.125 # Amount of Newtons to increase perturbation by each time
 PERTURBATION_START = 5 # Time delay before perturbations begin
-PERTURBATION_REST = 7.5 # Time delay between perturbations
+PERTURBATION_REST = 7 # Time delay between perturbations
 
 MAX_ANGLE = np.deg2rad(60)
 MAX_DISTANCE_FROM_BALL = 0.3 # meters
@@ -54,7 +57,7 @@ KI = 5.4
 KD = 2.4
 FF = 0.2
 
-DERIVATIVE_FILTER_ALPHA = 0.2
+DERIVATIVE_FILTER_ALPHA = 0.1
 
 TORQUE_LIMIT_HIGH = 10.0
 TORQUE_LIMIT_LOW = -10.0
@@ -169,9 +172,9 @@ def apply_perturbation(data, count):
 
 def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
     # Suggest values for the PID gains
-    kp = trial.suggest_float('kp', low=2, high=25.0, step=0.1)
+    kp = trial.suggest_float('kp', low=5, high=25.0, step=0.1)
     ki = trial.suggest_float('ki', low=0.0, high=15.0, step=0.1)
-    kd = trial.suggest_float('kd', low=0.0, high=1.0, step=0.001)
+    kd = trial.suggest_float('kd', low=0.0, high=1.0, step=0.01)
     ff = trial.suggest_float('ff', low=0.01, high=1.01, step=0.05)
 
     LOGGER.info(f"KP: {kp}, KI: {ki}, KD: {kd}, FF: {ff}")
@@ -208,10 +211,14 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
     roll_pid.reset()
     pitch_pid.reset()
 
+    # Initialize variables to track distance
+    cumulative_distance = 0.0
+    cumulative_vibration = 0.0
+    steps = 0
+
     # Run the simulation
     j = 0
 
-    #while data.time < SIMULATION_DURATION and viewer.is_running():
     while data.time < SIMULATION_DURATION:
         mujoco.mj_step(model, data)
 
@@ -228,14 +235,35 @@ def find_best_pid_params(trial, model, data, viewer, variables, usd_output_dir):
         if exit_condition(data):
             break
 
-        viewer.sync()
+        ball_pos = get_ball_pos(data)
+        distance = np.linalg.norm(np.array(ball_pos))
+        cumulative_distance += distance
 
-    # Combine performance metric with vibration penalty
-    time_on_ball = data.time # TODO: Make this more accurate with contact detection
+        dtheta = get_dtheta(data)
+        cumulative_vibration += np.linalg.norm(dtheta)
+        steps += 1
+
+        if USE_MUJOCO_VIEWER:
+            viewer.sync()
+        elif viewer.is_running():
+            viewer.close()
+
+    # Combine performance metric with vibration penalty and distance
+    time_on_ball = data.time  # Time the ball stayed on top
+    average_distance = cumulative_distance / steps if steps > 0 else 0.0
+    average_vibration = cumulative_vibration / steps if steps > 0 else 0.0
+    objective_value = time_on_ball - LAMBDA_WEIGHT * average_distance - BETA_WEIGHT * average_vibration
+
+    LOGGER.info(
+        f"Time on Ball: {time_on_ball}, "
+        f"Average Distance: {average_distance}, "
+        f"Average Vibration: {average_vibration}, "
+        f"Objective: {objective_value}"
+    )
 
     usd_exporter.save_scene(filetype="usd")
 
-    return time_on_ball
+    return objective_value
 
 def stop_when_target_reached(study, trial):
     if trial.value is not None and trial.value >= TARGET_VALUE:
@@ -346,6 +374,11 @@ def find_best_design_variables(trial):
     if not USE_MUJOCO_VIEWER:
         viewer.close()
 
+    # Initialize variables to track distance
+    cumulative_distance = 0.0
+    cumulative_vibration = 0.0
+    steps = 0
+
     #while data.time < SIMULATION_DURATION and viewer.is_running():
     while data.time < SIMULATION_DURATION:
         mujoco.mj_step(model, data)
@@ -373,15 +406,36 @@ def find_best_design_variables(trial):
         if exit_condition(data):
             break
 
+        ball_pos = get_ball_pos(data)
+        distance = np.linalg.norm(np.array(ball_pos))
+        cumulative_distance += distance
+
+        dtheta = get_dtheta(data)
+        cumulative_vibration += np.linalg.norm(dtheta)
+        steps += 1
 
         if USE_MUJOCO_VIEWER:
             viewer.sync()
         elif viewer.is_running():
                 viewer.close()
 
-    objective_value = data.time
+    time_on_ball = data.time  # Time the ball stayed on top
+    average_distance = cumulative_distance / steps if steps > 0 else 0.0
+    average_vibration = cumulative_vibration / steps if steps > 0 else 0.0
 
-    viewer.close()
+    objective_value = time_on_ball - LAMBDA_WEIGHT * average_distance - BETA_WEIGHT * average_vibration
+
+    LOGGER.info(
+        f"Time on Ball: {time_on_ball}, "
+        f"Average Distance: {average_distance}, "
+        f"Average Vibration: {average_vibration}, "
+        f"Objective: {objective_value}"
+    )
+
+
+    if viewer.is_running():
+        viewer.close()
+
     usd_exporter.save_scene(filetype="usd")
 
     return objective_value
@@ -390,14 +444,14 @@ def find_best_design_variables(trial):
 if __name__ == "__main__":
     run_name = input("Enter run name: ")
     # Create output directory for this run
-    output_dir = f"{run_name}"
+    output_dir = run_name
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(os.path.join(output_dir, "scenes"), exist_ok=True)  # Create scenes subdirectory
     # Update log file path
-    LOGGER.set_file_name(f"{output_dir}/{run_name}.log")
+    LOGGER.set_file_name(os.path.join(output_dir, f"{run_name}.log"))
     LOGGER.set_stream_level(LogLevel.INFO)
 
-    client = Client()
+    client = Client(env=".env")
     doc = Document.from_url(
         url="https://cad.onshape.com/documents/01d73bbd0f243938a11fbb7c/w/20c6ecfe7711055ba2420fdc/e/833959fcd6ba649195a1e94c"
     )
@@ -421,7 +475,7 @@ if __name__ == "__main__":
     LOGGER.info(f"    ff: {study.best_trial.user_attrs['ff']}")
 
     # Save outputs in the run directory
-    with open(f"{output_dir}/best_params.json", "w") as f:
+    with open(os.path.join(output_dir, "best_params.json"), "w") as f:
         # Combine design parameters and PID values
         all_params = {
             **study.best_trial.params,
@@ -434,21 +488,21 @@ if __name__ == "__main__":
         }
         json.dump(all_params, f)
 
-    study.trials_dataframe().to_csv(f"{output_dir}/data.csv")
+    study.trials_dataframe().to_csv(os.path.join(output_dir, "data.csv"))
 
     # Save visualization plots
     contour_plot = optuna.visualization.plot_contour(study)
-    plotly.io.write_html(contour_plot, f"{output_dir}/contour.html")
+    plotly.io.write_html(contour_plot, os.path.join(output_dir, "contour.html"))
 
     optimization_history_plot = optuna.visualization.plot_optimization_history(study)
-    plotly.io.write_html(optimization_history_plot, f"{output_dir}/optimization_history.html")
+    plotly.io.write_html(optimization_history_plot, os.path.join(output_dir, "optimization_history.html"))
 
     hyperparameter_importance_plot = optuna.visualization.plot_param_importances(study)
-    plotly.io.write_html(hyperparameter_importance_plot, f"{output_dir}/hyperparameter_importance.html")
+    plotly.io.write_html(hyperparameter_importance_plot, os.path.join(output_dir, "hyperparameter_importance.html"))
 
     timeline_plot = optuna.visualization.plot_timeline(study)
-    plotly.io.write_html(timeline_plot, f"{output_dir}/timeline.html")
+    plotly.io.write_html(timeline_plot, os.path.join(output_dir, "timeline.html"))
 
     parallel_coordinate_plot = optuna.visualization.plot_parallel_coordinate(study)
-    plotly.io.write_html(parallel_coordinate_plot, f"{output_dir}/parallel_coordinate.html")
+    plotly.io.write_html(parallel_coordinate_plot, os.path.join(output_dir, "parallel_coordinate.html"))
 
