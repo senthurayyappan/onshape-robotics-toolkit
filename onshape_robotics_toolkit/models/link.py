@@ -38,21 +38,26 @@ class Colors(tuple[float, float, float], Enum):
     """
     Enumerates the possible colors in RGBA format for a link in the robot model.
 
+    Each color is represented as a tuple of four float values (r, g, b, a),
+    where each component ranges from 0.0 to 1.0.
+
     Attributes:
-        RED (tuple[float, float, float]): Color red.
-        GREEN (tuple[float, float, float]): Color green.
-        BLUE (tuple[float, float, float]): Color blue.
-        YELLOW (tuple[float, float, float]): Color yellow.
-        CYAN (tuple[float, float, float]): Color cyan.
-        MAGENTA (tuple[float, float, float]): Color magenta.
-        WHITE (tuple[float, float, float]): Color white.
-        BLACK (tuple[float, float, float]): Color black.
-        ORANGE (tuple[float, float, float]): Color orange.
-        PINK (tuple[float, float, float]): Color pink.
+        RED (tuple[float, float, float, float]): Color red (1, 0, 0, 1).
+        GREEN (tuple[float, float, float, float]): Color green (0, 1, 0, 1).
+        BLUE (tuple[float, float, float, float]): Color blue (0, 0, 1, 1).
+        YELLOW (tuple[float, float, float, float]): Color yellow (1, 1, 0, 1).
+        CYAN (tuple[float, float, float, float]): Color cyan (0, 1, 1, 1).
+        MAGENTA (tuple[float, float, float, float]): Color magenta (1, 0, 1, 1).
+        WHITE (tuple[float, float, float, float]): Color white (1, 1, 1, 1).
+        BLACK (tuple[float, float, float, float]): Color black (0, 0, 0, 1).
+        ORANGE (tuple[float, float, float, float]): Color orange (1, 0.5, 0, 1).
+        PINK (tuple[float, float, float, float]): Color pink (1, 0, 0.5, 1).
 
     Examples:
         >>> Colors.RED
-        <Colors.RED: (1.0, 0.0, 0.0)>
+        <Colors.RED: (1.0, 0.0, 0.0, 1.0)>
+        >>> Colors.BLUE.value
+        (0.0, 0.0, 1.0, 1.0)
     """
 
     RED = (1.0, 0.0, 0.0, 1.0)
@@ -77,11 +82,15 @@ class Origin:
         rpy (tuple[float, float, float]): The roll, pitch, yaw angles of the origin.
 
     Methods:
+        transform: Applies a transformation matrix to the origin.
         to_xml: Converts the origin to an XML element.
+        to_mjcf: Converts the origin to a MuJoCo compatible XML element.
+        quat: Converts the origin's rotation to a quaternion.
 
     Class Methods:
+        from_xml: Creates an origin from an XML element.
         from_matrix: Creates an origin from a transformation matrix.
-        zero_origin: Creates an origin at the origin (0, 0, 0) with no rotation.
+        zero_origin: Creates an origin at (0, 0, 0) with no rotation.
 
     Examples:
         >>> origin = Origin(xyz=(1.0, 2.0, 3.0), rpy=(0.0, 0.0, 0.0))
@@ -96,9 +105,6 @@ class Origin:
         ... ])
         >>> Origin.from_matrix(matrix)
         Origin(xyz=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0))
-
-        >>> Origin.zero_origin()
-        Origin(xyz=(0.0, 0.0, 0.0), rpy=(0.0, 0.0, 0.0))
     """
 
     xyz: tuple[float, float, float]
@@ -109,16 +115,18 @@ class Origin:
         Apply a transformation matrix to the origin.
 
         Args:
-            matrix: The transformation matrix to apply to the origin.
-            inplace: Whether to apply the transformation in place.
+            matrix (np.matrix): The 4x4 transformation matrix to apply.
+            inplace (bool): If True, modifies the current origin. If False, returns a new Origin.
 
         Returns:
-            The origin with the transformation applied.
+            Union[Origin, None]: If inplace is False, returns a new transformed Origin. 
+                               If inplace is True, returns None and modifies current Origin.
 
         Examples:
             >>> origin = Origin(xyz=(1.0, 2.0, 3.0), rpy=(0.0, 0.0, 0.0))
             >>> matrix = np.eye(4)
-            >>> origin.transform(matrix)
+            >>> new_origin = origin.transform(matrix)  # Returns new Origin
+            >>> origin.transform(matrix, inplace=True)  # Modifies origin in place
         """
         new_xyz = np.dot(matrix[:3, :3], np.array(self.xyz)) + matrix[:3, 3]
         current_rotation_matrix = Rotation.from_euler("xyz", self.rpy).as_matrix()
@@ -155,18 +163,20 @@ class Origin:
 
     def to_mjcf(self, root: ET.Element) -> None:
         """
-        Convert the origin to an MuJoCo compatible XML element.
+        Convert the origin to a MuJoCo compatible XML element.
 
         Args:
-            root: The root element to append the origin to.
-
-        Returns:
-            The XML element representing the origin.
+            root (ET.Element): The root element to add the origin attributes to.
+                             Adds 'pos' and 'euler' attributes to this element.
 
         Examples:
             >>> origin = Origin(xyz=(1.0, 2.0, 3.0), rpy=(0.0, 0.0, 0.0))
-            >>> origin.to_mjcf()
-            <Element 'origin' at 0x7f8b3c0b4c70>
+            >>> element = ET.Element('body')
+            >>> origin.to_mjcf(element)
+            >>> element.get('pos')
+            '1.0 2.0 3.0'
+            >>> element.get('euler')
+            '0.0 0.0 0.0'
         """
         root.set("pos", " ".join(format_number(v) for v in self.xyz))
         root.set("euler", " ".join(format_number(v) for v in self.rpy))
@@ -192,15 +202,20 @@ class Origin:
         rpy = tuple(map(float, xml.get("rpy").split()))
         return cls(xyz, rpy)
 
-    def quat(self, sequence: str = "xyz") -> str:
+    def quat(self, sequence: str = "xyz") -> np.ndarray:
         """
-        Convert the origin to a quaternion.
+        Convert the origin's rotation to a quaternion.
 
         Args:
-            sequence: The sequence of the Euler angles.
+            sequence (str): The sequence of rotations used for Euler angles. Defaults to "xyz".
 
         Returns:
-            The quaternion representing the origin.
+            np.ndarray: A quaternion [x, y, z, w] representing the rotation.
+
+        Examples:
+            >>> origin = Origin(xyz=(0.0, 0.0, 0.0), rpy=(np.pi/2, 0.0, 0.0))
+            >>> origin.quat()
+            array([0.70710678, 0.        , 0.        , 0.70710678])
         """
         return Rotation.from_euler(sequence, self.rpy).as_quat()
 
@@ -251,18 +266,29 @@ class Origin:
 @dataclass
 class Axis:
     """
-    Represents the axis of a link in the robot model.
+    Represents the axis of rotation or translation for a joint in the robot model.
 
     Attributes:
-        xyz (tuple[float, float, float]): The x, y, z coordinates of the axis.
+        xyz (tuple[float, float, float]): The direction vector of the axis.
+            Should be a unit vector (normalized).
 
     Methods:
         to_xml: Converts the axis to an XML element.
+        to_mjcf: Converts the axis to a MuJoCo compatible XML element.
+
+    Class Methods:
+        from_xml: Creates an axis from an XML element.
 
     Examples:
-        >>> axis = Axis(xyz=(1.0, 0.0, 0.0))
+        >>> axis = Axis(xyz=(1.0, 0.0, 0.0))  # X-axis rotation
         >>> axis.to_xml()
-        <Element 'axis' at 0x7f8b3c0b4c70>
+        <Element 'axis' at 0x...>
+
+        >>> xml_str = '<axis xyz="0 1 0"/>'
+        >>> xml_element = ET.fromstring(xml_str)
+        >>> axis = Axis.from_xml(xml_element)
+        >>> axis.xyz
+        (0.0, 1.0, 0.0)
     """
 
     xyz: tuple[float, float, float]
@@ -329,21 +355,32 @@ class Inertia:
     """
     Represents the inertia tensor of a link in the robot model.
 
+    The inertia tensor is a 3x3 symmetric matrix that describes how the body's mass
+    is distributed relative to its center of mass.
+
     Attributes:
-        ixx (float): The inertia tensor element Ixx.
-        iyy (float): The inertia tensor element Iyy.
-        izz (float): The inertia tensor element Izz.
-        ixy (float): The inertia tensor element Ixy.
-        ixz (float): The inertia tensor element Ixz.
-        iyz (float): The inertia tensor element Iyz.
+        ixx (float): Moment of inertia about the x-axis.
+        iyy (float): Moment of inertia about the y-axis.
+        izz (float): Moment of inertia about the z-axis.
+        ixy (float): Product of inertia about the xy-plane.
+        ixz (float): Product of inertia about the xz-plane.
+        iyz (float): Product of inertia about the yz-plane.
 
     Methods:
         to_xml: Converts the inertia tensor to an XML element.
+        to_mjcf: Converts the inertia tensor to a MuJoCo compatible XML element.
+        to_matrix: Returns the inertia tensor as a 3x3 numpy array.
+
+    Class Methods:
+        from_xml: Creates an inertia tensor from an XML element.
+        zero_inertia: Creates an inertia tensor with all zero values.
 
     Examples:
-        >>> inertia = Inertia(ixx=1.0, iyy=2.0, izz=3.0, ixy=0.0, ixz=0.0, iyz=0.0)
-        >>> inertia.to_xml()
-        <Element 'inertia' at 0x7f8b3c0b4c70>
+        >>> inertia = Inertia(ixx=1.0, iyy=1.0, izz=1.0, ixy=0.0, ixz=0.0, iyz=0.0)
+        >>> inertia.to_matrix
+        array([[1., 0., 0.],
+               [0., 1., 0.],
+               [0., 0., 1.]])
     """
 
     ixx: float
@@ -436,6 +473,12 @@ class Inertia:
 
     @property
     def to_matrix(self) -> np.array:
+        """
+        Returns the inertia tensor as a 3x3 numpy array.
+
+        Returns:
+            The inertia tensor as a 3x3 numpy array.
+        """
         return np.array([
             [self.ixx, self.ixy, self.ixz],
             [self.ixy, self.iyy, self.iyz],
@@ -443,29 +486,35 @@ class Inertia:
         ])
 
 
-
 @dataclass
 class Material:
     """
     Represents the material properties of a link in the robot model.
 
+    Materials define the visual appearance of links in the robot model,
+    primarily through their color properties.
+
     Attributes:
-        name (str): The name of the material.
-        color (tuple[float, float, float, float]): The color of the material in RGBA format.
+        name (str): The name identifier for the material.
+        color (tuple[float, float, float, float]): The RGBA color values,
+            each component in range [0.0, 1.0].
 
     Methods:
         to_xml: Converts the material properties to an XML element.
+        to_mjcf: Converts the material to a MuJoCo compatible XML element.
 
     Class Methods:
-        from_color: Creates a material from a color.
+        from_xml: Creates a material from an XML element.
+        from_color: Creates a material from a predefined Colors enum value.
 
     Examples:
-        >>> material = Material(name="material", color=(1.0, 0.0, 0.0, 1.0))
+        >>> material = Material(name="red_material", color=(1.0, 0.0, 0.0, 1.0))
         >>> material.to_xml()
-        <Element 'material' at 0x7f8b3c0b4c70>
+        <Element 'material' at 0x...>
 
-        >>> Material.from_color(name="material", color=Colors.RED)
-        Material(name='material', color=(1.0, 0.0, 0.0, 1.0))
+        >>> material = Material.from_color("steel_material", Colors.BLUE)
+        >>> material.color
+        (0.0, 0.0, 1.0, 1.0)
     """
 
     name: str
@@ -555,18 +604,30 @@ class InertialLink:
     """
     Represents the inertial properties of a link in the robot model.
 
+    This class combines mass, center of mass (via origin), and inertia tensor
+    properties to fully describe a link's inertial characteristics.
+
     Attributes:
-        mass (float): The mass of the link.
-        inertia (Inertia): The inertia properties of the link.
-        origin (Origin): The origin of the link.
+        mass (float): The mass of the link in kilograms.
+        inertia (Inertia): The inertia tensor of the link.
+        origin (Origin): The center of mass position and orientation.
 
     Methods:
         to_xml: Converts the inertial properties to an XML element.
+        to_mjcf: Converts the inertial properties to a MuJoCo compatible XML element.
+        transform: Applies a transformation matrix to the inertial properties.
+
+    Class Methods:
+        from_xml: Creates an InertialLink from an XML element.
 
     Examples:
-        >>> inertial = InertialLink(mass=1.0, inertia=Inertia(...), origin=Origin(...))
+        >>> inertial = InertialLink(
+        ...     mass=1.0,
+        ...     inertia=Inertia(1.0, 1.0, 1.0, 0.0, 0.0, 0.0),
+        ...     origin=Origin.zero_origin()
+        ... )
         >>> inertial.to_xml()
-        <Element 'inertial' at 0x7f8b3c0b4c70>
+        <Element 'inertial' at 0x...>
     """
 
     mass: float
@@ -584,9 +645,13 @@ class InertialLink:
             The XML element representing the inertial properties.
 
         Examples:
-            >>> inertial = InertialLink(mass=1.0, inertia=Inertia(...), origin=Origin(...))
+            >>> inertial = InertialLink(
+            ...     mass=1.0,
+            ...     inertia=Inertia(1.0, 1.0, 1.0, 0.0, 0.0, 0.0),
+            ...     origin=Origin.zero_origin()
+            ... )
             >>> inertial.to_xml()
-            <Element 'inertial' at 0x7f8b3c0b4c70>
+            <Element 'inertial' at 0x...>
         """
         inertial = ET.Element("inertial") if root is None else ET.SubElement(root, "inertial")
         ET.SubElement(inertial, "mass", value=format_number(self.mass))
@@ -611,7 +676,6 @@ class InertialLink:
         self.origin.to_mjcf(inertial)
         self.inertia.to_mjcf(inertial)
 
-    # Adding a method to transform (rotate and translate) an Inertia Matrix
     def transform(self, tf_matrix: np.matrix, inplace: bool = False) -> Union["InertialLink", None]:
         """
         Apply a transformation matrix to the Inertial Properties of the a link.
@@ -637,17 +701,11 @@ class InertialLink:
             An analysis (on 100k runs) suggests that this is 3× faster than a direct approach on the tensor elements likely because numpy's libraries are optimized for matrix operations.
             Ref: https://chatgpt.com/share/6781b6ac-772c-8006-b1a9-7f2dc3e3ef4d
         """
-        # Extract the rotation matrix R and translation vector d from T
+
         R = tf_matrix[:3, :3]  # Top-left 3x3 block is the rotation matrix
         p = tf_matrix[:3, 3]   # Top-right 3x1 block is the translation vector
 
-        # Unpack the inertia tensor components
-        # Example is ixx=1.0, iyy=2.0, izz=3.0, ixy=0.0, ixz=0.0, iyz=0.
-
-        # Construct the original inertia matrix
         inertia_matrix = self.inertia.to_matrix
-
-        # Rotate the inertia matrix
         I_rot = R @ inertia_matrix @ R.T
 
         # Compute the parallel axis theorem adjustment
@@ -656,7 +714,6 @@ class InertialLink:
         # Final transformed inertia matrix
         I_transformed = I_rot + parallel_axis_adjustment
 
-        # Extract the components of the transformed inertia tensor
         ixx_prime = I_transformed[0, 0]
         iyy_prime = I_transformed[1, 1]
         izz_prime = I_transformed[2, 2]
@@ -710,6 +767,15 @@ class InertialLink:
 
 
 def set_geometry_from_xml(geometry: ET.Element) -> BaseGeometry | None:
+    """
+    Set the geometry from an XML element.
+
+    Args:
+        geometry: The XML element to create the geometry from.
+
+    Returns:
+        The geometry created from the XML element.
+    """
     if geometry.find("mesh") is not None:
         return MeshGeometry.from_xml(geometry)
     elif geometry.find("box"):
@@ -727,18 +793,32 @@ class VisualLink:
     """
     Represents the visual properties of a link in the robot model.
 
+    This class defines how a link appears in visualization tools and simulators,
+    including its position, geometry, and material properties.
+
     Attributes:
-        origin (Origin): The origin of the link.
-        geometry (BaseGeometry): The geometry of the link.
-        material (Material): The material properties of the link.
+        name (Union[str, None]): Optional name identifier for the visual element.
+        origin (Origin): The position and orientation of the visual geometry.
+        geometry (BaseGeometry): The shape of the visual element (box, cylinder, mesh, etc.).
+        material (Material): The material properties (color, texture) of the visual element.
 
     Methods:
         to_xml: Converts the visual properties to an XML element.
+        to_mjcf: Converts the visual properties to a MuJoCo compatible XML element.
+        transform: Applies a transformation matrix to the visual geometry's origin.
+
+    Class Methods:
+        from_xml: Creates a VisualLink from an XML element.
 
     Examples:
-        >>> visual = VisualLink(origin=Origin(...), geometry=BoxGeometry(...), material=Material(...))
+        >>> visual = VisualLink(
+        ...     name="link_visual",
+        ...     origin=Origin.zero_origin(),
+        ...     geometry=BoxGeometry(size=(1.0, 1.0, 1.0)),
+        ...     material=Material.from_color("red", Colors.RED)
+        ... )
         >>> visual.to_xml()
-        <Element 'visual' at 0x7f8b3c0b4c70>
+        <Element 'visual' at 0x...>
     """
 
     name: Union[str, None]
@@ -775,9 +855,14 @@ class VisualLink:
             The XML element representing the visual properties.
 
         Examples:
-            >>> visual = VisualLink(origin=Origin(...), geometry=BoxGeometry(...), material=Material(...))
+            >>> visual = VisualLink(
+            ...     name="link_visual",
+            ...     origin=Origin.zero_origin(),
+            ...     geometry=BoxGeometry(size=(1.0, 1.0, 1.0)),
+            ...     material=Material.from_color("red", Colors.RED)
+            ... )
             >>> visual.to_xml()
-            <Element 'visual' at 0x7f8b3c0b4c70>
+            <Element 'visual' at 0x...>
         """
         visual = ET.Element("visual") if root is None else ET.SubElement(root, "visual")
         if self.name:
@@ -798,9 +883,14 @@ class VisualLink:
             The XML element representing the visual properties.
 
         Examples:
-            >>> visual = VisualLink(origin=Origin(...), geometry=BoxGeometry(...), material=Material(...))
+            >>> visual = VisualLink(
+            ...     name="link_visual",
+            ...     origin=Origin.zero_origin(),
+            ...     geometry=BoxGeometry(size=(1.0, 1.0, 1.0)),
+            ...     material=Material.from_color("red", Colors.RED)
+            ... )
             >>> visual.to_mjcf()
-            <Element 'visual' at 0x7f8b3c0b4c70>
+            <Element 'visual' at 0x...>
         """
         visual = root if root.tag == "geom" else ET.SubElement(root, "geom")
         if self.name:
@@ -852,17 +942,32 @@ class CollisionLink:
     """
     Represents the collision properties of a link in the robot model.
 
+    This class defines the geometry used for collision detection in physics
+    simulations, which may be different from the visual geometry.
+
     Attributes:
-        origin (Origin): The origin of the link.
-        geometry (BaseGeometry): The geometry of the link.
+        name (Union[str, None]): Optional name identifier for the collision element.
+        origin (Origin): The position and orientation of the collision geometry.
+        geometry (BaseGeometry): The shape used for collision detection.
+        friction (Optional[tuple[float, float, float]]): Optional friction coefficients
+            (static, dynamic, rolling).
 
     Methods:
         to_xml: Converts the collision properties to an XML element.
+        to_mjcf: Converts the collision properties to a MuJoCo compatible XML element.
+        transform: Applies a transformation matrix to the collision geometry's origin.
+
+    Class Methods:
+        from_xml: Creates a CollisionLink from an XML element.
 
     Examples:
-        >>> collision = CollisionLink(origin=Origin(...), geometry=BoxGeometry(...))
+        >>> collision = CollisionLink(
+        ...     name="link_collision",
+        ...     origin=Origin.zero_origin(),
+        ...     geometry=BoxGeometry(size=(1.0, 1.0, 1.0))
+        ... )
         >>> collision.to_xml()
-        <Element 'collision' at 0x7f8b3c0b4c70>
+        <Element 'collision' at 0x...>
     """
 
     name: Union[str, None]
@@ -984,28 +1089,44 @@ class CollisionLink:
 @dataclass
 class Link:
     """
-    Represents a link in the robot model.
+    Represents a complete link in the robot model.
+
+    A link is a rigid body in the robot model that can contain visual, collision,
+    and inertial properties. Links are connected by joints to form the complete
+    robot structure.
 
     Attributes:
-        name (str): The name of the link.
-        visual (VisualLink): The visual properties of the link.
-        collision (CollisionLink): The collision properties of the link.
-        inertial (InertialLink): The inertial properties of the link.
+        name (str): The unique identifier for the link.
+        visual (VisualLink | None): Optional visual properties for rendering.
+        collision (CollisionLink | None): Optional collision properties for physics simulation.
+        inertial (InertialLink | None): Optional inertial properties for dynamics.
 
     Methods:
         to_xml: Converts the link to an XML element.
+        to_mjcf: Converts the link to a MuJoCo compatible XML element.
 
     Class Methods:
-        from_xml: Creates a link from an XML element.
+        from_xml: Creates a Link from an XML element.
 
     Examples:
-        >>> link = Link(name="link", visual=VisualLink(...), collision=CollisionLink(...), inertial=InertialLink(...))
+        >>> link = Link(
+        ...     name="base_link",
+        ...     visual=VisualLink(...),
+        ...     collision=CollisionLink(...),
+        ...     inertial=InertialLink(...)
+        ... )
         >>> link.to_xml()
-        <Element 'link' at 0x7f8b3c0b4c70>
+        <Element 'link' at 0x...>
 
-        >>> part = Part(...)
-        >>> Link.from_part(part)
-        Link(name='partId', visual=None, collision=None, inertial=None)
+        >>> xml_str = '''
+        ...     <link name="base_link">
+        ...         <visual>...</visual>
+        ...         <collision>...</collision>
+        ...         <inertial>...</inertial>
+        ...     </link>
+        ... '''
+        >>> xml_element = ET.fromstring(xml_str)
+        >>> link = Link.from_xml(xml_element)
     """
 
     name: str
@@ -1025,13 +1146,13 @@ class Link:
 
         Examples:
             >>> link = Link(
-            ...     name="link",
+            ...     name="base_link",
             ...     visual=VisualLink(...),
             ...     collision=CollisionLink(...),
-            ...     inertial=InertialLink(...),
+            ...     inertial=InertialLink(...)
             ... )
             >>> link.to_xml()
-            <Element 'link' at 0x7f8b3c0b4c70>
+            <Element 'link' at 0x...>
         """
         link = ET.Element("link") if root is None else ET.SubElement(root, "link")
         link.set("name", self.name)
@@ -1055,13 +1176,13 @@ class Link:
 
         Examples:
             >>> link = Link(
-            ...     name="link",
+            ...     name="base_link",
             ...     visual=VisualLink(...),
             ...     collision=CollisionLink(...),
-            ...     inertial=InertialLink(...),
+            ...     inertial=InertialLink(...)
             ... )
             >>> link.to_mjcf()
-            <Element 'link' at 0x7f8b3c0b4c70>
+            <Element 'link' at 0x...>
         """
         link = ET.Element("body") if root is None else ET.SubElement(root, "body")
         link.set("name", self.name)
